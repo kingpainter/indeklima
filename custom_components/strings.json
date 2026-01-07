@@ -1,0 +1,154 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Setup Indeklima v2.0",
+        "description": "Welcome to the new version of Indeklima with improved room management!",
+        "data": {
+          "name": "Integration name"
+        }
+      },
+      "room_menu": {
+        "title": "Room Overview",
+        "description": "Added rooms:\n{rooms}\n\nChoose what to do:",
+        "data": {
+          "action": "Action"
+        }
+      },
+      "room_config": {
+        "title": "Configure New Room",
+        "description": "Select sensors and devices for the room. You can select multiple sensors of the same type - the average will be used.",
+        "data": {
+          "name": "Room name",
+          "humidity_sensors": "Humidity sensors",
+          "temperature_sensors": "Temperature sensors",
+          "co2_sensors": "CO2 sensors",
+          "voc_sensors": "VOC sensors",
+          "formaldehyde_sensors": "Formaldehyde sensors",
+          "window_sensors": "Window/door sensors",
+          "dehumidifier": "Dehumidifier",
+          "fan": "Fan/Ventilator",
+          "notification_targets": "Notifications"
+        }
+      }
+    },
+    "error": {
+      "no_rooms": "You must add at least one room before saving"
+    },
+    "abort": {
+      "already_configured": "Indeklima is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Indeklima Options",
+        "description": "Manage your Indeklima configuration"
+      },
+      "main_menu": {
+        "title": "Indeklima Settings",
+        "description": "Choose what to configure:",
+        "data": {
+          "menu": "Menu"
+        }
+      },
+      "thresholds": {
+        "title": "Threshold Values",
+        "description": "Adjust threshold values for indoor climate quality",
+        "data": {
+          "humidity_summer_max": "Max humidity summer (%)",
+          "humidity_winter_max": "Max humidity winter (%)",
+          "co2_max": "Max CO2 (ppm)",
+          "voc_max": "Max VOC (mg/m³)",
+          "formaldehyde_max": "Max formaldehyde (mg/m³)"
+        }
+      },
+      "room_list": {
+        "title": "Manage Rooms",
+        "description": "Add, edit or delete rooms",
+        "data": {
+          "action": "Action"
+        }
+      },
+      "add_room": {
+        "title": "Add New Room",
+        "description": "Configure a new room. You can select multiple sensors of the same type.",
+        "data": {
+          "name": "Room name",
+          "humidity_sensors": "Humidity sensors",
+          "temperature_sensors": "Temperature sensors",
+          "co2_sensors": "CO2 sensors",
+          "voc_sensors": "VOC sensors",
+          "formaldehyde_sensors": "Formaldehyde sensors",
+          "window_sensors": "Window/door sensors",
+          "dehumidifier": "Dehumidifier",
+          "fan": "Fan/Ventilator",
+          "notification_targets": "Notifications"
+        }
+      },
+      "edit_room": {
+        "title": "Edit Room",
+        "description": "Update room configuration",
+        "data": {
+          "name": "Room name",
+          "humidity_sensors": "Humidity sensors",
+          "temperature_sensors": "Temperature sensors",
+          "co2_sensors": "CO2 sensors",
+          "voc_sensors": "VOC sensors",
+          "formaldehyde_sensors": "Formaldehyde sensors",
+          "window_sensors": "Window/door sensors",
+          "dehumidifier": "Dehumidifier",
+          "fan": "Fan/Ventilator",
+          "notification_targets": "Notifications"
+        }
+      },
+      "weather_config": {
+        "title": "Weather Integration",
+        "description": "{info}",
+        "data": {
+          "weather_entity": "Weather entity"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "humidity_avg": {
+        "name": "Average humidity"
+      },
+      "temperature_avg": {
+        "name": "Average temperature"
+      },
+      "co2_avg": {
+        "name": "Average CO2"
+      },
+      "voc_avg": {
+        "name": "Average VOC"
+      },
+      "formaldehyde_avg": {
+        "name": "Average formaldehyde"
+      },
+      "severity": {
+        "name": "Severity score"
+      },
+      "severity_status": {
+        "name": "Status"
+      },
+      "open_windows": {
+        "name": "Open windows"
+      },
+      "trend_humidity": {
+        "name": "Humidity trend"
+      },
+      "trend_co2": {
+        "name": "CO2 trend"
+      },
+      "trend_severity": {
+        "name": "Severity trend"
+      },
+      "room_status": {
+        "name": "Status"
+      }
+    }
+  }
+}

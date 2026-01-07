@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.pyc
+.pytest_cache/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.vs/
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Home Assistant
+*.log
+.storage/
+secrets.yaml
+*.db
+*.db-shm
+*.db-wal
+
+# Backups & Archives
+backups/
+*.bak
+*.old
+*.backup
+*.tmp
+*.temp
+~*
+
+# Development
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Personal notes
+NOTES.md
+TODO.md
+PRIVATE.md
+TESTING.md
+
+# OS generated
+.DS_Store
+.AppleDouble
+.LSOverride

@@ -1,0 +1,154 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Opsætning af Indeklima v2.0",
+        "description": "Velkommen til den nye version af Indeklima med forbedret rum-håndtering!",
+        "data": {
+          "name": "Navn på integration"
+        }
+      },
+      "room_menu": {
+        "title": "Rum Oversigt",
+        "description": "Tilføjede rum:\n{rooms}\n\nVælg hvad du vil gøre:",
+        "data": {
+          "action": "Handling"
+        }
+      },
+      "room_config": {
+        "title": "Konfigurer Nyt Rum",
+        "description": "Vælg sensorer og enheder for rummet. Du kan vælge flere sensorer af samme type - gennemsnittet vil blive brugt.",
+        "data": {
+          "name": "Rum navn",
+          "humidity_sensors": "Fugtighedssensorer",
+          "temperature_sensors": "Temperatursensorer",
+          "co2_sensors": "CO2 sensorer",
+          "voc_sensors": "VOC sensorer",
+          "formaldehyde_sensors": "Formaldehyd sensorer",
+          "window_sensors": "Vindue/dør sensorer",
+          "dehumidifier": "Affugter",
+          "fan": "Ventilator",
+          "notification_targets": "Notifikationer"
+        }
+      }
+    },
+    "error": {
+      "no_rooms": "Du skal tilføje mindst ét rum før du kan gemme"
+    },
+    "abort": {
+      "already_configured": "Indeklima er allerede konfigureret"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Indeklima Indstillinger",
+        "description": "Administrer din Indeklima konfiguration"
+      },
+      "main_menu": {
+        "title": "Indeklima Indstillinger",
+        "description": "Vælg hvad du vil konfigurere:",
+        "data": {
+          "menu": "Menu"
+        }
+      },
+      "thresholds": {
+        "title": "Grænseværdier",
+        "description": "Juster grænseværdier for indeklima kvalitet",
+        "data": {
+          "humidity_summer_max": "Max fugtighed sommer (%)",
+          "humidity_winter_max": "Max fugtighed vinter (%)",
+          "co2_max": "Max CO2 (ppm)",
+          "voc_max": "Max VOC (mg/m³)",
+          "formaldehyde_max": "Max formaldehyd (mg/m³)"
+        }
+      },
+      "room_list": {
+        "title": "Administrer Rum",
+        "description": "Tilføj, rediger eller slet rum",
+        "data": {
+          "action": "Handling"
+        }
+      },
+      "add_room": {
+        "title": "Tilføj Nyt Rum",
+        "description": "Konfigurer et nyt rum. Du kan vælge flere sensorer af samme type.",
+        "data": {
+          "name": "Rum navn",
+          "humidity_sensors": "Fugtighedssensorer",
+          "temperature_sensors": "Temperatursensorer",
+          "co2_sensors": "CO2 sensorer",
+          "voc_sensors": "VOC sensorer",
+          "formaldehyde_sensors": "Formaldehyd sensorer",
+          "window_sensors": "Vindue/dør sensorer",
+          "dehumidifier": "Affugter",
+          "fan": "Ventilator",
+          "notification_targets": "Notifikationer"
+        }
+      },
+      "edit_room": {
+        "title": "Rediger Rum",
+        "description": "Opdater rum konfiguration",
+        "data": {
+          "name": "Rum navn",
+          "humidity_sensors": "Fugtighedssensorer",
+          "temperature_sensors": "Temperatursensorer",
+          "co2_sensors": "CO2 sensorer",
+          "voc_sensors": "VOC sensorer",
+          "formaldehyde_sensors": "Formaldehyd sensorer",
+          "window_sensors": "Vindue/dør sensorer",
+          "dehumidifier": "Affugter",
+          "fan": "Ventilator",
+          "notification_targets": "Notifikationer"
+        }
+      },
+      "weather_config": {
+        "title": "Vejr Integration",
+        "description": "{info}",
+        "data": {
+          "weather_entity": "Vejr entity"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "humidity_avg": {
+        "name": "Gennemsnitlig fugtighed"
+      },
+      "temperature_avg": {
+        "name": "Gennemsnitlig temperatur"
+      },
+      "co2_avg": {
+        "name": "Gennemsnitlig CO2"
+      },
+      "voc_avg": {
+        "name": "Gennemsnitlig VOC"
+      },
+      "formaldehyde_avg": {
+        "name": "Gennemsnitlig formaldehyd"
+      },
+      "severity": {
+        "name": "Severity score"
+      },
+      "severity_status": {
+        "name": "Status"
+      },
+      "open_windows": {
+        "name": "Åbne vinduer"
+      },
+      "trend_humidity": {
+        "name": "Fugtigheds trend"
+      },
+      "trend_co2": {
+        "name": "CO2 trend"
+      },
+      "trend_severity": {
+        "name": "Severity trend"
+      },
+      "room_status": {
+        "name": "Status"
+      }
+    }
+  }
+}

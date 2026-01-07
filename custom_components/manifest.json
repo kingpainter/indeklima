@@ -1,0 +1,14 @@
+{
+  "domain": "indeklima",
+  "name": "Indeklima",
+  "codeowners": ["@kingpainter"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/kingpainter/indeklima",
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/kingpainter/indeklima/issues",
+  "requirements": [],
+  "version": "2.0.0",
+  "quality_scale": "silver"
+}
