@@ -69,7 +69,7 @@ async def _async_setup_devices(
         manufacturer="Indeklima",
         model="Climate Monitor v2",
         sw_version=__version__,
-        configuration_url="https://github.com/yourusername/indeklima",
+        configuration_url="https://github.com/kingpainter/indeklima",
     )
     
     # Create device for each room
