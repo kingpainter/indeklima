@@ -1,10 +1,10 @@
 {
   "name": "Indeklima",
-  "content_in_root": true,
+  "content_in_root": false,
   "filename": "indeklima",
   "render_readme": true,
   "homeassistant": "2024.1.0",
-  "domains": ["sensor"],
+  "domains": ["indeklima"],
   "category": "integration",
   "hacs": "1.6.0"
 }
