@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "Opsætning af Indeklima v2.0",
-        "description": "Velkommen til den nye version af Indeklima med forbedret rum-håndtering!",
+        "title": "Opsætning af Indeklima v2.1",
+        "description": "Velkommen til Indeklima med smarte ventilationsanbefalinger!",
         "data": {
           "name": "Navn på integration"
         }
@@ -145,6 +145,9 @@
       },
       "trend_severity": {
         "name": "Severity trend"
+      },
+      "ventilation_recommendation": {
+        "name": "Ventilationsanbefaling"
       },
       "room_status": {
         "name": "Status"

@@ -7,23 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### FASE 5 & 6 - Planned
-- 🌬️ **Ventilationsanbefalinger** - Smart sensor der analyserer indeklima og vejr
-  - Intelligente anbefalinger: Ja/Nej/Valgfrit
-  - Tager højde for udendørs temperatur og fugtighed
-  - Viser hvilke rum der trænger til udluftning
-  - Begrundelse for anbefalingen
-- 🔔 **Automation Blueprint** - Færdig notifikations-automation
-  - Per-rum notifikationer
-  - Smart cooldown system
-  - Tidsstyring (kun indenfor åbningstider)
-  - Severity threshold valg
-  - Inkluderer ventilations tips
-- 📲 Diagnostics platform (Gold tier)
+### FASE 6 - Planned
+- 📲 Automation Blueprint - Færdig notifikations-automation ✅ (Moved to v2.1.0)
 - 📲 Automatisk affugter kontrol
 - 📲 Fan automation
 - 📲 Integration med ventilationssystemer
 - 📲 Netatmo thermostat integration
+- 📲 Diagnostics platform (Gold tier)
+
+## [2.1.0] - 2025-01-11
+
+### Added - FASE 5
+- 🌬️ **Ventilationsanbefaling** - Smart sensor der analyserer indeklima og vejr
+  - Intelligente anbefalinger: Ja/Nej/Valgfrit
+  - Tager højde for udendørs temperatur og fugtighed
+  - Viser hvilke rum der trænger til udluftning
+  - Begrundelse for anbefalingen
+  - Attributes: begrundelse, rum, ude_temperatur, ude_fugtighed
+- 📱 **Automation Blueprint** - Færdig notifikations-automation
+  - Per-rum notifikationer med severity threshold
+  - Smart cooldown system via `last_notified` attribute
+  - Tidsstyring (kun indenfor åbningstider)
+  - Inkluderer ventilations tips
+  - Python script til cooldown håndtering
+- 🔔 **Last Notified Tracking** - Room sensors tracker sidste notifikation
+  - `last_notified` attribute på alle room sensors
+  - Bruges til intelligent cooldown i automations
+  - ISO 8601 timestamp format
+
+### Changed
+- 📊 Updated SENSOR_TYPES in const.py with ventilation_recommendation
+- 🔧 Enhanced sensor.py with ventilation sensor support
+- 📝 Version bump to 2.1.0 across all files
+
+### Technical
+- ✅ Maintained Silver tier compliance
+- ✅ All new features follow HA guidelines
+- ✅ Proper device classes and translations
+- ✅ Backward compatible with v2.0.0 configurations
 
 ## [2.0.0] - 2025-01-04
 
@@ -101,6 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Minor (0.X.0)**: New features, backward compatible
 - **Patch (0.0.X)**: Bug fixes, improvements
 
-[Unreleased]: https://github.com/kingpainter/indeklima/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/kingpainter/indeklima/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/kingpainter/indeklima/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/kingpainter/indeklima/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/kingpainter/indeklima/releases/tag/v1.0.0

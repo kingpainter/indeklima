@@ -1,10 +1,10 @@
 """Constants for Indeklima integration.
 
-Version: 2.0.0
+Version: 2.1.0
 """
 from typing import Final
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 DOMAIN: Final = "indeklima"
 
@@ -106,6 +106,12 @@ SENSOR_TYPES: Final = {
         "icon": "mdi:trending-up",
         "device_class": None,
     },
+    "ventilation_recommendation": {
+        "name": "Ventilationsanbefaling",
+        "unit": None,
+        "icon": "mdi:window-open-variant",
+        "device_class": None,
+    },
 }
 
 # Status levels
@@ -128,3 +134,8 @@ NOTIFICATION_COOLDOWN: Final = 7200
 TREND_RISING: Final = "Stigende"
 TREND_FALLING: Final = "Faldende"
 TREND_STABLE: Final = "Stabil"
+
+# Ventilation states
+VENTILATION_YES: Final = "Ja"
+VENTILATION_NO: Final = "Nej"
+VENTILATION_OPTIONAL: Final = "Valgfrit"

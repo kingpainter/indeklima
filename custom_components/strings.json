@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "Setup Indeklima v2.0",
-        "description": "Welcome to the new version of Indeklima with improved room management!",
+        "title": "Setup Indeklima v2.1",
+        "description": "Welcome to Indeklima with smart ventilation recommendations!",
         "data": {
           "name": "Integration name"
         }
@@ -145,6 +145,9 @@
       },
       "trend_severity": {
         "name": "Severity trend"
+      },
+      "ventilation_recommendation": {
+        "name": "Ventilation recommendation"
       },
       "room_status": {
         "name": "Status"

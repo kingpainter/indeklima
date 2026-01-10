@@ -1,8 +1,8 @@
 # 🏠 Indeklima - Home Assistant Custom Integration
 
-En avanceret Home Assistant integration til overvågning af indeklima med intelligent analyse.
+En avanceret Home Assistant integration til overvågning af indeklima med intelligent analyse og smarte ventilationsanbefalinger.
 
-**Version:** 2.0.0  
+**Version:** 2.1.0  
 **Quality Scale:** Silver Tier
 
 ## ✨ Features
@@ -20,12 +20,13 @@ En avanceret Home Assistant integration til overvågning af indeklima med intell
 - 🌞 **Sæsonbaserede grænser**: Forskellige grænser for sommer og vinter
 - 🏷️ **Device organization**: Moderne hub + room device struktur
 - 🌍 **Multi-language**: Dansk og engelsk
+- 🌬️ **Ventilationsanbefalinger**: Smart sensor der analyserer indeklima og vejr (NYT i v2.1!)
+- 📱 **Automation Blueprint**: Færdig notifikations-automation med cooldown (NYT i v2.1!)
 
-### 🚧 Planlagt (v2.1+)
-- 💡 Ventilationsanbefalinger baseret på vejr
-- 🔔 Automation blueprint for notifikationer
-- 📲 Automatisk device kontrol
+### 🚧 Planlagt (v2.2+)
+- 📲 Automatisk device kontrol (affugtere, fans)
 - 🎯 Diagnostics platform
+- 🔗 Integration med ventilationssystemer
 
 ## 📦 Installation
 
@@ -73,7 +74,7 @@ Du kan justere grænseværdier via integrationens indstillinger:
 - **Max CO2**: Standard 1000 ppm
 - **Max VOC**: Standard 3.0 mg/m³
 - **Max Formaldehyd**: Standard 0.15 mg/m³
-- **Vejr entity**: Vælg din vejr sensor (bruges til fremtidige features)
+- **Vejr entity**: Vælg din vejr sensor (bruges til ventilationsanbefalinger)
 
 ### Efter Installation
 
@@ -100,6 +101,7 @@ Globale sensorer der aggregerer data fra alle rum:
 - `sensor.indeklima_hub_fugtigheds_trend` - Stigende/Faldende/Stabil
 - `sensor.indeklima_hub_co2_trend`
 - `sensor.indeklima_hub_severity_trend`
+- `sensor.indeklima_hub_ventilationsanbefaling` - Ja/Nej/Valgfrit (NYT i v2.1!)
 
 ### Room Sensors
 For hvert rum oprettes en device med en status sensor:
@@ -120,7 +122,99 @@ voc: 120
 voc_sensorer: 1
 formaldehyd: 45
 formaldehyd_sensorer: 1
+last_notified: "2025-01-11T14:30:00+00:00"  # NYT i v2.1!
 ```
+
+## 🌬️ Ventilationsanbefalinger (NYT i v2.1!)
+
+### Sensor: `sensor.indeklima_hub_ventilationsanbefaling`
+
+Denne sensor analyserer dit indeklima og giver intelligente anbefalinger om hvornår du skal lufte ud.
+
+**States:**
+- **Ja** - Du bør lufte ud nu (godt indeklima + gode udeforhold)
+- **Nej** - Vent med at lufte ud (enten godt indeklima eller dårlige udeforhold)
+- **Valgfrit** - Det er op til dig (vinduer allerede åbne eller grænsetilfælde)
+
+**Attributes:**
+```yaml
+begrundelse: "Høj fugtighed, Høj CO2"
+rum: "Stue, Køkken"
+ude_temperatur: 12.5
+ude_fugtighed: 65
+```
+
+### Dashboard Eksempel
+
+```yaml
+type: custom:mushroom-template-card
+primary: |
+  {% set status = states('sensor.indeklima_hub_ventilationsanbefaling') %}
+  {% if status == 'Ja' %}
+    🌬️ Luft ud nu!
+  {% elif status == 'Valgfrit' %}
+    🤔 Overvej at lufte ud
+  {% else %}
+    ⏳ Vent med at lufte
+  {% endif %}
+secondary: |
+  {{ state_attr('sensor.indeklima_hub_ventilationsanbefaling', 'begrundelse') }}
+  
+  {% set rooms = state_attr('sensor.indeklima_hub_ventilationsanbefaling', 'rum') %}
+  {% if rooms and rooms != 'Ingen specifikke' %}
+  **Rum:** {{ rooms }}
+  {% endif %}
+icon: |
+  {% set status = states('sensor.indeklima_hub_ventilationsanbefaling') %}
+  {% if status == 'Ja' %}mdi:window-open-variant
+  {% elif status == 'Valgfrit' %}mdi:window-open
+  {% else %}mdi:window-closed{% endif %}
+icon_color: |
+  {% set status = states('sensor.indeklima_hub_ventilationsanbefaling') %}
+  {% if status == 'Ja' %}green
+  {% elif status == 'Valgfrit' %}orange
+  {% else %}red{% endif %}
+```
+
+## 📱 Automation Blueprint (NYT i v2.1!)
+
+Indeklima inkluderer nu en færdig automation blueprint til per-rum notifikationer!
+
+### Installation
+
+1. **Enable python_script** i configuration.yaml:
+```yaml
+python_script:
+```
+
+2. **Kopier filer:**
+```
+config/python_scripts/indeklima_set_last_notified.py
+config/blueprints/automation/indeklima/room_notification.yaml
+```
+
+3. **Genstart Home Assistant**
+
+### Brug Blueprint
+
+1. Gå til Settings → Automations & Scenes
+2. Klik "+ Create Automation"
+3. Vælg "Indeklima - Rum Notifikation v2.1"
+4. Konfigurer:
+   - Rum sensor
+   - Notifikations service
+   - Severity threshold
+   - Cooldown timer (standard 2 timer)
+   - Aktiv fra/til tidspunkt
+   - Inkluder ventilations tip
+
+### Features
+
+- ✅ Smart cooldown system (ingen spam)
+- ✅ Tidsstyring (kun i åbningstider)
+- ✅ Severity threshold valg
+- ✅ Inkluderer ventilationsanbefalinger
+- ✅ Per-rum konfiguration
 
 ## 🎨 Dashboard Eksempel
 
@@ -145,6 +239,16 @@ cards:
       {% if s > 70 %}red
       {% elif s > 40 %}orange
       {% else %}green{% endif %}
+
+  # Ventilationsanbefaling (NYT!)
+  - type: custom:mushroom-template-card
+    primary: |
+      {% set status = states('sensor.indeklima_hub_ventilationsanbefaling') %}
+      {% if status == 'Ja' %}🌬️ Luft ud nu!
+      {% elif status == 'Valgfrit' %}🤔 Overvej at lufte
+      {% else %}⏳ Vent med at lufte{% endif %}
+    secondary: |
+      {{ state_attr('sensor.indeklima_hub_ventilationsanbefaling', 'begrundelse') }}
 
   # Gennemsnit
   - type: grid
@@ -179,7 +283,7 @@ cards:
   - type: custom:auto-entities
     card:
       type: entities
-      title: 📍 Rum Status
+      title: 🏠 Rum Status
     filter:
       include:
         - entity_id: "sensor.indeklima_*_status"
@@ -203,6 +307,9 @@ secondary_info: |
 ```
 
 ## 🔔 Notifikationer
+
+### Med Blueprint (Anbefalet)
+Se [Automation Blueprint](#-automation-blueprint-nyt-i-v21) sektionen ovenfor.
 
 ### Simpel Automation
 ```yaml
@@ -243,23 +350,20 @@ Bidrag er meget velkomne!
 4. Push til branchen (`git push origin feature/AmazingFeature`)
 5. Åbn en Pull Request
 
-## 📝 Roadmap
+## 📍 Roadmap
 
-### v2.1 (Næste)
-- [ ] Ventilationsanbefalinger baseret på vejr
-- [ ] Automation blueprint for notifikationer
-- [ ] Diagnostics platform
-
-### v2.2
+### v2.2 (Q1 2025)
 - [ ] Automatisk device kontrol (affugtere, fans)
 - [ ] Integration med ventilationssystemer
 - [ ] Advanced notifikations system
+- [ ] Service calls for manuel kontrol
 
-### v3.0 (Fremtid)
+### v3.0 (Q2-Q4 2025)
 - [ ] Machine learning for mønstergenkendelse
 - [ ] Historisk analyse og rapporter
 - [ ] Multi-home support
 - [ ] Energy optimization
+- [ ] Diagnostics platform (Gold tier)
 
 ## 🐛 Fejlrapportering
 
@@ -272,6 +376,25 @@ MIT License - se [LICENSE](LICENSE) filen for detaljer
 ## 🙏 Credits
 
 Udviklet med ❤️ til Home Assistant fællesskabet
+
+---
+
+## 📝 Changelog
+
+Se [CHANGELOG.md](CHANGELOG.md) for fuld version historik.
+
+### v2.1.0 (2025-01-11)
+- 🌬️ Ventilationsanbefalinger
+- 📱 Automation Blueprint
+- 🔔 Last notified tracking
+
+### v2.0.0 (2025-01-04)
+- 🏠 Device organization
+- ✨ Modern entity naming
+- 📈 Trend analysis
+
+### v1.0.0 (2025-01-02)
+- 🎉 Initial release
 
 ---
 

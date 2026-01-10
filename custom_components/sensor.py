@@ -1,10 +1,11 @@
 """Sensor platform for Indeklima integration.
 
-Version: 2.0.0
+Version: 2.1.0
 """
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
@@ -12,6 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.util import dt as dt_util
 
 from . import IndeklimaDataCoordinator
 from .const import DOMAIN, SENSOR_TYPES, __version__
@@ -151,6 +153,7 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self._room_name = room_name
         self._entry = entry
+        self._last_notified: datetime | None = None
         
         # Create room ID (normalized for device identifier)
         room_id = room_name.lower().replace(" ", "_").replace("æ", "ae").replace("ø", "oe").replace("å", "aa")
@@ -192,6 +195,8 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
         room_data = self.coordinator.data.get("rooms", {}).get(self._room_name, {})
         
         attrs = {}
+        
+        # Add sensor values
         if "humidity" in room_data:
             attrs["fugtighed"] = round(room_data["humidity"], 1)
             if "humidity_sensors_count" in room_data:
@@ -217,4 +222,13 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
             if "formaldehyde_sensors_count" in room_data:
                 attrs["formaldehyd_sensorer"] = room_data["formaldehyde_sensors_count"]
         
+        # Add last_notified timestamp for cooldown logic
+        if self._last_notified:
+            attrs["last_notified"] = self._last_notified.isoformat()
+        
         return attrs
+    
+    def set_last_notified(self, timestamp: datetime | None = None) -> None:
+        """Set the last notified timestamp."""
+        self._last_notified = timestamp or dt_util.utcnow()
+        self.async_write_ha_state()
