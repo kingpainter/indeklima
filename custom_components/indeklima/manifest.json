@@ -3,7 +3,6 @@
   "name": "Indeklima",
   "codeowners": ["@kingpainter"],
   "config_flow": true,
-  "content_in_root": true
   "dependencies": [],
   "documentation": "https://github.com/kingpainter/indeklima",
   "integration_type": "hub",
