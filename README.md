@@ -362,21 +362,6 @@ Bidrag er meget velkomne!
 4. Push til branchen (`git push origin feature/AmazingFeature`)
 5. Åbn en Pull Request
 
-## 📍 Roadmap
-
-### v2.2 (Q1 2025)
-- [ ] Automatisk device kontrol (affugtere, fans)
-- [ ] Integration med ventilationssystemer
-- [ ] Advanced notifikations system
-- [ ] Service calls for manuel kontrol
-
-### v3.0 (Q2-Q4 2025)
-- [ ] Machine learning for mønstergenkendelse
-- [ ] Historisk analyse og rapporter
-- [ ] Multi-home support
-- [ ] Energy optimization
-- [ ] Diagnostics platform (Gold tier)
-
 ## 🐛 Fejlrapportering
 
 Fandt du en fejl? [Opret et issue](https://github.com/kingpainter/indeklima/issues)
