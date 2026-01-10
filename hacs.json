@@ -5,5 +5,6 @@
   "render_readme": true,
   "homeassistant": "2024.1.0",
   "domains": ["sensor"],
+  "category": "integration"
   "hacs": "1.6.0"
 }
