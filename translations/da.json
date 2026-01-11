@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "Opsætning af Indeklima v2.1",
-        "description": "Velkommen til Indeklima med smarte ventilationsanbefalinger!",
+        "title": "Opsætning af Indeklima v2.2",
+        "description": "Velkommen til Indeklima med indoor/outdoor vindue tracking!",
         "data": {
           "name": "Navn på integration"
         }
@@ -30,6 +30,21 @@
           "fan": "Ventilator",
           "notification_targets": "Notifikationer"
         }
+      },
+      "window_config": {
+        "title": "Konfigurer Vinduer & Døre",
+        "description": "{info}",
+        "data": {}
+      },
+      "add_room_windows": {
+        "title": "Konfigurer Vinduer & Døre",
+        "description": "{info}",
+        "data": {}
+      },
+      "edit_room_windows": {
+        "title": "Konfigurer Vinduer & Døre",
+        "description": "{info}",
+        "data": {}
       }
     },
     "error": {
@@ -136,6 +151,9 @@
       },
       "open_windows": {
         "name": "Åbne vinduer"
+      },
+      "air_circulation": {
+        "name": "Luftcirkulation"
       },
       "trend_humidity": {
         "name": "Fugtigheds trend"

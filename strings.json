@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "Setup Indeklima v2.1",
-        "description": "Welcome to Indeklima with smart ventilation recommendations!",
+        "title": "Setup Indeklima v2.2",
+        "description": "Welcome to Indeklima with indoor/outdoor window tracking!",
         "data": {
           "name": "Integration name"
         }
@@ -30,6 +30,21 @@
           "fan": "Fan/Ventilator",
           "notification_targets": "Notifications"
         }
+      },
+      "window_config": {
+        "title": "Configure Windows & Doors",
+        "description": "{info}",
+        "data": {}
+      },
+      "add_room_windows": {
+        "title": "Configure Windows & Doors",
+        "description": "{info}",
+        "data": {}
+      },
+      "edit_room_windows": {
+        "title": "Configure Windows & Doors",
+        "description": "{info}",
+        "data": {}
       }
     },
     "error": {
@@ -136,6 +151,9 @@
       },
       "open_windows": {
         "name": "Open windows"
+      },
+      "air_circulation": {
+        "name": "Air circulation"
       },
       "trend_humidity": {
         "name": "Humidity trend"

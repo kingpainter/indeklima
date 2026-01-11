@@ -7,13 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### FASE 6 - Planned
-- 📲 Automation Blueprint - Færdig notifikations-automation ✅ (Moved to v2.1.0)
+### Planned - FASE 6
 - 📲 Automatisk affugter kontrol
-- 📲 Fan automation
+- 📲 Fan automation baseret på luftcirkulation
 - 📲 Integration med ventilationssystemer
 - 📲 Netatmo thermostat integration
 - 📲 Diagnostics platform (Gold tier)
+
+## [2.2.0] - 2025-01-12
+
+### Added - Window Tracking & Air Circulation
+- 🪟 **Indoor/Outdoor Window Classification** - Skelne mellem udvendige og interne åbninger
+  - Config flow: Checkbox per vindue/dør om det fører til udendørs
+  - Udvendige vinduer: Bruges til ventilationsanbefalinger
+  - Interne døre: Bruges til luftcirkulation scoring
+  - Backward compatible: Gamle setups konverteres automatisk til "outdoor"
+- 🌬️ **Air Circulation Sensor** - Ny sensor `sensor.indeklima_hub_luftcirkulation`
+  - States: "God", "Moderat", "Dårlig"
+  - Baseret på antal åbne interne døre
+  - Attributes: `interne_døre_åbne`, `rum_med_åbne_døre`
+- 🎯 **Severity Bonus** - 5% reduktion hvis interne døre er åbne
+  - Bedre luftcirkulation = lavere severity score
+  - Automatisk anvendt i coordinator
+- 📊 **Enhanced Room Attributes** - Room sensors viser nu:
+  - `vinduer_udendørs_åbne`: Antal åbne eksterne vinduer
+  - `døre_interne_åbne`: Antal åbne interne døre
+  - `luftcirkulation_bonus`: Boolean hvis bonus er aktiv
+- 📈 **Updated Hub Sensor** - `sensor.indeklima_hub_aabne_vinduer` opdateret:
+  - State: Kun eksterne vinduer tælles
+  - New attributes: `interne_døre_rum`, `interne_døre_count`
+
+### Changed
+- ♻️ **Improved Ventilation Logic** - Kun eksterne vinduer tæller som "allerede ventilerer"
+  - Mere præcise ventilationsanbefalinger
+  - Interne døre påvirker ikke "Valgfrit" state
+- 🔄 **Config Flow Enhancement** - To-step proces for rum med vinduer:
+  1. Vælg sensorer og enheder
+  2. Konfigurer hvilke vinduer/døre der fører til udendørs
+- 📋 **Data Structure** - Window sensors nu nested dict format:
+  ```python
+  {
+    "entity_id": "binary_sensor.door",
+    "is_outdoor": True/False
+  }
+  ```
+
+### Technical
+- ✅ Maintained Silver tier compliance
+- ✅ Automatic migration from v2.1.0 format
+- ✅ Backward compatible with old string list format
+- ✅ New constants: `CONF_WINDOW_ENTITY`, `CONF_WINDOW_IS_OUTDOOR`, `CIRCULATION_BONUS`
+- ✅ Version incremented to 2.2.0 across all files
+- 📚 Complete upgrade guide: UPGRADE_v2.2.0.md
 
 ## [2.1.0] - 2025-01-11
 
@@ -66,7 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - SensorDeviceClass.HUMIDITY
   - SensorDeviceClass.TEMPERATURE
   - Automatisk enheder og ikoner
-- 🌍 **Modern Translations** - strings.json + backup
+- 🌐 **Modern Translations** - strings.json + backup
 - 🥈 **Quality Scale: Silver** - Opfylder alle Silver tier krav
 - 📚 **HA_COMPLIANCE.md** - Detaljeret compliance dokumentation
 - ⚙️ **Fuld Options Flow** - Komplet rum-håndtering efter installation
@@ -91,7 +136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 🔔 **Per-room notifications** - Configure different notification recipients per room
 - 🌡️ **Temperature support** - Added temperature sensor support
 - 🔢 **Multiple sensors per room** - Use multiple sensors of same type, get average
-- 🌍 **Multi-language support** - Danish and English translations
+- 🌐 **Multi-language support** - Danish and English translations
 
 ### Changed
 - 🔄 **Major architecture refactor** - Improved scalability and maintainability
@@ -122,7 +167,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Minor (0.X.0)**: New features, backward compatible
 - **Patch (0.0.X)**: Bug fixes, improvements
 
-[Unreleased]: https://github.com/kingpainter/indeklima/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/kingpainter/indeklima/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/kingpainter/indeklima/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/kingpainter/indeklima/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/kingpainter/indeklima/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/kingpainter/indeklima/releases/tag/v1.0.0

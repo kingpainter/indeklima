@@ -1,6 +1,6 @@
 """Config flow for Indeklima integration.
 
-Version: 2.0.0
+Version: 2.2.0
 """
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
+from homeassistant.helpers import entity_registry as er
 
 from .const import (
     DOMAIN,
@@ -23,6 +24,8 @@ from .const import (
     CONF_VOC_SENSORS,
     CONF_FORMALDEHYDE_SENSORS,
     CONF_WINDOW_SENSORS,
+    CONF_WINDOW_ENTITY,
+    CONF_WINDOW_IS_OUTDOOR,
     CONF_DEHUMIDIFIER,
     CONF_FAN,
     CONF_WEATHER_ENTITY,
@@ -45,12 +48,15 @@ _LOGGER = logging.getLogger(__name__)
 class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Indeklima."""
 
-    VERSION = 1
+    VERSION = 2  # Incremented for new window structure
 
     def __init__(self) -> None:
         """Initialize the config flow."""
         self.rooms: list[dict[str, Any]] = []
         self._name: str = "Indeklima"
+        self._temp_window_sensors: list[str] = []
+        self._temp_window_config: dict[str, bool] = {}
+        self._temp_room_config: dict[str, Any] = {}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -120,37 +126,97 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_room_config(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.FlowResult:
-        """Configure a room."""
+        """Configure a room - step 1: basic info."""
         if user_input is not None:
-            room_config: dict[str, Any] = {"name": user_input["name"]}
+            # Store basic room info and selected window sensors
+            self._temp_room_config = {"name": user_input["name"]}
             
-            # Sensors - kun tilføj hvis der er værdier
+            # Store basic sensors (not windows yet)
             for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS,
                        CONF_CO2_SENSORS, CONF_VOC_SENSORS, 
-                       CONF_FORMALDEHYDE_SENSORS, CONF_WINDOW_SENSORS,
+                       CONF_FORMALDEHYDE_SENSORS,
                        CONF_NOTIFICATION_TARGETS]:
                 val = user_input.get(key)
-                if val:  # Kun hvis ikke None eller tom liste
-                    room_config[key] = val if isinstance(val, list) else [val]
+                if val:
+                    self._temp_room_config[key] = val if isinstance(val, list) else [val]
             
-            # Devices - kun tilføj hvis der er en reel værdi
+            # Store devices
             for key in [CONF_DEHUMIDIFIER, CONF_FAN]:
                 val = user_input.get(key)
-                # Tjek for None, tom streng, eller "none" placeholder
                 if val and str(val).strip().lower() not in ("", "none"):
-                    room_config[key] = val
+                    self._temp_room_config[key] = val
             
-            self.rooms.append(room_config)
-            return await self.async_step_room_menu()
+            # Store window sensor list for next step
+            self._temp_window_sensors = user_input.get(CONF_WINDOW_SENSORS, [])
+            
+            if self._temp_window_sensors:
+                # Go to window configuration step
+                self._temp_window_config = {}
+                return await self.async_step_window_config()
+            else:
+                # No windows, save room directly
+                self.rooms.append(self._temp_room_config)
+                return await self.async_step_room_menu()
 
         return self.async_show_form(
             step_id="room_config",
             data_schema=self._get_room_schema(),
         )
 
+    async def async_step_window_config(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.FlowResult:
+        """Configure window sensors - step 2: outdoor/indoor classification."""
+        if user_input is not None:
+            # Save window configuration
+            window_config = []
+            for entity_id in self._temp_window_sensors:
+                is_outdoor = user_input.get(f"outdoor_{entity_id}", True)  # Default True
+                window_config.append({
+                    CONF_WINDOW_ENTITY: entity_id,
+                    CONF_WINDOW_IS_OUTDOOR: is_outdoor,
+                })
+            
+            self._temp_room_config[CONF_WINDOW_SENSORS] = window_config
+            self.rooms.append(self._temp_room_config)
+            
+            # Clear temp data
+            self._temp_window_sensors = []
+            self._temp_window_config = {}
+            
+            return await self.async_step_room_menu()
+        
+        # Build schema with checkbox for each window
+        schema_dict = {}
+        entity_reg = er.async_get(self.hass)
+        
+        for entity_id in self._temp_window_sensors:
+            # Get friendly name
+            entity = entity_reg.async_get(entity_id)
+            friendly_name = entity.name if entity else entity_id.split(".")[-1]
+            
+            schema_dict[vol.Optional(
+                f"outdoor_{entity_id}",
+                default=True
+            )] = selector.BooleanSelector()
+
+        return self.async_show_form(
+            step_id="window_config",
+            data_schema=vol.Schema(schema_dict),
+            description_placeholders={
+                "info": "Marker hvilke vinduer/døre der fører til udendørs. Interne døre mellem rum skal IKKE markeres."
+            }
+        )
+
     def _get_room_schema(self, defaults: dict | None = None) -> vol.Schema:
         """Get schema for room configuration."""
         defaults = defaults or {}
+        
+        # Convert old format to new if needed
+        window_sensors_default = defaults.get(CONF_WINDOW_SENSORS, [])
+        if window_sensors_default and isinstance(window_sensors_default[0], dict):
+            # New format - extract entity_ids only for selector
+            window_sensors_default = [w[CONF_WINDOW_ENTITY] for w in window_sensors_default]
         
         return vol.Schema({
             vol.Required("name", default=defaults.get("name", "")): str,
@@ -203,7 +269,7 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             vol.Optional(
                 CONF_WINDOW_SENSORS,
-                default=defaults.get(CONF_WINDOW_SENSORS, [])
+                default=window_sensors_default
             ): selector.EntitySelector(
                 selector.EntitySelectorConfig(
                     domain=["binary_sensor"],
@@ -254,6 +320,8 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
         self._config_entry = config_entry
         self._rooms = copy.deepcopy(list(config_entry.data.get(CONF_ROOMS, [])))
         self._selected_room_idx: int | None = None
+        self._temp_window_sensors: list[str] = []
+        self._temp_room_config: dict[str, Any] = {}
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -387,82 +455,135 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
     async def async_step_add_room(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.FlowResult:
-        """Add a new room."""
+        """Add a new room - step 1."""
         if user_input is not None:
-            room_config: dict[str, Any] = {"name": user_input["name"]}
+            self._temp_room_config = {"name": user_input["name"]}
             
-            # Sensors - kun tilføj hvis der er værdier
+            # Store basic sensors
             for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS, 
                        CONF_CO2_SENSORS, CONF_VOC_SENSORS, CONF_FORMALDEHYDE_SENSORS,
-                       CONF_WINDOW_SENSORS, CONF_NOTIFICATION_TARGETS]:
+                       CONF_NOTIFICATION_TARGETS]:
                 val = user_input.get(key)
-                if val:  # Kun hvis ikke None eller tom liste
-                    room_config[key] = val if isinstance(val, list) else [val]
+                if val:
+                    self._temp_room_config[key] = val if isinstance(val, list) else [val]
             
-            # Devices - kun tilføj hvis der er en reel værdi
+            # Store devices
             for key in [CONF_DEHUMIDIFIER, CONF_FAN]:
                 val = user_input.get(key)
-                # Tjek for None, tom streng, eller "none" placeholder
                 if val and str(val).strip().lower() not in ("", "none"):
-                    room_config[key] = val
+                    self._temp_room_config[key] = val
             
-            self._rooms.append(room_config)
+            # Store window sensors for next step
+            self._temp_window_sensors = user_input.get(CONF_WINDOW_SENSORS, [])
             
-            # Update config entry
-            self.hass.config_entries.async_update_entry(
-                self._config_entry,
-                data={**self._config_entry.data, CONF_ROOMS: self._rooms}
-            )
-            
-            # Reload integration to apply changes
-            await self.hass.config_entries.async_reload(self._config_entry.entry_id)
-            
-            return await self.async_step_room_list()
+            if self._temp_window_sensors:
+                return await self.async_step_add_room_windows()
+            else:
+                self._rooms.append(self._temp_room_config)
+                await self._save_and_reload()
+                return await self.async_step_room_list()
 
         return self.async_show_form(
             step_id="add_room",
             data_schema=self._get_room_schema(),
         )
 
+    async def async_step_add_room_windows(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.FlowResult:
+        """Configure windows for new room."""
+        if user_input is not None:
+            window_config = []
+            for entity_id in self._temp_window_sensors:
+                is_outdoor = user_input.get(f"outdoor_{entity_id}", True)
+                window_config.append({
+                    CONF_WINDOW_ENTITY: entity_id,
+                    CONF_WINDOW_IS_OUTDOOR: is_outdoor,
+                })
+            
+            self._temp_room_config[CONF_WINDOW_SENSORS] = window_config
+            self._rooms.append(self._temp_room_config)
+            
+            await self._save_and_reload()
+            return await self.async_step_room_list()
+        
+        return self.async_show_form(
+            step_id="add_room_windows",
+            data_schema=self._get_window_schema(self._temp_window_sensors),
+            description_placeholders={
+                "info": "Marker hvilke vinduer/døre der fører til udendørs. Interne døre mellem rum skal IKKE markeres."
+            }
+        )
+
     async def async_step_edit_room(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.FlowResult:
-        """Edit an existing room."""
+        """Edit an existing room - step 1."""
         if user_input is not None:
-            room_config: dict[str, Any] = {"name": user_input["name"]}
+            self._temp_room_config = {"name": user_input["name"]}
             
-            # Sensors - kun tilføj hvis der er værdier
+            # Store basic sensors
             for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS,
                        CONF_CO2_SENSORS, CONF_VOC_SENSORS, CONF_FORMALDEHYDE_SENSORS,
-                       CONF_WINDOW_SENSORS, CONF_NOTIFICATION_TARGETS]:
+                       CONF_NOTIFICATION_TARGETS]:
                 val = user_input.get(key)
-                if val:  # Kun hvis ikke None eller tom liste
-                    room_config[key] = val if isinstance(val, list) else [val]
+                if val:
+                    self._temp_room_config[key] = val if isinstance(val, list) else [val]
             
-            # Devices - kun tilføj hvis der er en reel værdi
+            # Store devices
             for key in [CONF_DEHUMIDIFIER, CONF_FAN]:
                 val = user_input.get(key)
-                # Tjek for None, tom streng, eller "none" placeholder
                 if val and str(val).strip().lower() not in ("", "none"):
-                    room_config[key] = val
+                    self._temp_room_config[key] = val
             
-            self._rooms[self._selected_room_idx] = room_config
+            # Store window sensors
+            self._temp_window_sensors = user_input.get(CONF_WINDOW_SENSORS, [])
             
-            # Update config entry
-            self.hass.config_entries.async_update_entry(
-                self._config_entry,
-                data={**self._config_entry.data, CONF_ROOMS: self._rooms}
-            )
-            
-            # Reload integration to apply changes
-            await self.hass.config_entries.async_reload(self._config_entry.entry_id)
-            
-            return await self.async_step_room_list()
+            if self._temp_window_sensors:
+                return await self.async_step_edit_room_windows()
+            else:
+                self._rooms[self._selected_room_idx] = self._temp_room_config
+                await self._save_and_reload()
+                return await self.async_step_room_list()
 
         current_room = self._rooms[self._selected_room_idx]
         return self.async_show_form(
             step_id="edit_room",
             data_schema=self._get_room_schema(current_room),
+        )
+
+    async def async_step_edit_room_windows(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.FlowResult:
+        """Configure windows for existing room."""
+        if user_input is not None:
+            window_config = []
+            for entity_id in self._temp_window_sensors:
+                is_outdoor = user_input.get(f"outdoor_{entity_id}", True)
+                window_config.append({
+                    CONF_WINDOW_ENTITY: entity_id,
+                    CONF_WINDOW_IS_OUTDOOR: is_outdoor,
+                })
+            
+            self._temp_room_config[CONF_WINDOW_SENSORS] = window_config
+            self._rooms[self._selected_room_idx] = self._temp_room_config
+            
+            await self._save_and_reload()
+            return await self.async_step_room_list()
+        
+        # Get existing window config for defaults
+        old_room = self._rooms[self._selected_room_idx]
+        old_windows = old_room.get(CONF_WINDOW_SENSORS, [])
+        existing_config = {}
+        if old_windows and isinstance(old_windows[0], dict):
+            existing_config = {w[CONF_WINDOW_ENTITY]: w[CONF_WINDOW_IS_OUTDOOR] for w in old_windows}
+        
+        return self.async_show_form(
+            step_id="edit_room_windows",
+            data_schema=self._get_window_schema(self._temp_window_sensors, existing_config),
+            description_placeholders={
+                "info": "Marker hvilke vinduer/døre der fører til udendørs."
+            }
         )
 
     async def async_step_weather_config(
@@ -493,6 +614,11 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
     def _get_room_schema(self, defaults: dict | None = None) -> vol.Schema:
         """Get schema for room editing."""
         defaults = defaults or {}
+        
+        # Convert window format for selector
+        window_sensors_default = defaults.get(CONF_WINDOW_SENSORS, [])
+        if window_sensors_default and isinstance(window_sensors_default[0], dict):
+            window_sensors_default = [w[CONF_WINDOW_ENTITY] for w in window_sensors_default]
         
         return vol.Schema({
             vol.Required("name", default=defaults.get("name", "")): str,
@@ -545,7 +671,7 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
             ),
             vol.Optional(
                 CONF_WINDOW_SENSORS,
-                default=defaults.get(CONF_WINDOW_SENSORS, [])
+                default=window_sensors_default
             ): selector.EntitySelector(
                 selector.EntitySelectorConfig(
                     domain=["binary_sensor"],
@@ -578,3 +704,36 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
                 )
             ),
         })
+
+    def _get_window_schema(
+        self, 
+        window_entities: list[str], 
+        existing_config: dict[str, bool] | None = None
+    ) -> vol.Schema:
+        """Get schema for window configuration."""
+        existing_config = existing_config or {}
+        schema_dict = {}
+        
+        entity_reg = er.async_get(self.hass)
+        
+        for entity_id in window_entities:
+            entity = entity_reg.async_get(entity_id)
+            friendly_name = entity.name if entity else entity_id.split(".")[-1]
+            
+            default_value = existing_config.get(entity_id, True)
+            
+            schema_dict[vol.Optional(
+                f"outdoor_{entity_id}",
+                description={"suggested_value": default_value},
+                default=default_value
+            )] = selector.BooleanSelector()
+        
+        return vol.Schema(schema_dict)
+
+    async def _save_and_reload(self) -> None:
+        """Save configuration and reload integration."""
+        self.hass.config_entries.async_update_entry(
+            self._config_entry,
+            data={**self._config_entry.data, CONF_ROOMS: self._rooms}
+        )
+        await self.hass.config_entries.async_reload(self._config_entry.entry_id)

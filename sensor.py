@@ -1,6 +1,6 @@
 """Sensor platform for Indeklima integration.
 
-Version: 2.1.0
+Version: 2.2.0
 """
 from __future__ import annotations
 
@@ -101,6 +101,8 @@ class IndeklimaGlobalSensor(CoordinatorEntity, SensorEntity):
             return self.coordinator.data.get("status")
         elif self._sensor_type == "open_windows":
             return len(self.coordinator.data.get("open_windows", []))
+        elif self._sensor_type == "air_circulation":
+            return self.coordinator.data.get("air_circulation", "Dårlig")
         elif self._sensor_type == "ventilation_recommendation":
             ventilation = self.coordinator.data.get("ventilation", {})
             return ventilation.get("status", "Nej")
@@ -120,9 +122,18 @@ class IndeklimaGlobalSensor(CoordinatorEntity, SensorEntity):
         """Return additional attributes."""
         if self._sensor_type == "open_windows":
             rooms = self.coordinator.data.get("open_windows", [])
+            internal_rooms = self.coordinator.data.get("open_internal_doors", [])
             return {
                 "rum": ", ".join(rooms) if rooms else "Ingen",
                 "count": len(rooms),
+                "interne_døre_rum": ", ".join(internal_rooms) if internal_rooms else "Ingen",
+                "interne_døre_count": len(internal_rooms),
+            }
+        elif self._sensor_type == "air_circulation":
+            internal_rooms = self.coordinator.data.get("open_internal_doors", [])
+            return {
+                "interne_døre_åbne": len(internal_rooms),
+                "rum_med_åbne_døre": ", ".join(internal_rooms) if internal_rooms else "Ingen",
             }
         elif self._sensor_type == "ventilation_recommendation":
             ventilation = self.coordinator.data.get("ventilation", {})
@@ -221,6 +232,16 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
             attrs["formaldehyd"] = round(room_data["formaldehyde"], 0)
             if "formaldehyde_sensors_count" in room_data:
                 attrs["formaldehyd_sensorer"] = room_data["formaldehyde_sensors_count"]
+        
+        # NEW: Add window/door status
+        if "outdoor_windows_open" in room_data:
+            attrs["vinduer_udendørs_åbne"] = room_data["outdoor_windows_open"]
+        
+        if "internal_doors_open" in room_data:
+            attrs["døre_interne_åbne"] = room_data["internal_doors_open"]
+            # Add indicator if room has good air circulation
+            if room_data["internal_doors_open"] > 0:
+                attrs["luftcirkulation_bonus"] = True
         
         # Add last_notified timestamp for cooldown logic
         if self._last_notified:

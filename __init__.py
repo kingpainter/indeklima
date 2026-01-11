@@ -1,6 +1,6 @@
 """The Indeklima integration.
 
-Version: 2.0.0
+Version: 2.2.0
 """
 from __future__ import annotations
 
@@ -15,7 +15,18 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 from homeassistant.helpers import device_registry as dr
 
-from .const import DOMAIN, SCAN_INTERVAL, TREND_WINDOW, __version__
+from .const import (
+    DOMAIN, 
+    SCAN_INTERVAL, 
+    TREND_WINDOW, 
+    __version__,
+    CONF_WINDOW_ENTITY,
+    CONF_WINDOW_IS_OUTDOOR,
+    CIRCULATION_BONUS,
+    CIRCULATION_GOOD,
+    CIRCULATION_MODERATE,
+    CIRCULATION_POOR,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -114,7 +125,9 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             "averages": {},
             "severity": 0,
             "status": "God",
-            "open_windows": [],
+            "open_windows": [],  # Only outdoor windows
+            "open_internal_doors": [],  # Internal doors between rooms
+            "air_circulation": CIRCULATION_POOR,
             "trends": {},
         }
         
@@ -131,6 +144,8 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         formaldehyde_max = self.entry.options.get("formaldehyde_max", 0.15)
         
         severity_score = 0
+        total_outdoor_windows_open = 0
+        total_internal_doors_open = 0
         
         # Process each room
         for room in self.rooms:
@@ -240,14 +255,44 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
                     if formaldehyde_mg > formaldehyde_max:
                         severity_score += 10
             
-            # Check window status (any open = room is ventilating)
+            # NEW: Check window/door status with outdoor/indoor classification
             if window_sensors := room.get("window_sensors", []):
-                for sensor in window_sensors:
-                    state = self.hass.states.get(sensor)
+                room_outdoor_open = 0
+                room_internal_open = 0
+                
+                for window in window_sensors:
+                    # Handle both old format (string) and new format (dict)
+                    if isinstance(window, str):
+                        # Old format - assume outdoor by default for backward compatibility
+                        entity_id = window
+                        is_outdoor = True
+                    elif isinstance(window, dict):
+                        # New format
+                        entity_id = window.get(CONF_WINDOW_ENTITY)
+                        is_outdoor = window.get(CONF_WINDOW_IS_OUTDOOR, True)
+                    else:
+                        continue
+                    
+                    state = self.hass.states.get(entity_id)
                     if state and state.state == "off":  # off = open for contact sensors
-                        if room_name not in data["open_windows"]:
-                            data["open_windows"].append(room_name)
-                        break
+                        if is_outdoor:
+                            room_outdoor_open += 1
+                            total_outdoor_windows_open += 1
+                            if room_name not in data["open_windows"]:
+                                data["open_windows"].append(room_name)
+                        else:
+                            room_internal_open += 1
+                            total_internal_doors_open += 1
+                            if room_name not in data["open_internal_doors"]:
+                                data["open_internal_doors"].append(room_name)
+                
+                room_data["outdoor_windows_open"] = room_outdoor_open
+                room_data["internal_doors_open"] = room_internal_open
+                
+                # Apply air circulation bonus if internal doors are open
+                # This reduces severity by 5% as air can circulate better
+                if room_internal_open > 0 and severity_score > 0:
+                    severity_score *= CIRCULATION_BONUS
             
             # Calculate room status
             room_status = "God"
@@ -278,6 +323,14 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         
         if total_formaldehyde:
             data["averages"]["formaldehyde"] = round(sum(total_formaldehyde) / len(total_formaldehyde), 0)
+        
+        # Calculate overall air circulation status
+        if total_internal_doors_open >= 3:
+            data["air_circulation"] = CIRCULATION_GOOD
+        elif total_internal_doors_open >= 1:
+            data["air_circulation"] = CIRCULATION_MODERATE
+        else:
+            data["air_circulation"] = CIRCULATION_POOR
         
         # Set severity
         data["severity"] = min(round(severity_score, 0), 100)
@@ -360,10 +413,10 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             "outdoor_humidity": None,
         }
         
-        # Check if any windows are already open
+        # Check if OUTDOOR windows are already open (not internal doors)
         if data.get("open_windows"):
             recommendation["status"] = "Valgfrit"
-            recommendation["reason"].append("Vinduer allerede åbne")
+            recommendation["reason"].append("Vinduer til udendørs allerede åbne")
             recommendation["rooms"] = data["open_windows"]
             return recommendation
         
@@ -428,7 +481,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         too_humid = outdoor_humidity and outdoor_humidity > humidity_max
         
         if too_cold:
-            recommendation["status"] = "Valgfri"
+            recommendation["status"] = "Valgfrit"
             recommendation["reason"] = indoor_problems + ["Men: For koldt ude"]
             recommendation["rooms"] = problem_rooms
         elif too_humid:

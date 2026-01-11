@@ -1,10 +1,10 @@
 """Constants for Indeklima integration.
 
-Version: 2.1.0
+Version: 2.2.0
 """
 from typing import Final
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 
 DOMAIN: Final = "indeklima"
 
@@ -17,6 +17,10 @@ CONF_CO2_SENSORS: Final = "co2_sensors"
 CONF_VOC_SENSORS: Final = "voc_sensors"
 CONF_FORMALDEHYDE_SENSORS: Final = "formaldehyde_sensors"
 CONF_WINDOW_SENSORS: Final = "window_sensors"
+
+# Window/Door configuration
+CONF_WINDOW_ENTITY: Final = "entity_id"
+CONF_WINDOW_IS_OUTDOOR: Final = "is_outdoor"
 
 # New device support
 CONF_DEHUMIDIFIER: Final = "dehumidifier"
@@ -88,6 +92,12 @@ SENSOR_TYPES: Final = {
         "icon": "mdi:window-open",
         "device_class": None,
     },
+    "air_circulation": {
+        "name": "Luftcirkulation",
+        "unit": None,
+        "icon": "mdi:fan",
+        "device_class": None,
+    },
     "trend_humidity": {
         "name": "Fugtigheds Trend",
         "unit": None,
@@ -139,3 +149,11 @@ TREND_STABLE: Final = "Stabil"
 VENTILATION_YES: Final = "Ja"
 VENTILATION_NO: Final = "Nej"
 VENTILATION_OPTIONAL: Final = "Valgfrit"
+
+# Air circulation states
+CIRCULATION_GOOD: Final = "God"
+CIRCULATION_MODERATE: Final = "Moderat"
+CIRCULATION_POOR: Final = "Dårlig"
+
+# Severity bonus for air circulation
+CIRCULATION_BONUS: Final = 0.95  # 5% reduction in severity
