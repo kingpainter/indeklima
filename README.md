@@ -1,4 +1,4 @@
-# README.md - Insert this section after line 14 (after "Quality Scale: Silver Tier")
+# README.md
 
 ## ✨ Features
 
@@ -27,8 +27,6 @@
 - 🔗 Integration med ventilationssystemer
 
 ---
-
-# And update the Sensors section (around line 83):
 
 ## 📊 Sensorer
 
