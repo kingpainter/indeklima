@@ -1,174 +1,291 @@
 # Changelog
 
-All notable changes to Indeklima will be documented in this file.
+All notable changes to Indeklima integration will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+---
 
-### Planned - FASE 6
-- 📲 Automatisk affugter kontrol
-- 📲 Fan automation baseret på luftcirkulation
-- 📲 Integration med ventilationssystemer
-- 📲 Netatmo thermostat integration
-- 📲 Diagnostics platform (Gold tier)
+## [2.3.1] - 2025-01-18
 
-## [2.2.0] - 2025-01-12
-
-### Added - Window Tracking & Air Circulation
-- 🪟 **Indoor/Outdoor Window Classification** - Skelne mellem udvendige og interne åbninger
-  - Config flow: Checkbox per vindue/dør om det fører til udendørs
-  - Udvendige vinduer: Bruges til ventilationsanbefalinger
-  - Interne døre: Bruges til luftcirkulation scoring
-  - Backward compatible: Gamle setups konverteres automatisk til "outdoor"
-- 🌬️ **Air Circulation Sensor** - Ny sensor `sensor.indeklima_hub_luftcirkulation`
-  - States: "God", "Moderat", "Dårlig"
-  - Baseret på antal åbne interne døre
-  - Attributes: `interne_døre_åbne`, `rum_med_åbne_døre`
-- 🎯 **Severity Bonus** - 5% reduktion hvis interne døre er åbne
-  - Bedre luftcirkulation = lavere severity score
-  - Automatisk anvendt i coordinator
-- 📊 **Enhanced Room Attributes** - Room sensors viser nu:
-  - `vinduer_udendørs_åbne`: Antal åbne eksterne vinduer
-  - `døre_interne_åbne`: Antal åbne interne døre
-  - `luftcirkulation_bonus`: Boolean hvis bonus er aktiv
-- 📈 **Updated Hub Sensor** - `sensor.indeklima_hub_aabne_vinduer` opdateret:
-  - State: Kun eksterne vinduer tælles
-  - New attributes: `interne_døre_rum`, `interne_døre_count`
+### Fixed - CRITICAL ENCODING FIXES
+- 🔧 **Complete Encoding Cleanup** - Removed ALL encoding issues
+  - All Python code now uses ONLY English + ASCII
+  - All Danish text moved to translation files (strings.json, da.json)
+  - Fixed æ, ø, å character handling in all files
+  - Removed emojis from Python code
+  - Clean UTF-8 encoding throughout
 
 ### Changed
-- ♻️ **Improved Ventilation Logic** - Kun eksterne vinduer tæller som "allerede ventilerer"
-  - Mere præcise ventilationsanbefalinger
-  - Interne døre påvirker ikke "Valgfrit" state
-- 🔄 **Config Flow Enhancement** - To-step proces for rum med vinduer:
-  1. Vælg sensorer og enheder
-  2. Konfigurer hvilke vinduer/døre der fører til udendørs
-- 📋 **Data Structure** - Window sensors nu nested dict format:
-  ```python
-  {
-    "entity_id": "binary_sensor.door",
-    "is_outdoor": True/False
-  }
-  ```
+- ✅ All constants now in English (STATUS_GOOD, TREND_STABLE, etc.)
+- ✅ State translations via strings.json/da.json
+- ✅ `normalize_room_id()` function properly handles Danish characters
+- ✅ No double-encoding issues
+- ✅ Config flow labels use translation keys
 
-### Technical
-- ✅ Maintained Silver tier compliance
-- ✅ Automatic migration from v2.1.0 format
-- ✅ Backward compatible with old string list format
-- ✅ New constants: `CONF_WINDOW_ENTITY`, `CONF_WINDOW_IS_OUTDOOR`, `CIRCULATION_BONUS`
-- ✅ Version incremented to 2.2.0 across all files
-- 📚 Complete upgrade guide: UPGRADE_v2.2.0.md
+### Documentation
+- 📚 All .md files converted to English
+- 📚 Added BLUEPRINT_MIGRATION.md
+- 📚 Updated UPGRADE guide for v2.3.1
+- 📚 Added ENGLISH_CONSTANTS.md explanation
 
-## [2.1.0] - 2025-01-11
-
-### Added - FASE 5
-- 🌬️ **Ventilationsanbefaling** - Smart sensor der analyserer indeklima og vejr
-  - Intelligente anbefalinger: Ja/Nej/Valgfrit
-  - Tager højde for udendørs temperatur og fugtighed
-  - Viser hvilke rum der trænger til udluftning
-  - Begrundelse for anbefalingen
-  - Attributes: begrundelse, rum, ude_temperatur, ude_fugtighed
-- 📱 **Automation Blueprint** - Færdig notifikations-automation
-  - Per-rum notifikationer med severity threshold
-  - Smart cooldown system via `last_notified` attribute
-  - Tidsstyring (kun indenfor åbningstider)
-  - Inkluderer ventilations tips
-  - Python script til cooldown håndtering
-- 🔔 **Last Notified Tracking** - Room sensors tracker sidste notifikation
-  - `last_notified` attribute på alle room sensors
-  - Bruges til intelligent cooldown i automations
-  - ISO 8601 timestamp format
-
-### Changed
-- 📊 Updated SENSOR_TYPES in const.py with ventilation_recommendation
-- 🔧 Enhanced sensor.py with ventilation sensor support
-- 📝 Version bump to 2.1.0 across all files
-
-### Technical
-- ✅ Maintained Silver tier compliance
-- ✅ All new features follow HA guidelines
-- ✅ Proper device classes and translations
-- ✅ Backward compatible with v2.0.0 configurations
-
-## [2.0.0] - 2025-01-04
-
-### Added - FASE 3 & 4
-- 🏠 **Device Organization** - Moderne device struktur
-  - Hub device med globale sensorer
-  - Separat device per rum
-  - Korrekt device linking via `via_device`
-- ✨ **Modern Entity Naming** - Følger HA 2024+ guidelines
-  - `has_entity_name = True`
-  - Automatisk præfiks fra device navn
-  - Kortere, renere entity navne
-- 🏷️ **Device Info** - Komplet metadata
-  - Manufacturer: Indeklima
-  - Model: Climate Monitor v2 / Room Monitor  
-  - SW Version: Automatisk fra const.py
-  - Configuration URL
-- 🎯 **Proper Device Classes** - Korrekt visning i HA
-  - SensorDeviceClass.HUMIDITY
-  - SensorDeviceClass.TEMPERATURE
-  - Automatisk enheder og ikoner
-- 🌐 **Modern Translations** - strings.json + backup
-- 🥈 **Quality Scale: Silver** - Opfylder alle Silver tier krav
-- 📚 **HA_COMPLIANCE.md** - Detaljeret compliance dokumentation
-- ⚙️ **Fuld Options Flow** - Komplet rum-håndtering efter installation
-  - ✏️ Rediger eksisterende rum
-  - 🗑️ Slet enkelte rum
-  - ➕ Tilføj nye rum
-  - 🌤️ Vejr sensor konfiguration
-  - Automatisk reload af integration ved ændringer
-- 📈 **Trend Analysis** - 30-minutters historik
-  - Humidity trend (Stigende/Faldende/Stabil)
-  - CO2 trend
-  - Severity trend
-
-### Added - FASE 1 & 2
-- 🏠 **Per-room configuration** - Configure each room individually instead of all at once
-- ✏️ **Room reconfiguration** - Edit existing rooms without deleting everything
-- 🗑️ **Single room deletion** - Remove individual rooms
-- 💨 **Dehumidifier support** - Add and control dehumidifiers per room
-- 🌤️ **Weather integration** - Choose weather data source or use HA default
-- 🌀 **Fan/Ventilation support** - Control fans and ventilation systems
-- 📊 **Room-based organization** - Each room appears as separate device in HA
-- 🔔 **Per-room notifications** - Configure different notification recipients per room
-- 🌡️ **Temperature support** - Added temperature sensor support
-- 🔢 **Multiple sensors per room** - Use multiple sensors of same type, get average
-- 🌐 **Multi-language support** - Danish and English translations
-
-### Changed
-- 🔄 **Major architecture refactor** - Improved scalability and maintainability
-- 📱 **Better UI organization** - Cleaner device and entity structure
-- ⚡ **Performance improvements** - More efficient data processing
-
-### Fixed
-- 🛠 **Config flow errors** - Resolved indentation and import issues
-- 🔧 **Sensor reliability** - Better error handling for unavailable sensors
-- 🐛 **Empty device fields** - Fan and dehumidifier fields now properly optional
-
-## [1.0.0] - 2025-01-02
-
-### Added
-- 🎉 **Initial release** as custom integration
-- 📊 Multi-room climate monitoring
-- 💯 Intelligent severity scoring
-- 🪟 Window tracking
-- 🌞 Season-based thresholds
-- 🔔 Smart notifications with cooldown
-- 🎨 HACS compatibility
+### Migration
+- **No breaking changes** - Direct upgrade from v2.2.0 or v2.3.0
+- If you had encoding issues in v2.3.0, this fixes them all
+- Recommend clean install if you experienced duplicate devices
+- **Blueprint requires update** - See BLUEPRINT_MIGRATION.md
 
 ---
 
-## Version Numbering
+## [2.3.0] - 2025-01-12
 
-- **Major (X.0.0)**: Breaking changes, requires manual intervention
-- **Minor (0.X.0)**: New features, backward compatible
-- **Patch (0.0.X)**: Bug fixes, improvements
+### Added - PER-ROOM METRIC SENSORS
+- 📊 **Separate Temperature Sensor** per room
+  - `sensor.indeklima_[room]_temperature`
+  - Device class: `temperature`
+  - Unit: °C
+  - Attributes: `sensors_used`
 
-[Unreleased]: https://github.com/kingpainter/indeklima/compare/v2.2.0...HEAD
-[2.2.0]: https://github.com/kingpainter/indeklima/compare/v2.1.0...v2.2.0
-[2.1.0]: https://github.com/kingpainter/indeklima/compare/v2.0.0...v2.1.0
-[2.0.0]: https://github.com/kingpainter/indeklima/compare/v1.0.0...v2.0.0
-[1.0.0]: https://github.com/kingpainter/indeklima/releases/tag/v1.0.0
+- 📊 **Separate Humidity Sensor** per room
+  - `sensor.indeklima_[room]_humidity`
+  - Device class: `humidity`
+  - Unit: %
+  - Attributes: `sensors_used`
+
+- 📊 **Separate CO2 Sensor** per room
+  - `sensor.indeklima_[room]_co2`
+  - Device class: `carbon_dioxide`
+  - Unit: ppm
+  - Attributes: `sensors_used`
+
+### Changed
+- ✅ Better device classes for all sensors
+- ✅ Improved entity naming consistency
+- ✅ Room ID normalization function
+
+### Backward Compatibility
+- ✅ Status sensor attributes PRESERVED (humidity, temperature, co2, etc.)
+- ✅ Existing dashboards work without changes
+- ✅ No breaking changes!
+
+---
+
+## [2.2.0] - 2025-01-12
+
+### Added - WINDOW & DOOR CLASSIFICATION
+- 🪟 **Indoor/Outdoor Classification** 
+  - Distinguish between outdoor windows and internal doors
+  - Outdoor windows used for ventilation recommendations
+  - Internal doors used for air circulation calculation
+  - Flexible configuration via UI
+
+### Added - AIR CIRCULATION SYSTEM
+- 🌬️ **Air Circulation Sensor** (`sensor.indeklima_hub_air_circulation`)
+  - States: Good/Moderate/Poor
+  - Based on number of open internal doors
+  - Good: 3+ doors open
+  - Moderate: 1-2 doors open
+  - Poor: No doors open
+
+- 🎯 **Severity Bonus for Air Circulation**
+  - 5% reduction in severity score when internal doors open
+  - Better air distribution between rooms
+  - Lower risk of local problems
+
+### Added - ROOM ATTRIBUTES
+- 📊 `outdoor_windows_open` - Count of open outdoor windows per room
+- 📊 `internal_doors_open` - Count of open internal doors per room
+- 📊 `air_circulation_bonus` - Boolean indicator if room has open internal doors
+
+### Fixed
+- 🔧 **Window State Logic** 
+  - CRITICAL FIX: Binary sensor "on" now correctly means OPEN
+  - Previous version had inverted logic
+  - Affects window tracking and ventilation recommendations
+
+### Changed
+- ✅ Window sensor configuration now uses dict format
+  - Old: Simple entity_id string
+  - New: Dict with `entity_id` and `is_outdoor` keys
+  - Backward compatible with old format
+
+---
+
+## [2.1.0] - 2025-01-11
+
+### Added - VENTILATION RECOMMENDATIONS
+- 🌬️ **Ventilation Recommendation Sensor** (`sensor.indeklima_hub_ventilation_recommendation`)
+  - States: Yes/No/Optional
+  - Analyzes indoor climate and weather conditions
+  - Provides reasoning for recommendation
+  - Lists specific rooms needing ventilation
+
+### Added - AUTOMATION SUPPORT
+- 📱 **Automation Blueprint** (`room_notification.yaml`)
+  - Per-room notifications
+  - Smart cooldown to avoid spam
+  - Time-based activation
+  - Severity threshold configuration
+  - Includes ventilation tips
+
+- 🔔 **Last Notified Tracking**
+  - `last_notified` attribute on room status sensors
+  - Enables cooldown logic in automations
+  - Prevents notification spam
+
+### Added - WEATHER INTEGRATION
+- 🌤️ Optional weather entity configuration
+  - Used for better ventilation recommendations
+  - Checks outdoor temperature and humidity
+  - Falls back to HA default if not configured
+
+---
+
+## [2.0.0] - 2025-01-04
+
+### Added - DEVICE ORGANIZATION
+- 🏠 **Hub Device** (`Indeklima Hub`)
+  - Central device for global sensors
+  - All hub sensors attached to this device
+  - Modern Home Assistant device structure
+
+- 🏠 **Room Devices** (`Indeklima [Room Name]`)
+  - One device per room
+  - Linked to hub via `via_device`
+  - All room sensors attached to room device
+  - Clean organization in HA interface
+
+### Changed - ENTITY NAMING
+- ✨ **Modern Entity Naming** (`has_entity_name = True`)
+  - Hub sensors: `sensor.indeklima_hub_[sensor_type]`
+  - Room sensors: `sensor.indeklima_[room]_status`
+  - Device name automatically prepended
+  - Follows HA 2024+ guidelines
+
+### Added - TREND ANALYSIS
+- 📈 **Trend Sensors** (30-minute window)
+  - `sensor.indeklima_hub_humidity_trend`
+  - `sensor.indeklima_hub_co2_trend`
+  - `sensor.indeklima_hub_severity_trend`
+  - States: Rising/Falling/Stable
+  - Linear regression calculation
+  - 6 data points history
+
+### Changed - OPTIONS FLOW
+- ⚙️ **Enhanced Options Flow**
+  - Main menu with multiple sections
+  - Per-room management (add/edit/delete)
+  - Threshold configuration
+  - Weather integration setup
+  - Full UI-based configuration
+
+### Migration
+- ⚠️ **Breaking Changes from v1.x**
+  - Entity IDs have changed
+  - Dashboards need updating
+  - Automations need updating
+  - Clean install recommended
+
+---
+
+## [1.0.0] - 2025-01-02
+
+### Added - INITIAL RELEASE
+- 🎉 **Basic Multi-Room Support**
+  - Configure multiple rooms
+  - Multiple sensors per room type
+  - Automatic averaging
+
+- 📊 **Severity Scoring**
+  - 0-100 scale (lower is better)
+  - Based on humidity, CO2, VOC, formaldehyde
+  - Season-based thresholds (summer/winter)
+
+- 🌡️ **Sensor Support**
+  - Humidity sensors
+  - Temperature sensors
+  - CO2 sensors
+  - VOC sensors
+  - Formaldehyde sensors
+  - Window/door sensors
+
+- 📈 **Global Sensors**
+  - Average humidity across rooms
+  - Average temperature across rooms
+  - Average CO2 across rooms
+  - Overall severity score
+  - Overall status (Good/Warning/Critical)
+  - Open windows count
+
+- ⚙️ **Configuration**
+  - UI-based config flow
+  - Per-room sensor selection
+  - Threshold configuration
+  - Optional device support (dehumidifier, fan)
+
+- 🏅 **Home Assistant Compliance**
+  - Config flow
+  - Async implementation
+  - Type hints
+  - Error handling
+  - Logging
+  - Bronze tier quality scale
+
+---
+
+## Upgrade Guides
+
+- **v2.2.0 → v2.3.1:** See [UPGRADE_v2_3_1.md](UPGRADE_v2_3_1.md)
+- **v1.x → v2.x:** Clean install recommended (breaking changes)
+
+---
+
+## Version History
+
+| Version | Date | Type | Key Changes |
+|---------|------|------|-------------|
+| **2.3.1** | 2025-01-18 | Fix | English constants, encoding cleanup |
+| **2.3.0** | 2025-01-12 | Feature | Per-room metric sensors |
+| **2.2.0** | 2025-01-12 | Feature | Window classification, air circulation |
+| **2.1.0** | 2025-01-11 | Feature | Ventilation recommendations, blueprints |
+| **2.0.0** | 2025-01-04 | Major | Device organization, modern naming |
+| **1.0.0** | 2025-01-02 | Initial | First public release |
+
+---
+
+## Roadmap
+
+### v2.4.0 (Planned - Q1 2025)
+- [ ] VOC and Formaldehyde per-room sensors
+- [ ] Diagnostics platform (Gold tier requirement)
+- [ ] Repair flow for sensor errors
+- [ ] Unit tests (>95% coverage)
+- [ ] Improved debugging tools
+
+### v2.5.0 (Planned - Q2 2025)
+- [ ] Service calls for device control
+- [ ] Automation triggers
+- [ ] Extended documentation
+- [ ] Multi-language support expansion
+
+### v3.0.0 (Vision - Q3-Q4 2025)
+- [ ] Machine learning patterns
+- [ ] Predictive maintenance
+- [ ] Energy optimization
+- [ ] Multi-home support
+- [ ] Advanced ventilation control
+
+---
+
+## Links
+
+- **GitHub:** https://github.com/kingpainter/indeklima
+- **Issues:** https://github.com/kingpainter/indeklima/issues
+- **Discussions:** https://github.com/kingpainter/indeklima/discussions
+- **Documentation:** [README.md](README.md)
+- **Compliance:** [HA_COMPLIANCE.md](HA_COMPLIANCE.md)
+
+---
+
+**Made with ❤️ by KingPainter**

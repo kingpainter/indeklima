@@ -1,8 +1,10 @@
 blueprint:
-  name: Indeklima - Rum Notifikation v2.1
+  name: Indeklima - Rum Notifikation (v2.3.1)
   description: >
     Send notifikation når indeklimaet i et specifikt rum bliver dårligt.
-    Inkluderer smart cooldown og ventilationsanbefalinger.
+    Inkluderer smart cooldown så du ikke får for mange beskeder.
+    
+    **KOMPATIBEL MED v2.3.1** - Bruger engelske konstanter internt.
   domain: automation
   source_url: https://github.com/kingpainter/indeklima/blob/main/blueprints/automation/indeklima/room_notification.yaml
   
@@ -17,7 +19,7 @@ blueprint:
     
     notify_service:
       name: Notifikations Service
-      description: Hvilken notify service skal bruges? (f.eks. notify.mobile_app_flemming)
+      description: Hvilken notify service skal bruges? (f.eks. notify.mobile_app_flemming_mobil)
       selector:
         target:
           entity:
@@ -26,14 +28,14 @@ blueprint:
     severity_threshold:
       name: Alvorligheds Tærskel
       description: Send kun notifikation ved denne status eller værre
-      default: "Advarsel"
+      default: "warning"
       selector:
         select:
           options:
             - label: "Advarsel"
-              value: "Advarsel"
+              value: "warning"
             - label: "Dårlig"
-              value: "Dårlig"
+              value: "critical"
     
     cooldown_hours:
       name: Cooldown Timer (timer)
@@ -75,85 +77,73 @@ trigger:
   - platform: state
     entity_id: !input room_sensor
     to:
-      - "Advarsel"
-      - "Dårlig"
+      - "warning"    # English constant - translates to "Advarsel" in UI
+      - "critical"   # English constant - translates to "Dårlig" in UI
     for:
       minutes: 5
 
 condition:
-  # Kun indenfor tidsvindue
   - condition: time
     after: !input time_start
     before: !input time_end
   
-  # Tjek severity threshold
   - condition: template
     value_template: >
       {% set threshold = !input severity_threshold %}
       {% set current = trigger.to_state.state %}
-      {% if threshold == 'Dårlig' %}
-        {{ current == 'Dårlig' }}
+      {% if threshold == 'critical' %}
+        {{ current == 'critical' }}
       {% else %}
-        {{ current in ['Advarsel', 'Dårlig'] }}
+        {{ current in ['warning', 'critical'] }}
       {% endif %}
   
-  # Tjek cooldown (bruger last_notified attribute)
   - condition: template
     value_template: >
       {% set last_notified = state_attr(trigger.entity_id, 'last_notified') %}
-      {% set cooldown_hours = !input cooldown_hours %}
       {% if last_notified %}
-        {{ (now() - as_datetime(last_notified)).total_seconds() / 3600 > cooldown_hours }}
+        {{ (now() - as_datetime(last_notified)).total_seconds() / 3600 > !input cooldown_hours }}
       {% else %}
         true
       {% endif %}
 
 action:
   - variables:
-      # Sikker room name extraction fra entity_id
       room_name: >
-        {{ trigger.entity_id.split('_')[2] | replace('_', ' ') | title }}
-      
-      # Hent sensor attributes
+        {{ state_attr(trigger.entity_id, 'friendly_name') | replace('Indeklima ', '') | replace(' Status', '') }}
       fugtighed: >
         {{ state_attr(trigger.entity_id, 'fugtighed') | default('N/A') }}
       co2: >
         {{ state_attr(trigger.entity_id, 'co2') | default('N/A') }}
       temperatur: >
         {{ state_attr(trigger.entity_id, 'temperatur') | default('N/A') }}
-      
-      # Hent ventilationsanbefaling
       ventilation_status: >
         {{ states('sensor.indeklima_hub_ventilationsanbefaling') | default('N/A') }}
       ventilation_reason: >
         {{ state_attr('sensor.indeklima_hub_ventilationsanbefaling', 'begrundelse') | default('') }}
-      
-      include_vent: !input include_ventilation_tip
+      # Translate status to Danish for notification
+      status_dansk: >
+        {% if trigger.to_state.state == 'critical' %}Dårlig
+        {% elif trigger.to_state.state == 'warning' %}Advarsel
+        {% else %}{{ trigger.to_state.state }}{% endif %}
   
-  # Send notifikation
   - service: !input notify_service
     data:
       title: "🏠 Indeklima: {{ room_name }}"
       message: >
-        Status: {{ trigger.to_state.state }}
+        Status: {{ status_dansk }}
         
         {% if fugtighed != 'N/A' %}🌡️ Fugtighed: {{ fugtighed }}%{% endif %}
         {% if co2 != 'N/A' %}💨 CO2: {{ co2 }} ppm{% endif %}
         {% if temperatur != 'N/A' %}🌡️ Temperatur: {{ temperatur }}°C{% endif %}
         
-        {% if include_vent and ventilation_status != 'N/A' %}
+        {% if !input include_ventilation_tip and ventilation_status != 'N/A' %}
         
         💡 Ventilation: {{ ventilation_status }}
         {% if ventilation_reason %}{{ ventilation_reason }}{% endif %}
         {% endif %}
       data:
-        tag: "indeklima_{{ trigger.entity_id.split('_')[2] }}"
+        tag: "indeklima_{{ room_name | lower | replace(' ', '_') }}"
         group: "indeklima"
         notification_icon: mdi:home-alert
         color: >
-          {% if trigger.to_state.state == 'Dårlig' %}red{% else %}orange{% endif %}
-  
-  # Opdater last_notified timestamp via service call
-  - service: python_script.indeklima_set_last_notified
-    data:
-      entity_id: "{{ trigger.entity_id }}"
+          {% if trigger.to_state.state == 'critical' %}red{% else %}orange{% endif %}

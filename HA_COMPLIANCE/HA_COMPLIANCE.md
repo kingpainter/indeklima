@@ -1,49 +1,49 @@
 # Home Assistant Compliance Checklist
 
-Dette dokument viser hvordan Indeklima v2.0 følger Home Assistant's officielle guidelines.
+This document shows how Indeklima v2.3.1 follows Home Assistant's official guidelines.
 
 ## ✅ Integration Quality Scale - Silver Tier
 
-Baseret på: https://developers.home-assistant.io/docs/integration_quality_scale_index/
+Based on: https://developers.home-assistant.io/docs/integration_quality_scale_index/
 
 ### Bronze Requirements ✅
-- ✅ **Config flow** - Komplet UI-baseret opsætning
-- ✅ **Async** - Alle funktioner er async
-- ✅ **Entity naming** - Følger `has_entity_name = True` standard
-- ✅ **Device info** - Alle entities har DeviceInfo
-- ✅ **Unique IDs** - Alle entities har unique_id
-- ✅ **Documentation** - README.md og CHANGELOG.md
+- ✅ **Config flow** - Complete UI-based setup
+- ✅ **Async** - All functions are async
+- ✅ **Entity naming** - Follows `has_entity_name = True` standard
+- ✅ **Device info** - All entities have DeviceInfo
+- ✅ **Unique IDs** - All entities have unique_id
+- ✅ **Documentation** - README.md and CHANGELOG.md
 - ✅ **Code style** - Type hints, docstrings
 
 ### Silver Requirements ✅
-- ✅ **Device registry** - Hub + room devices implementeret
-- ✅ **Entity categorization** - Korrekte device classes
-- ✅ **Options flow** - Justerbare indstillinger
+- ✅ **Device registry** - Hub + room devices implemented
+- ✅ **Entity categorization** - Correct device classes
+- ✅ **Options flow** - Adjustable settings
 - ✅ **Translations** - strings.json + da.json
-- ✅ **Error handling** - Try/catch og logging
-- ✅ **Coordinator pattern** - DataUpdateCoordinator brugt
+- ✅ **Error handling** - Try/catch and logging
+- ✅ **Coordinator pattern** - DataUpdateCoordinator used
 
 ### Gold Requirements 🚧
-- 🚧 **Diagnostics** - Planlagt i v2.1
-- 🚧 **Config entry options** - Delvist implementeret
-- 🚧 **Test coverage** - Planlagt
-- 🚧 **Repair issues** - Planlagt
+- 🚧 **Diagnostics** - Planned in v2.4
+- 🚧 **Config entry options** - Partially implemented
+- 🚧 **Test coverage** - Planned
+- 🚧 **Repair issues** - Planned
 
 ---
 
 ## 📋 Entity Guidelines Compliance
 
-Baseret på: https://developers.home-assistant.io/docs/core/entity/
+Based on: https://developers.home-assistant.io/docs/core/entity/
 
 ### Entity Naming ✅
 ```python
-_attr_has_entity_name = True  # Moderne naming
-_attr_name = "Status"          # Kort navn (device navn kommer automatisk)
+_attr_has_entity_name = True  # Modern naming
+_attr_name = "Status"          # Short name (device name comes automatically)
 ```
 
-**Resultat:**
-- `sensor.indeklima_hub_severity_score` (globale sensorer)
-- `sensor.indeklima_stue_status` (rum sensorer)
+**Result:**
+- `sensor.indeklima_hub_severity_score` (global sensors)
+- `sensor.indeklima_living_room_status` (room sensors)
 
 ### Device Info ✅
 ```python
@@ -69,9 +69,9 @@ if device_class := config.get("device_class"):
 
 ---
 
-## 🏗️ Device Registry Compliance
+## 🗃️ Device Registry Compliance
 
-Baseret på: https://developers.home-assistant.io/docs/device_registry_index/
+Based on: https://developers.home-assistant.io/docs/device_registry_index/
 
 ### Hub Device ✅
 ```python
@@ -85,12 +85,12 @@ device_registry.async_get_or_create(
 )
 ```
 
-**Struktur:**
+**Structure:**
 ```
 Indeklima Hub
 ├── Severity Score
 ├── Status
-├── Gennemsnitlig Fugtighed
+├── Average Humidity
 ├── Trends
 └── ...
 ```
@@ -105,26 +105,28 @@ device_registry.async_get_or_create(
 )
 ```
 
-**Struktur:**
+**Structure:**
 ```
-Indeklima Stue (via Indeklima Hub)
+Indeklima Living Room (via Indeklima Hub)
 ├── Status
-└── [attributes: fugtighed, co2, etc.]
+├── Temperature
+├── Humidity
+└── CO2
 
-Indeklima Køkken (via Indeklima Hub)
+Indeklima Kitchen (via Indeklima Hub)
 ├── Status
 └── [attributes]
 ```
 
 ---
 
-## 🌐 Translation Compliance
+## 🌍 Translation Compliance
 
-Baseret på: https://developers.home-assistant.io/docs/internationalization/core/
+Based on: https://developers.home-assistant.io/docs/internationalization/core/
 
-### Moderne System ✅
-- ✅ `strings.json` - Primær translationsfil
-- ✅ `translations/da.json` - Danske oversættelser (backup)
+### Modern System ✅
+- ✅ `strings.json` - Primary translation file (English)
+- ✅ `translations/da.json` - Danish translations
 
 ### Translation Keys ✅
 ```json
@@ -143,7 +145,7 @@ Baseret på: https://developers.home-assistant.io/docs/internationalization/core
 
 ## 🔄 Config Flow Compliance
 
-Baseret på: https://developers.home-assistant.io/docs/config_entries_config_flow_handler/
+Based on: https://developers.home-assistant.io/docs/config_entries_config_flow_handler/
 
 ### Initial Setup ✅
 ```python
@@ -170,7 +172,7 @@ def async_get_options_flow(config_entry):
 
 ## 📊 Coordinator Pattern Compliance
 
-Baseret på: https://developers.home-assistant.io/docs/integration_fetching_data/
+Based on: https://developers.home-assistant.io/docs/integration_fetching_data/
 
 ### DataUpdateCoordinator ✅
 ```python
@@ -188,7 +190,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 - ✅ Centralized data fetching
 - ✅ All entities update together
 - ✅ Configurable update interval (5 min)
-- ✅ Error handling i coordinator
+- ✅ Error handling in coordinator
 
 ---
 
@@ -204,8 +206,8 @@ async def async_setup_entry(
 ```
 
 ### Async/Await ✅
-- ✅ Alle I/O operationer er async
-- ✅ Ingen blocking calls
+- ✅ All I/O operations are async
+- ✅ No blocking calls
 - ✅ Proper await usage
 
 ### Error Handling ✅
@@ -226,17 +228,17 @@ _LOGGER.info("Indeklima integration v%s setup completed", __version__)
 
 ## 📦 Manifest Compliance
 
-Baseret på: https://developers.home-assistant.io/docs/creating_integration_manifest/
+Based on: https://developers.home-assistant.io/docs/creating_integration_manifest/
 
 ### Required Fields ✅
 ```json
 {
   "domain": "indeklima",
   "name": "Indeklima",
-  "version": "2.0.0",
+  "version": "2.3.1",
   "config_flow": true,
   "documentation": "...",
-  "codeowners": ["@yourusername"],
+  "codeowners": ["@kingpainter"],
   "requirements": [],
   "dependencies": [],
   "iot_class": "local_polling",
@@ -249,23 +251,74 @@ Baseret på: https://developers.home-assistant.io/docs/creating_integration_mani
 
 ## 🎯 Integration Type: Hub
 
-Vi bruger `hub` fordi:
+We use `hub` because:
 1. ✅ Central hub device (Indeklima Hub)
 2. ✅ Multiple room devices connected via hub
-3. ✅ Aggregates data fra flere sensorer
-4. ✅ Koordinerer mellem devices
+3. ✅ Aggregates data from multiple sensors
+4. ✅ Coordinates between devices
 
 ---
 
-## 📈 Roadmap til Gold Tier
+## 🌐 Internationalization (v2.3.1)
 
-### v2.1 Planlagt
+### English Constants ✅
+```python
+# const.py
+STATUS_GOOD: Final = "good"
+STATUS_WARNING: Final = "warning"
+STATUS_CRITICAL: Final = "critical"
+```
+
+### Translation Files ✅
+```json
+// strings.json (English)
+{
+  "entity": {
+    "sensor": {
+      "severity_status": {
+        "state": {
+          "good": "Good",
+          "warning": "Warning",
+          "critical": "Critical"
+        }
+      }
+    }
+  }
+}
+
+// da.json (Danish)
+{
+  "entity": {
+    "sensor": {
+      "severity_status": {
+        "state": {
+          "good": "God",
+          "warning": "Advarsel",
+          "critical": "Dårlig"
+        }
+      }
+    }
+  }
+}
+```
+
+### Benefits ✅
+- ✅ Code in English (HA standard)
+- ✅ Easy to add more languages
+- ✅ No encoding issues
+- ✅ Better international support
+
+---
+
+## 📈 Roadmap to Gold Tier
+
+### v2.4 Planned
 - [ ] Diagnostics platform
-- [ ] Repair flow for sensor fejl
+- [ ] Repair flow for sensor errors
 - [ ] Unit tests (>95% coverage)
 - [ ] Integration tests
 
-### v2.2 Planlagt
+### v2.5 Planned
 - [ ] Service calls for device control
 - [ ] Automation triggers
 - [ ] Extended documentation
@@ -276,14 +329,30 @@ Vi bruger `hub` fordi:
 
 **Current Status: Silver Tier**
 
-Indeklima v2.0 følger alle krav for Silver tier integration quality scale og implementerer moderne Home Assistant best practices:
+Indeklima v2.3.1 follows all requirements for Silver tier integration quality scale and implements modern Home Assistant best practices:
 
 - Modern entity naming
 - Device registry with hub/room structure
-- Proper translations
+- Proper translations (English + Danish)
 - Coordinator pattern
-- Type hints og async
+- Type hints and async
 - Config & Options flows
-- Error handling og logging
+- Error handling and logging
+- English constants with JSON translations
 
-**Næste mål: Gold Tier i v2.1**
+**Next Goal: Gold Tier in v2.4**
+
+---
+
+## 📚 Reference Links
+
+- [Integration Quality Scale](https://developers.home-assistant.io/docs/integration_quality_scale_index/)
+- [Entity Guidelines](https://developers.home-assistant.io/docs/core/entity/)
+- [Device Registry](https://developers.home-assistant.io/docs/device_registry_index/)
+- [Internationalization](https://developers.home-assistant.io/docs/internationalization/core/)
+- [Config Flow](https://developers.home-assistant.io/docs/config_entries_config_flow_handler/)
+- [Data Coordinator](https://developers.home-assistant.io/docs/integration_fetching_data/)
+
+---
+
+**Last Updated:** 2025-01-18 (v2.3.1)
