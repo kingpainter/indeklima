@@ -6,7 +6,7 @@
 
 Advanced indoor climate monitoring for Home Assistant with multi-room support, intelligent severity scoring, trend analysis, and ventilation recommendations.
 
-**Current Version:** 2.3.1  
+**Current Version:** v2.3.1  
 **Quality Scale:** Silver Tier ⭐️
 
 ---
