@@ -10,19 +10,6 @@ Advanced indoor climate monitoring for Home Assistant with multi-room support, i
 **Quality Scale:** Silver Tier ⭐️
 
 ---
-## 🤝 Contributing
-   
-   We welcome contributions! Here's how:
-   
-   - 🐛 **Found a bug?** [Report it](../../issues/new?template=bug_report.md)
-   - 💡 **Have an idea?** [Share it](../../discussions/new?category=ideas)
-   - ❓ **Need help?** [Ask here](../../discussions/new?category=q-a)
-   - 🔧 **Want to code?** Read [CONTRIBUTING.md](CONTRIBUTING.md)
-   
-   ### Good First Issues
-   New to the project? Check [good first issues](../../issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)!
-
----
 
 ## ✨ Features
 
@@ -583,6 +570,40 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ### v1.0.0 (2025-01-02)
 - 🎉 Initial release
+
+---
+## 🤝 Contributing
+
+We welcome contributions from the community! Here's how you can help:
+
+### 🐛 Report Bugs
+Found a bug? [Create a bug report](../../issues/new?labels=bug&template=bug_report.md)
+
+### 💡 Suggest Features  
+Have an idea? [Share it in Discussions](../../discussions/new?category=ideas)
+
+### ❓ Ask Questions
+Need help? [Ask in Q&A](../../discussions/new?category=q-a)
+
+### 🔧 Contribute Code
+Want to contribute code? Read our [Contributing Guide](CONTRIBUTING.md)
+
+### 🌟 Good First Issues
+New to the project? Check out issues labeled [`good first issue`](../../issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+
+### 📖 Documentation
+Help improve the docs! All documentation improvements are welcome.
+
+---
+
+**Every contribution matters!** Whether it's:
+- 🐛 Fixing a typo
+- 📝 Improving documentation  
+- 🌍 Adding a translation
+- ✨ Adding a feature
+- 🤝 Helping others in Discussions
+
+We appreciate them all! 🙏
 
 ---
 
