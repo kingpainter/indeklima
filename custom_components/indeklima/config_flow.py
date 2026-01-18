@@ -1,6 +1,6 @@
 """Config flow for Indeklima integration.
 
-Version: 2.3.1
+Version: 2.3.2
 """
 from __future__ import annotations
 
