@@ -62,13 +62,6 @@ Advanced indoor climate monitoring for Home Assistant with multi-room support, i
 - **Better Device Classes** - Proper HA device classes for perfect UI integration
 - **Backward Compatible** - Status sensor attributes preserved for existing dashboards
 
-### 🚧 Planned (v2.4+)
-- 📱 Automatic device control (dehumidifiers, fans)
-- 🎯 Diagnostics platform (Gold tier)
-- 🔗 Integration with ventilation systems
-- 🧠 Machine learning patterns
-- ⚡ Energy optimization
-
 ---
 
 ## 📦 Installation
