@@ -10,6 +10,19 @@ Advanced indoor climate monitoring for Home Assistant with multi-room support, i
 **Quality Scale:** Silver Tier ⭐️
 
 ---
+## 🤝 Contributing
+   
+   We welcome contributions! Here's how:
+   
+   - 🐛 **Found a bug?** [Report it](../../issues/new?template=bug_report.md)
+   - 💡 **Have an idea?** [Share it](../../discussions/new?category=ideas)
+   - ❓ **Need help?** [Ask here](../../discussions/new?category=q-a)
+   - 🔧 **Want to code?** Read [CONTRIBUTING.md](CONTRIBUTING.md)
+   
+   ### Good First Issues
+   New to the project? Check [good first issues](../../issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)!
+
+---
 
 ## ✨ Features
 
@@ -570,18 +583,6 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ### v1.0.0 (2025-01-02)
 - 🎉 Initial release
-
----
-
-## 🤝 Contributing
-
-Contributions are very welcome!
-
-1. Fork the project
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
 
 ---
 
