@@ -1,6 +1,6 @@
 """Config flow for Indeklima integration.
 
-Version: 2.2.0
+Version: 2.3.1
 """
 from __future__ import annotations
 
@@ -103,7 +103,7 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         },
                     )
 
-        rooms_text = "\n".join([f"• {r['name']}" for r in self.rooms]) if self.rooms else "Ingen rum tilføjet"
+        rooms_text = "\n".join([f"{r['name']}" for r in self.rooms]) if self.rooms else "Ingen rum tilføjet"
 
         return self.async_show_form(
             step_id="room_menu",
@@ -290,9 +290,9 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
                 vol.Required("menu"): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=[
-                            {"label": "⚙️ Grænseværdier", "value": "thresholds"},
-                            {"label": "🏠 Administrer rum", "value": "rooms"},
-                            {"label": "🌤️ Vejr integration", "value": "weather"},
+                            {"label": "⚙️ Grænseværdier", "value": "thresholds"},
+                            {"label": "  Administrer rum", "value": "rooms"},
+                            {"label": "Vejr integration", "value": "weather"},
                         ],
                         mode=selector.SelectSelectorMode.LIST,
                     )
@@ -335,13 +335,13 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
             elif action == "done":
                 return await self.async_step_main_menu()
 
-        options = [{"label": "➕ Tilføj nyt rum", "value": "add"}]
+        options = [{"label": "Tilføj nyt rum", "value": "add"}]
         
         for idx, room in enumerate(self._rooms):
-            options.append({"label": f"✏️ {room['name']}", "value": f"edit_{idx}"})
-            options.append({"label": f"🗑️ Slet {room['name']}", "value": f"delete_{idx}"})
+            options.append({"label": f"{room['name']}", "value": f"edit_{idx}"})
+            options.append({"label": f"Slet {room['name']}", "value": f"delete_{idx}"})
         
-        options.append({"label": "✅ Tilbage til hovedmenu", "value": "done"})
+        options.append({"label": "Tilbage til hovedmenu", "value": "done"})
 
         return self.async_show_form(
             step_id="room_list",

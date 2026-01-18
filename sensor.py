@@ -1,6 +1,6 @@
 """Sensor platform for Indeklima integration.
 
-Version: 2.2.0
+Version: 2.3.1
 """
 from __future__ import annotations
 
@@ -16,7 +16,21 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.util import dt as dt_util
 
 from . import IndeklimaDataCoordinator
-from .const import DOMAIN, SENSOR_TYPES, __version__
+from .const import (
+    DOMAIN,
+    SENSOR_TYPES,
+    ROOM_SENSOR_TYPES,
+    CONF_HUMIDITY_SENSORS,
+    CONF_TEMPERATURE_SENSORS,
+    CONF_CO2_SENSORS,
+    STATUS_CRITICAL,
+    STATUS_WARNING,
+    CIRCULATION_POOR,
+    TREND_STABLE,
+    VENTILATION_NO,
+    normalize_room_id,
+    __version__,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,13 +59,56 @@ async def async_setup_entry(
     # Add room sensors (attached to room devices)
     for room in coordinator.rooms:
         room_name = room.get("name")
+        
+        # Create room ID (normalized for device identifier)
+        room_id = normalize_room_id(room_name)
+        
+        # Add status sensor (always)
         entities.append(
             IndeklimaRoomSensor(
                 coordinator,
                 entry,
                 room_name,
+                room_id,
+                "status",
             )
         )
+        
+        # Add temperature sensor (if room has temperature sensors)
+        if room.get(CONF_TEMPERATURE_SENSORS):
+            entities.append(
+                IndeklimaRoomMetricSensor(
+                    coordinator,
+                    entry,
+                    room_name,
+                    room_id,
+                    "temperature",
+                )
+            )
+        
+        # Add humidity sensor (if room has humidity sensors)
+        if room.get(CONF_HUMIDITY_SENSORS):
+            entities.append(
+                IndeklimaRoomMetricSensor(
+                    coordinator,
+                    entry,
+                    room_name,
+                    room_id,
+                    "humidity",
+                )
+            )
+        
+        # Add CO2 sensor (if room has CO2 sensors)
+        if room.get(CONF_CO2_SENSORS):
+            entities.append(
+                IndeklimaRoomMetricSensor(
+                    coordinator,
+                    entry,
+                    room_name,
+                    room_id,
+                    "co2",
+                )
+            )
     
     async_add_entities(entities)
 
@@ -102,14 +159,14 @@ class IndeklimaGlobalSensor(CoordinatorEntity, SensorEntity):
         elif self._sensor_type == "open_windows":
             return len(self.coordinator.data.get("open_windows", []))
         elif self._sensor_type == "air_circulation":
-            return self.coordinator.data.get("air_circulation", "Dårlig")
+            return self.coordinator.data.get("air_circulation", CIRCULATION_POOR)
         elif self._sensor_type == "ventilation_recommendation":
             ventilation = self.coordinator.data.get("ventilation", {})
-            return ventilation.get("status", "Nej")
+            return ventilation.get("status", VENTILATION_NO)
         elif self._sensor_type.startswith("trend_"):
             # Get trend value
             trend_key = self._sensor_type.replace("trend_", "")
-            return self.coordinator.data.get("trends", {}).get(trend_key, "Stabil")
+            return self.coordinator.data.get("trends", {}).get(trend_key, TREND_STABLE)
         elif self._sensor_type.endswith("_avg"):
             # Get average value
             key = self._sensor_type.replace("_avg", "")
@@ -150,7 +207,7 @@ class IndeklimaGlobalSensor(CoordinatorEntity, SensorEntity):
 
 
 class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
-    """Representation of an Indeklima room sensor."""
+    """Representation of an Indeklima room status sensor."""
 
     _attr_has_entity_name = True
 
@@ -159,15 +216,16 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
         coordinator: IndeklimaDataCoordinator,
         entry: ConfigEntry,
         room_name: str,
+        room_id: str,
+        sensor_type: str,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._room_name = room_name
+        self._room_id = room_id
+        self._sensor_type = sensor_type
         self._entry = entry
         self._last_notified: datetime | None = None
-        
-        # Create room ID (normalized for device identifier)
-        room_id = room_name.lower().replace(" ", "_").replace("æ", "ae").replace("ø", "oe").replace("å", "aa")
         
         # Entity naming per HA guidelines
         self._attr_unique_id = f"{entry.entry_id}_room_{room_id}_status"
@@ -185,15 +243,15 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
             return None
         
         room_data = self.coordinator.data.get("rooms", {}).get(self._room_name, {})
-        return room_data.get("status", "Unknown")
+        return room_data.get("status", "unknown")
     
     @property
     def icon(self) -> str:
         """Return the icon based on status."""
         status = self.native_value
-        if status == "Dårlig":
+        if status == CIRCULATION_POOR:
             return "mdi:alert-circle"
-        elif status == "Advarsel":
+        elif status == STATUS_WARNING:
             return "mdi:alert"
         return "mdi:check-circle"
     
@@ -207,7 +265,7 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
         
         attrs = {}
         
-        # Add sensor values
+        # Add sensor values (backward compatible - keep these in attributes)
         if "humidity" in room_data:
             attrs["fugtighed"] = round(room_data["humidity"], 1)
             if "humidity_sensors_count" in room_data:
@@ -233,7 +291,7 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
             if "formaldehyde_sensors_count" in room_data:
                 attrs["formaldehyd_sensorer"] = room_data["formaldehyde_sensors_count"]
         
-        # NEW: Add window/door status
+        # Add window/door status
         if "outdoor_windows_open" in room_data:
             attrs["vinduer_udendørs_åbne"] = room_data["outdoor_windows_open"]
         
@@ -253,3 +311,82 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
         """Set the last notified timestamp."""
         self._last_notified = timestamp or dt_util.utcnow()
         self.async_write_ha_state()
+
+
+class IndeklimaRoomMetricSensor(CoordinatorEntity, SensorEntity):
+    """Representation of an Indeklima room metric sensor (temperature, humidity, CO2)."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: IndeklimaDataCoordinator,
+        entry: ConfigEntry,
+        room_name: str,
+        room_id: str,
+        sensor_type: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._room_name = room_name
+        self._room_id = room_id
+        self._sensor_type = sensor_type
+        self._entry = entry
+        
+        # Get configuration from ROOM_SENSOR_TYPES
+        config = ROOM_SENSOR_TYPES[sensor_type]
+        
+        # Entity naming per HA guidelines
+        self._attr_unique_id = f"{entry.entry_id}_room_{room_id}_{sensor_type}"
+        self._attr_name = config["name"]
+        self._attr_icon = config["icon"]
+        self._attr_native_unit_of_measurement = config.get("unit")
+        
+        # Set device class if available
+        if device_class := config.get("device_class"):
+            self._attr_device_class = SensorDeviceClass(device_class)
+        
+        # Link to room device
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_room_{room_id}")},
+        )
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the state of the sensor."""
+        if not self.coordinator.data:
+            return None
+        
+        room_data = self.coordinator.data.get("rooms", {}).get(self._room_name, {})
+        
+        # Get the value based on sensor type
+        value = room_data.get(self._sensor_type)
+        
+        if value is None:
+            return None
+        
+        # Round based on sensor type
+        if self._sensor_type == "co2":
+            return round(value, 0)
+        else:
+            return round(value, 1)
+    
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return additional attributes showing individual sensor values."""
+        if not self.coordinator.data:
+            return {}
+        
+        room_data = self.coordinator.data.get("rooms", {}).get(self._room_name, {})
+        
+        attrs = {}
+        
+        # Add count of sensors used
+        count_key = f"{self._sensor_type}_sensors_count"
+        if count_key in room_data:
+            attrs["sensorer_brugt"] = room_data[count_key]
+        
+        # Note: Individual sensor values could be added here in the future
+        # For now, we just show the count and average value is in state
+        
+        return attrs

@@ -2,15 +2,15 @@
   "config": {
     "step": {
       "user": {
-        "title": "Opsætning af Indeklima v2.2",
-        "description": "Velkommen til Indeklima med indoor/outdoor vindue tracking!",
+        "title": "Opsætning af Indeklima v2.3.1",
+        "description": "Velkommen til Indeklima med per-rum sensorer!",
         "data": {
           "name": "Navn på integration"
         }
       },
       "room_menu": {
         "title": "Rum Oversigt",
-        "description": "Tilføjede rum:\n{rooms}\n\nVælg hvad du vil gøre:",
+        "description": "Tilføjede rum:\\n{rooms}\\n\\nVælg hvad du vil gøre:",
         "data": {
           "action": "Handling"
         }
@@ -147,28 +147,72 @@
         "name": "Severity score"
       },
       "severity_status": {
-        "name": "Status"
+        "name": "Status",
+        "state": {
+          "good": "God",
+          "warning": "Advarsel",
+          "critical": "Dårlig"
+        }
       },
       "open_windows": {
         "name": "Åbne vinduer"
       },
       "air_circulation": {
-        "name": "Luftcirkulation"
+        "name": "Luftcirkulation",
+        "state": {
+          "good": "God",
+          "moderate": "Moderat",
+          "poor": "Dårlig"
+        }
       },
       "trend_humidity": {
-        "name": "Fugtigheds trend"
+        "name": "Fugtigheds trend",
+        "state": {
+          "rising": "Stigende",
+          "falling": "Faldende",
+          "stable": "Stabil"
+        }
       },
       "trend_co2": {
-        "name": "CO2 trend"
+        "name": "CO2 trend",
+        "state": {
+          "rising": "Stigende",
+          "falling": "Faldende",
+          "stable": "Stabil"
+        }
       },
       "trend_severity": {
-        "name": "Severity trend"
+        "name": "Severity trend",
+        "state": {
+          "rising": "Stigende",
+          "falling": "Faldende",
+          "stable": "Stabil"
+        }
       },
       "ventilation_recommendation": {
-        "name": "Ventilationsanbefaling"
+        "name": "Ventilationsanbefaling",
+        "state": {
+          "yes": "Ja",
+          "no": "Nej",
+          "optional": "Valgfrit"
+        }
       },
       "room_status": {
-        "name": "Status"
+        "name": "Status",
+        "state": {
+          "good": "God",
+          "warning": "Advarsel",
+          "critical": "Dårlig"
+        }
+      },
+      "room_temperature": {
+        "name": "Temperatur"
+      },
+      "room_humidity": {
+        "name": "Fugtighed"
+      },
+      "room_co2": {
+        "name": "CO2"
       }
     }
   }

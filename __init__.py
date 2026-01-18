@@ -1,6 +1,6 @@
 """Indeklima integration for Home Assistant.
 
-Version: 2.2.0
+Version: 2.3.1
 """
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.helpers import device_registry as dr
 
 from .const import (
+    normalize_room_id,
     DOMAIN,
     CONF_ROOMS,
     CONF_HUMIDITY_SENSORS,
@@ -86,7 +87,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Register room devices
     for room in coordinator.rooms:
         room_name = room.get("name")
-        room_id = room_name.lower().replace(" ", "_").replace("æ", "ae").replace("ø", "oe").replace("å", "aa")
+        room_id = normalize_room_id(room_name)
         
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
@@ -457,7 +458,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
                         continue
                     
                     state = self.hass.states.get(entity_id)
-                    if state and state.state == "on":  # ✅ FIXED: on = open
+                    if state and state.state == "on":  # “â€¦ FIXED: on = open
                         if is_outdoor:
                             room_outdoor_open += 1
                             total_outdoor_windows_open += 1

@@ -2,15 +2,15 @@
   "config": {
     "step": {
       "user": {
-        "title": "Setup Indeklima v2.2",
-        "description": "Welcome to Indeklima with indoor/outdoor window tracking!",
+        "title": "Setup Indeklima v2.3.1",
+        "description": "Welcome to Indeklima with per-room sensors!",
         "data": {
           "name": "Integration name"
         }
       },
       "room_menu": {
         "title": "Room Overview",
-        "description": "Added rooms:\n{rooms}\n\nChoose what to do:",
+        "description": "Added rooms:\\n{rooms}\\n\\nChoose what to do:",
         "data": {
           "action": "Action"
         }
@@ -147,28 +147,72 @@
         "name": "Severity score"
       },
       "severity_status": {
-        "name": "Status"
+        "name": "Status",
+        "state": {
+          "good": "Good",
+          "warning": "Warning",
+          "critical": "Critical"
+        }
       },
       "open_windows": {
         "name": "Open windows"
       },
       "air_circulation": {
-        "name": "Air circulation"
+        "name": "Air circulation",
+        "state": {
+          "good": "Good",
+          "moderate": "Moderate",
+          "poor": "Poor"
+        }
       },
       "trend_humidity": {
-        "name": "Humidity trend"
+        "name": "Humidity trend",
+        "state": {
+          "rising": "Rising",
+          "falling": "Falling",
+          "stable": "Stable"
+        }
       },
       "trend_co2": {
-        "name": "CO2 trend"
+        "name": "CO2 trend",
+        "state": {
+          "rising": "Rising",
+          "falling": "Falling",
+          "stable": "Stable"
+        }
       },
       "trend_severity": {
-        "name": "Severity trend"
+        "name": "Severity trend",
+        "state": {
+          "rising": "Rising",
+          "falling": "Falling",
+          "stable": "Stable"
+        }
       },
       "ventilation_recommendation": {
-        "name": "Ventilation recommendation"
+        "name": "Ventilation recommendation",
+        "state": {
+          "yes": "Yes",
+          "no": "No",
+          "optional": "Optional"
+        }
       },
       "room_status": {
-        "name": "Status"
+        "name": "Status",
+        "state": {
+          "good": "Good",
+          "warning": "Warning",
+          "critical": "Critical"
+        }
+      },
+      "room_temperature": {
+        "name": "Temperature"
+      },
+      "room_humidity": {
+        "name": "Humidity"
+      },
+      "room_co2": {
+        "name": "CO2"
       }
     }
   }

@@ -1,10 +1,10 @@
 """Constants for Indeklima integration.
 
-Version: 2.2.0
+Version: 2.3.1
 """
 from typing import Final
 
-__version__ = "2.2.0"
+__version__ = "2.3.1"
 
 DOMAIN: Final = "indeklima"
 
@@ -42,34 +42,34 @@ DEFAULT_CO2_MAX: Final = 1000
 DEFAULT_VOC_MAX: Final = 3.0
 DEFAULT_FORMALDEHYDE_MAX: Final = 0.15
 
-# Sensor types
+# Sensor types (Hub sensors)
 SENSOR_TYPES: Final = {
     "humidity_avg": {
-        "name": "Gennemsnitlig Fugtighed",
+        "name": "Average Humidity",
         "unit": "%",
         "icon": "mdi:water-percent",
         "device_class": "humidity",
     },
     "temperature_avg": {
-        "name": "Gennemsnitlig Temperatur",
+        "name": "Average Temperature",
         "unit": "°C",
         "icon": "mdi:thermometer",
         "device_class": "temperature",
     },
     "co2_avg": {
-        "name": "Gennemsnitlig CO2",
+        "name": "Average CO2",
         "unit": "ppm",
         "icon": "mdi:molecule-co2",
         "device_class": None,
     },
     "voc_avg": {
-        "name": "Gennemsnitlig VOC",
+        "name": "Average VOC",
         "unit": "ppb",
         "icon": "mdi:air-filter",
         "device_class": None,
     },
     "formaldehyde_avg": {
-        "name": "Gennemsnitlig Formaldehyd",
+        "name": "Average Formaldehyde",
         "unit": "µg/m³",
         "icon": "mdi:chemical-weapon",
         "device_class": None,
@@ -87,19 +87,19 @@ SENSOR_TYPES: Final = {
         "device_class": None,
     },
     "open_windows": {
-        "name": "Åbne Vinduer",
-        "unit": "stk",
+        "name": "Open Windows",
+        "unit": "count",
         "icon": "mdi:window-open",
         "device_class": None,
     },
     "air_circulation": {
-        "name": "Luftcirkulation",
+        "name": "Air Circulation",
         "unit": None,
         "icon": "mdi:fan",
         "device_class": None,
     },
     "trend_humidity": {
-        "name": "Fugtigheds Trend",
+        "name": "Humidity Trend",
         "unit": None,
         "icon": "mdi:trending-up",
         "device_class": None,
@@ -117,17 +117,45 @@ SENSOR_TYPES: Final = {
         "device_class": None,
     },
     "ventilation_recommendation": {
-        "name": "Ventilationsanbefaling",
+        "name": "Ventilation Recommendation",
         "unit": None,
         "icon": "mdi:window-open-variant",
         "device_class": None,
     },
 }
 
-# Status levels
-STATUS_GOOD: Final = "God"
-STATUS_WARNING: Final = "Advarsel"
-STATUS_CRITICAL: Final = "Dårlig"
+# Room sensor types (per-room individual sensors)
+ROOM_SENSOR_TYPES: Final = {
+    "status": {
+        "name": "Status",
+        "unit": None,
+        "icon": "mdi:home-thermometer",
+        "device_class": None,
+    },
+    "temperature": {
+        "name": "Temperature",
+        "unit": "°C",
+        "icon": "mdi:thermometer",
+        "device_class": "temperature",
+    },
+    "humidity": {
+        "name": "Humidity",
+        "unit": "%",
+        "icon": "mdi:water-percent",
+        "device_class": "humidity",
+    },
+    "co2": {
+        "name": "CO2",
+        "unit": "ppm",
+        "icon": "mdi:molecule-co2",
+        "device_class": "carbon_dioxide",
+    },
+}
+
+# Status levels (English - translated via strings.json)
+STATUS_GOOD: Final = "good"
+STATUS_WARNING: Final = "warning"
+STATUS_CRITICAL: Final = "critical"
 
 # Seasons
 SEASON_SUMMER: Final = "summer"
@@ -140,20 +168,40 @@ TREND_WINDOW: Final = 1800
 # Notification cooldown
 NOTIFICATION_COOLDOWN: Final = 7200
 
-# Trend states
-TREND_RISING: Final = "Stigende"
-TREND_FALLING: Final = "Faldende"
-TREND_STABLE: Final = "Stabil"
+# Trend states (English - translated via strings.json)
+TREND_RISING: Final = "rising"
+TREND_FALLING: Final = "falling"
+TREND_STABLE: Final = "stable"
 
-# Ventilation states
-VENTILATION_YES: Final = "Ja"
-VENTILATION_NO: Final = "Nej"
-VENTILATION_OPTIONAL: Final = "Valgfrit"
+# Ventilation states (English - translated via strings.json)
+VENTILATION_YES: Final = "yes"
+VENTILATION_NO: Final = "no"
+VENTILATION_OPTIONAL: Final = "optional"
 
-# Air circulation states
-CIRCULATION_GOOD: Final = "God"
-CIRCULATION_MODERATE: Final = "Moderat"
-CIRCULATION_POOR: Final = "Dårlig"
+# Air circulation states (English - translated via strings.json)
+CIRCULATION_GOOD: Final = "good"
+CIRCULATION_MODERATE: Final = "moderate"
+CIRCULATION_POOR: Final = "poor"
 
 # Severity bonus for air circulation
 CIRCULATION_BONUS: Final = 0.95  # 5% reduction in severity
+
+
+def normalize_room_id(room_name: str) -> str:
+    """Normalize room name to create consistent room ID.
+    
+    This ensures device registry and entity unique_ids match perfectly.
+    Handles Danish characters: æ, ø, å
+    """
+    normalized = room_name.lower().replace(" ", "_")
+    
+    # Danish character replacements
+    danish_chars = {
+        "æ": "ae", "ø": "oe", "å": "aa",
+        "Æ": "ae", "Ø": "oe", "Å": "aa",
+    }
+    
+    for danish, replacement in danish_chars.items():
+        normalized = normalized.replace(danish, replacement)
+    
+    return normalized
