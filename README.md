@@ -1,5 +1,9 @@
 # 🏠 Indeklima - Home Assistant Integration
 
+<p align="center">
+  <img src="logo.png" alt="Indeklima Logo" width="300"/>
+</p>
+
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
 [![Version](https://img.shields.io/badge/version-2.3.2-blue.svg)](https://github.com/kingpainter/indeklima)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
