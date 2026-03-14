@@ -1,10 +1,10 @@
 """Constants for Indeklima integration.
 
-Version: 2.3.2
+Version: 2.3.4
 """
 from typing import Final
 
-__version__ = "2.3.2"
+__version__ = "2.3.4"
 
 DOMAIN: Final = "indeklima"
 
@@ -16,6 +16,7 @@ CONF_TEMPERATURE_SENSORS: Final = "temperature_sensors"
 CONF_CO2_SENSORS: Final = "co2_sensors"
 CONF_VOC_SENSORS: Final = "voc_sensors"
 CONF_FORMALDEHYDE_SENSORS: Final = "formaldehyde_sensors"
+CONF_PRESSURE_SENSORS: Final = "pressure_sensors"
 CONF_WINDOW_SENSORS: Final = "window_sensors"
 
 # Window/Door configuration
@@ -52,7 +53,7 @@ SENSOR_TYPES: Final = {
     },
     "temperature_avg": {
         "name": "Average Temperature",
-        "unit": "°C",
+        "unit": "\u00b0C",
         "icon": "mdi:thermometer",
         "device_class": "temperature",
     },
@@ -70,9 +71,15 @@ SENSOR_TYPES: Final = {
     },
     "formaldehyde_avg": {
         "name": "Average Formaldehyde",
-        "unit": "µg/m³",
+        "unit": "\u00b5g/m\u00b3",
         "icon": "mdi:chemical-weapon",
         "device_class": None,
+    },
+    "pressure_avg": {
+        "name": "Average Pressure",
+        "unit": "hPa",
+        "icon": "mdi:gauge",
+        "device_class": "atmospheric_pressure",
     },
     "severity": {
         "name": "Severity Score",
@@ -134,7 +141,7 @@ ROOM_SENSOR_TYPES: Final = {
     },
     "temperature": {
         "name": "Temperature",
-        "unit": "°C",
+        "unit": "\u00b0C",
         "icon": "mdi:thermometer",
         "device_class": "temperature",
     },
@@ -150,6 +157,12 @@ ROOM_SENSOR_TYPES: Final = {
         "icon": "mdi:molecule-co2",
         "device_class": "carbon_dioxide",
     },
+    "pressure": {
+        "name": "Pressure",
+        "unit": "hPa",
+        "icon": "mdi:gauge",
+        "device_class": "atmospheric_pressure",
+    },
 }
 
 # Status levels (English - translated via strings.json)
@@ -163,7 +176,7 @@ SEASON_WINTER: Final = "winter"
 
 # Update interval
 SCAN_INTERVAL: Final = 300
-TREND_WINDOW: Final = 1800
+TREND_WINDOW: Final = 900  # 15 minutes
 
 # Notification cooldown
 NOTIFICATION_COOLDOWN: Final = 7200
@@ -191,14 +204,14 @@ def normalize_room_id(room_name: str) -> str:
     """Normalize room name to create consistent room ID.
     
     This ensures device registry and entity unique_ids match perfectly.
-    Handles Danish characters: æ, ø, å
+    Handles Danish characters: ae, oe, aa
     """
     normalized = room_name.lower().replace(" ", "_")
     
     # Danish character replacements
     danish_chars = {
-        "æ": "ae", "ø": "oe", "å": "aa",
-        "Æ": "ae", "Ø": "oe", "Å": "aa",
+        "\u00e6": "ae", "\u00f8": "oe", "\u00e5": "aa",
+        "\u00c6": "ae", "\u00d8": "oe", "\u00c5": "aa",
     }
     
     for danish, replacement in danish_chars.items():

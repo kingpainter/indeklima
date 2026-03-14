@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Opsætning af Indeklima v2.3.2",
+        "title": "Opsætning af Indeklima v2.3.3",
         "description": "Velkommen til Indeklima med per-rum sensorer!",
         "data": {
           "name": "Navn på integration"
@@ -25,6 +25,7 @@
           "co2_sensors": "CO2 sensorer",
           "voc_sensors": "VOC sensorer",
           "formaldehyde_sensors": "Formaldehyd sensorer",
+          "pressure_sensors": "Tryksensorer",
           "window_sensors": "Vindue/dør sensorer",
           "dehumidifier": "Affugter",
           "fan": "Ventilator",
@@ -95,6 +96,7 @@
           "co2_sensors": "CO2 sensorer",
           "voc_sensors": "VOC sensorer",
           "formaldehyde_sensors": "Formaldehyd sensorer",
+          "pressure_sensors": "Tryksensorer",
           "window_sensors": "Vindue/dør sensorer",
           "dehumidifier": "Affugter",
           "fan": "Ventilator",
@@ -111,6 +113,7 @@
           "co2_sensors": "CO2 sensorer",
           "voc_sensors": "VOC sensorer",
           "formaldehyde_sensors": "Formaldehyd sensorer",
+          "pressure_sensors": "Tryksensorer",
           "window_sensors": "Vindue/dør sensorer",
           "dehumidifier": "Affugter",
           "fan": "Ventilator",
@@ -142,6 +145,9 @@
       },
       "formaldehyde_avg": {
         "name": "Gennemsnitlig formaldehyd"
+      },
+      "pressure_avg": {
+        "name": "Gennemsnitligt lufttryk"
       },
       "severity": {
         "name": "Severity score"
@@ -213,7 +219,27 @@
       },
       "room_co2": {
         "name": "CO2"
+      },
+      "room_pressure": {
+        "name": "Lufttryk"
       }
+    }
+  },
+  "system_health": {
+    "info": {
+      "integration_version": "Integrations version",
+      "config_entries": "Konfigurationsindgange indlæst",
+      "coordinator_status": "Koordinatorstatus",
+      "rooms_monitored": "Overvågede rum",
+      "overall_status": "Samlet status",
+      "severity_score": "Alvorlighedsscore",
+      "sensors_configured": "Konfigurerede sensorer",
+      "sensors_unavailable": "Utilgængelige sensorer",
+      "rooms_critical": "Rum med kritisk tilstand",
+      "rooms_warning": "Rum med advarsel",
+      "ventilation_status": "Udluftningsanbefaling",
+      "air_circulation": "Luftcirkulation",
+      "weather_configured": "Vejrenhed konfigureret"
     }
   }
 }

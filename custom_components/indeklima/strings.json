@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Setup Indeklima v2.3.2",
+        "title": "Setup Indeklima v2.4.1",
         "description": "Welcome to Indeklima with per-room sensors!",
         "data": {
           "name": "Integration name"
@@ -25,6 +25,7 @@
           "co2_sensors": "CO2 sensors",
           "voc_sensors": "VOC sensors",
           "formaldehyde_sensors": "Formaldehyde sensors",
+          "pressure_sensors": "Pressure sensors",
           "window_sensors": "Window/door sensors",
           "dehumidifier": "Dehumidifier",
           "fan": "Fan/Ventilator",
@@ -95,6 +96,7 @@
           "co2_sensors": "CO2 sensors",
           "voc_sensors": "VOC sensors",
           "formaldehyde_sensors": "Formaldehyde sensors",
+          "pressure_sensors": "Pressure sensors",
           "window_sensors": "Window/door sensors",
           "dehumidifier": "Dehumidifier",
           "fan": "Fan/Ventilator",
@@ -111,6 +113,7 @@
           "co2_sensors": "CO2 sensors",
           "voc_sensors": "VOC sensors",
           "formaldehyde_sensors": "Formaldehyde sensors",
+          "pressure_sensors": "Pressure sensors",
           "window_sensors": "Window/door sensors",
           "dehumidifier": "Dehumidifier",
           "fan": "Fan/Ventilator",
@@ -142,6 +145,9 @@
       },
       "formaldehyde_avg": {
         "name": "Average formaldehyde"
+      },
+      "pressure_avg": {
+        "name": "Average pressure"
       },
       "severity": {
         "name": "Severity score"
@@ -213,7 +219,27 @@
       },
       "room_co2": {
         "name": "CO2"
+      },
+      "room_pressure": {
+        "name": "Pressure"
       }
+    }
+  },
+  "system_health": {
+    "info": {
+      "integration_version": "Integration version",
+      "config_entries": "Config entries loaded",
+      "coordinator_status": "Coordinator status",
+      "rooms_monitored": "Rooms monitored",
+      "overall_status": "Overall status",
+      "severity_score": "Severity score",
+      "sensors_configured": "Sensors configured",
+      "sensors_unavailable": "Sensors unavailable",
+      "rooms_critical": "Rooms in critical state",
+      "rooms_warning": "Rooms in warning state",
+      "ventilation_status": "Ventilation recommendation",
+      "air_circulation": "Air circulation",
+      "weather_configured": "Weather entity configured"
     }
   }
 }

@@ -1,6 +1,6 @@
 """Sensor platform for Indeklima integration.
 
-Version: 2.3.2
+Version: 2.3.4
 """
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ from .const import (
     CONF_HUMIDITY_SENSORS,
     CONF_TEMPERATURE_SENSORS,
     CONF_CO2_SENSORS,
+    CONF_PRESSURE_SENSORS,
     STATUS_CRITICAL,
     STATUS_WARNING,
     CIRCULATION_POOR,
@@ -109,6 +110,18 @@ async def async_setup_entry(
                     "co2",
                 )
             )
+        
+        # Add pressure sensor (if room has pressure sensors)
+        if room.get(CONF_PRESSURE_SENSORS):
+            entities.append(
+                IndeklimaRoomMetricSensor(
+                    coordinator,
+                    entry,
+                    room_name,
+                    room_id,
+                    "pressure",
+                )
+            )
     
     async_add_entities(entities)
 
@@ -183,14 +196,14 @@ class IndeklimaGlobalSensor(CoordinatorEntity, SensorEntity):
             return {
                 "rum": ", ".join(rooms) if rooms else "Ingen",
                 "count": len(rooms),
-                "interne_døre_rum": ", ".join(internal_rooms) if internal_rooms else "Ingen",
-                "interne_døre_count": len(internal_rooms),
+                "interne_d\u00f8re_rum": ", ".join(internal_rooms) if internal_rooms else "Ingen",
+                "interne_d\u00f8re_count": len(internal_rooms),
             }
         elif self._sensor_type == "air_circulation":
             internal_rooms = self.coordinator.data.get("open_internal_doors", [])
             return {
-                "interne_døre_åbne": len(internal_rooms),
-                "rum_med_åbne_døre": ", ".join(internal_rooms) if internal_rooms else "Ingen",
+                "interne_d\u00f8re_\u00e5bne": len(internal_rooms),
+                "rum_med_\u00e5bne_d\u00f8re": ", ".join(internal_rooms) if internal_rooms else "Ingen",
             }
         elif self._sensor_type == "ventilation_recommendation":
             ventilation = self.coordinator.data.get("ventilation", {})
@@ -291,12 +304,17 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
             if "formaldehyde_sensors_count" in room_data:
                 attrs["formaldehyd_sensorer"] = room_data["formaldehyde_sensors_count"]
         
+        if "pressure" in room_data:
+            attrs["lufttryk"] = round(room_data["pressure"], 1)
+            if "pressure_sensors_count" in room_data:
+                attrs["lufttryk_sensorer"] = room_data["pressure_sensors_count"]
+        
         # Add window/door status
         if "outdoor_windows_open" in room_data:
-            attrs["vinduer_udendørs_åbne"] = room_data["outdoor_windows_open"]
+            attrs["vinduer_udend\u00f8rs_\u00e5bne"] = room_data["outdoor_windows_open"]
         
         if "internal_doors_open" in room_data:
-            attrs["døre_interne_åbne"] = room_data["internal_doors_open"]
+            attrs["d\u00f8re_interne_\u00e5bne"] = room_data["internal_doors_open"]
             # Add indicator if room has good air circulation
             if room_data["internal_doors_open"] > 0:
                 attrs["luftcirkulation_bonus"] = True
@@ -314,7 +332,7 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
 
 
 class IndeklimaRoomMetricSensor(CoordinatorEntity, SensorEntity):
-    """Representation of an Indeklima room metric sensor (temperature, humidity, CO2)."""
+    """Representation of an Indeklima room metric sensor (temperature, humidity, CO2, pressure)."""
 
     _attr_has_entity_name = True
 
@@ -368,6 +386,8 @@ class IndeklimaRoomMetricSensor(CoordinatorEntity, SensorEntity):
         # Round based on sensor type
         if self._sensor_type == "co2":
             return round(value, 0)
+        elif self._sensor_type == "pressure":
+            return round(value, 1)
         else:
             return round(value, 1)
     
@@ -385,8 +405,5 @@ class IndeklimaRoomMetricSensor(CoordinatorEntity, SensorEntity):
         count_key = f"{self._sensor_type}_sensors_count"
         if count_key in room_data:
             attrs["sensorer_brugt"] = room_data[count_key]
-        
-        # Note: Individual sensor values could be added here in the future
-        # For now, we just show the count and average value is in state
         
         return attrs

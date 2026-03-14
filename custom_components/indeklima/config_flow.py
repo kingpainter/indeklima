@@ -1,6 +1,6 @@
 """Config flow for Indeklima integration.
 
-Version: 2.3.2
+Version: 2.3.4
 """
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ from .const import (
     CONF_CO2_SENSORS,
     CONF_VOC_SENSORS,
     CONF_FORMALDEHYDE_SENSORS,
+    CONF_PRESSURE_SENSORS,
     CONF_WINDOW_SENSORS,
     CONF_WINDOW_ENTITY,
     CONF_WINDOW_IS_OUTDOOR,
@@ -103,7 +104,7 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         },
                     )
 
-        rooms_text = "\n".join([f"{r['name']}" for r in self.rooms]) if self.rooms else "Ingen rum tilføjet"
+        rooms_text = "\n".join([f"{r['name']}" for r in self.rooms]) if self.rooms else "Ingen rum tilf\u00f8jet"
 
         return self.async_show_form(
             step_id="room_menu",
@@ -111,8 +112,8 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required("action", default="add" if not self.rooms else "done"): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=[
-                            {"label": "Tilføj nyt rum", "value": "add"},
-                            {"label": "Færdig - Gem konfiguration", "value": "done"},
+                            {"label": "Tilf\u00f8j nyt rum", "value": "add"},
+                            {"label": "F\u00e6rdig - Gem konfiguration", "value": "done"},
                         ],
                         mode=selector.SelectSelectorMode.LIST,
                     )
@@ -132,7 +133,7 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Store basic sensors
             for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS,
                        CONF_CO2_SENSORS, CONF_VOC_SENSORS, 
-                       CONF_FORMALDEHYDE_SENSORS,
+                       CONF_FORMALDEHYDE_SENSORS, CONF_PRESSURE_SENSORS,
                        CONF_NOTIFICATION_TARGETS]:
                 val = user_input.get(key)
                 if val:
@@ -192,7 +193,7 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="window_config",
             data_schema=vol.Schema(schema_dict),
             description_placeholders={
-                "info": "Marker hvilke vinduer/døre der fører til udendørs. Interne døre mellem rum skal IKKE markeres."
+                "info": "Marker hvilke vinduer/d\u00f8re der f\u00f8rer til udend\u00f8rs. Interne d\u00f8re mellem rum skal IKKE markeres."
             }
         )
 
@@ -220,6 +221,9 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             vol.Optional(CONF_FORMALDEHYDE_SENSORS, default=defaults.get(CONF_FORMALDEHYDE_SENSORS, [])): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["sensor"], multiple=True)
+            ),
+            vol.Optional(CONF_PRESSURE_SENSORS, default=defaults.get(CONF_PRESSURE_SENSORS, [])): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["sensor"], device_class="atmospheric_pressure", multiple=True)
             ),
             vol.Optional(CONF_WINDOW_SENSORS, default=window_sensors_default): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["binary_sensor"], multiple=True)
@@ -290,9 +294,9 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
                 vol.Required("menu"): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=[
-                            {"label": "⚙️ Grænseværdier", "value": "thresholds"},
-                            {"label": "  Administrer rum", "value": "rooms"},
-                            {"label": "Vejr integration", "value": "weather"},
+                            {"label": "\u2699\ufe0f Gr\u00e6nsev\u00e6rdier", "value": "thresholds"},
+                            {"label": "\U0001f3e0 Administrer rum", "value": "rooms"},
+                            {"label": "\u2601\ufe0f Vejr integration", "value": "weather"},
                         ],
                         mode=selector.SelectSelectorMode.LIST,
                     )
@@ -329,13 +333,16 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
             elif action.startswith("delete_"):
                 idx = int(action.split("_")[1])
                 self._rooms.pop(idx)
-                self.hass.config_entries.async_update_entry(self._config_entry, data={**self._config_entry.data, CONF_ROOMS: self._rooms})
-                await self.hass.config_entries.async_reload(self._config_entry.entry_id)
+                self.hass.config_entries.async_update_entry(
+                    self._config_entry,
+                    data={**self._config_entry.data, CONF_ROOMS: self._rooms},
+                )
+                # Reload is triggered automatically by the update listener
                 return await self.async_step_room_list()
             elif action == "done":
                 return await self.async_step_main_menu()
 
-        options = [{"label": "Tilføj nyt rum", "value": "add"}]
+        options = [{"label": "Tilf\u00f8j nyt rum", "value": "add"}]
         
         for idx, room in enumerate(self._rooms):
             options.append({"label": f"{room['name']}", "value": f"edit_{idx}"})
@@ -357,7 +364,7 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             self._temp_room_config = {"name": user_input["name"]}
             
-            for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS, CONF_CO2_SENSORS, CONF_VOC_SENSORS, CONF_FORMALDEHYDE_SENSORS, CONF_NOTIFICATION_TARGETS]:
+            for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS, CONF_CO2_SENSORS, CONF_VOC_SENSORS, CONF_FORMALDEHYDE_SENSORS, CONF_PRESSURE_SENSORS, CONF_NOTIFICATION_TARGETS]:
                 val = user_input.get(key)
                 if val:
                     self._temp_room_config[key] = val if isinstance(val, list) else [val]
@@ -394,7 +401,7 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="add_room_windows",
             data_schema=self._get_window_schema(self._temp_window_sensors),
-            description_placeholders={"info": "Marker hvilke vinduer/døre der fører til udendørs. Interne døre mellem rum skal IKKE markeres."}
+            description_placeholders={"info": "Marker hvilke vinduer/d\u00f8re der f\u00f8rer til udend\u00f8rs. Interne d\u00f8re mellem rum skal IKKE markeres."}
         )
 
     async def async_step_edit_room(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
@@ -402,7 +409,7 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             self._temp_room_config = {"name": user_input["name"]}
             
-            for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS, CONF_CO2_SENSORS, CONF_VOC_SENSORS, CONF_FORMALDEHYDE_SENSORS, CONF_NOTIFICATION_TARGETS]:
+            for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS, CONF_CO2_SENSORS, CONF_VOC_SENSORS, CONF_FORMALDEHYDE_SENSORS, CONF_PRESSURE_SENSORS, CONF_NOTIFICATION_TARGETS]:
                 val = user_input.get(key)
                 if val:
                     self._temp_room_config[key] = val if isinstance(val, list) else [val]
@@ -446,7 +453,7 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="edit_room_windows",
             data_schema=self._get_window_schema(self._temp_window_sensors, existing_config),
-            description_placeholders={"info": "Marker hvilke vinduer/døre der fører til udendørs."}
+            description_placeholders={"info": "Marker hvilke vinduer/d\u00f8re der f\u00f8rer til udend\u00f8rs."}
         )
 
     async def async_step_weather_config(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
@@ -488,6 +495,9 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
             ),
             vol.Optional(CONF_FORMALDEHYDE_SENSORS, default=defaults.get(CONF_FORMALDEHYDE_SENSORS, [])): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["sensor"], multiple=True)
+            ),
+            vol.Optional(CONF_PRESSURE_SENSORS, default=defaults.get(CONF_PRESSURE_SENSORS, [])): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["sensor"], device_class="atmospheric_pressure", multiple=True)
             ),
             vol.Optional(CONF_WINDOW_SENSORS, default=window_sensors_default): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["binary_sensor"], multiple=True)
@@ -532,6 +542,10 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
         return vol.Schema(schema_dict)
 
     async def _save_and_reload(self) -> None:
-        """Save configuration and reload integration."""
-        self.hass.config_entries.async_update_entry(self._config_entry, data={**self._config_entry.data, CONF_ROOMS: self._rooms})
-        await self.hass.config_entries.async_reload(self._config_entry.entry_id)
+        """Save configuration and schedule reload."""
+        self.hass.config_entries.async_update_entry(
+            self._config_entry,
+            data={**self._config_entry.data, CONF_ROOMS: self._rooms},
+        )
+        # Reload is triggered automatically by the update listener
+        # registered in async_setup_entry via entry.add_update_listener
