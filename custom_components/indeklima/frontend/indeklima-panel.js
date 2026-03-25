@@ -175,25 +175,28 @@ class IndeklimaPanel extends HTMLElement {
 
       * { box-sizing: border-box; margin: 0; padding: 0; }
 
-      /* ── Layout ── */
-      /* Sticky top bar (header + tabs) — never scrolls */
+      /* ── Header ── */
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 16px;
+        position: relative;
+      }
       .panel-topbar {
         flex-shrink: 0;
-        padding: 20px 28px 0;
+        padding: 20px 28px 16px;
         background: var(--bg);
         max-width: 1600px;
         width: 100%;
         margin: 0 auto;
+        border-bottom: 1px solid var(--div);
       }
-
-      /* Scrollable content — takes all remaining height */
-      /* min-height: 0 is CRITICAL: without it flex children won't shrink below content size */
-      .panel-scroll {
         flex: 1;
         min-height: 0;
         overflow-y: auto;
         overflow-x: hidden;
-        padding: 16px 28px 48px;
+        padding: 20px 28px 48px;
         max-width: 1600px;
         width: 100%;
         margin: 0 auto;
@@ -213,15 +216,7 @@ class IndeklimaPanel extends HTMLElement {
       }
 
 
-      /* ── Header ── */
-      .header {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        margin-bottom: 28px;
-        position: relative;
-      }
-      .header-icon {
+      /* Scrollable content — takes all remaining height */
         width: 52px; height: 52px;
         border-radius: 16px;
         background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%);
@@ -267,21 +262,19 @@ class IndeklimaPanel extends HTMLElement {
         overflow: auto;
       }
 
-      /* ── Tabs ── */
+      /* ── Tabs (now part of header row) ── */
       .tabs {
         display: flex;
         gap: 4px;
         background: var(--bg2);
         border-radius: 14px;
         padding: 4px;
-        margin-bottom: 20px;
-        position: sticky;
-        top: 0;
-        z-index: 10;
+        margin-left: auto;
+        border: 1px solid var(--div);
       }
       .tab {
         flex: 1;
-        padding: 10px 12px;
+        padding: 8px 14px;
         border-radius: 10px;
         border: none;
         background: transparent;
@@ -292,6 +285,7 @@ class IndeklimaPanel extends HTMLElement {
         font-family: 'DM Sans', sans-serif;
         transition: all .2s;
         text-align: center;
+        white-space: nowrap;
       }
       .tab.active {
         background: var(--bg3);
@@ -306,6 +300,7 @@ class IndeklimaPanel extends HTMLElement {
         align-items: center;
         gap: 24px;
         background: var(--bg2);
+        border: 1px solid var(--div);
         border-radius: var(--card-radius);
         padding: 24px;
         margin-bottom: 20px;
@@ -377,6 +372,7 @@ class IndeklimaPanel extends HTMLElement {
       }
       .qs-card {
         background: var(--bg2);
+        border: 1px solid var(--div);
         border-radius: 14px;
         padding: 14px 12px;
         text-align: center;
@@ -499,6 +495,7 @@ class IndeklimaPanel extends HTMLElement {
       /* ── Ventilation card ── */
       .vent-card {
         background: var(--bg2);
+        border: 1px solid var(--div);
         border-radius: var(--card-radius);
         padding: 20px;
         margin-bottom: 16px;
@@ -543,6 +540,7 @@ class IndeklimaPanel extends HTMLElement {
       /* ── Circulation card ── */
       .circ-card {
         background: var(--bg2);
+        border: 1px solid var(--div);
         border-radius: var(--card-radius);
         padding: 20px;
         margin-bottom: 16px;
@@ -579,7 +577,7 @@ class IndeklimaPanel extends HTMLElement {
         .trends-row { grid-template-columns: 1fr; }
       }
       .trend-card {
-        background: var(--bg2); border-radius: 14px;
+        background: var(--bg2); border: 1px solid var(--div); border-radius: 14px;
         padding: 14px; text-align: center;
       }
       .trend-icon { font-size: 26px; margin-bottom: 6px; }
@@ -599,14 +597,14 @@ class IndeklimaPanel extends HTMLElement {
       }
       .window-chip-icon { font-size: 16px; }
       .no-windows {
-        background: var(--bg2); border-radius: 14px;
+        background: var(--bg2); border: 1px solid var(--div); border-radius: 14px;
         padding: 16px; text-align: center;
         color: var(--sub); font-size: 13px;
       }
 
       /* ── Room detail panel ── */
       .room-detail {
-        background: var(--bg2); border-radius: var(--card-radius);
+        background: var(--bg2); border: 1px solid var(--div); border-radius: var(--card-radius);
         margin-top: 16px; overflow: hidden;
       }
       .room-detail-header {
@@ -997,21 +995,7 @@ class IndeklimaPanel extends HTMLElement {
       else if (this._tab === "rooms")        tabContent = this._renderRooms(d);
       else if (this._tab === "ventilation")  tabContent = this._renderVentilation(d);
 
-      const tabs = [
-        { id: "overview",    label: "🏠 Overblik" },
-        { id: "rooms",       label: "🚪 Rum" },
-        { id: "ventilation", label: "🌬️ Udluftning" },
-      ];
-
-      content = `
-        <div class="tabs">
-          ${tabs.map(t => `
-            <button class="tab${this._tab === t.id ? " active" : ""}" data-tab="${t.id}">
-              ${t.label}
-            </button>`).join("")}
-        </div>
-        ${tabContent}
-      `;
+      content = tabContent;
     }
 
     this.shadowRoot.innerHTML = `
@@ -1025,6 +1009,16 @@ class IndeklimaPanel extends HTMLElement {
             <div class="version">v${d?.version || "2.4.1"} · Silver Tier</div>
           </div>
           ${this._stale ? '<span style="font-size:11px;color:var(--sub);padding:6px 10px;background:var(--bg2);border-radius:8px;border:1px solid var(--div)">⟳ Opdaterer…</span>' : ''}
+          ${d ? `<div class="tabs">
+            ${[
+              { id: "overview",    label: "🏠 Overblik" },
+              { id: "rooms",       label: "🚪 Rum" },
+              { id: "ventilation", label: "🌬️ Udluftning" },
+            ].map(t => `
+              <button class="tab${this._tab === t.id ? " active" : ""}" data-tab="${t.id}">
+                ${t.label}
+              </button>`).join("")}
+          </div>` : ""}
           <button class="header-refresh" id="refresh-btn">⟳ Opdater</button>
         </div>
       </div>
