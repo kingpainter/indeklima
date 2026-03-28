@@ -175,31 +175,29 @@ class IndeklimaPanel extends HTMLElement {
 
       * { box-sizing: border-box; margin: 0; padding: 0; }
 
-      /* ── Header ── */
+      /* ── Header: logo + title + refresh ── */
       .header {
         display: flex;
         align-items: center;
         gap: 16px;
-        margin-bottom: 16px;
-        position: relative;
+        margin-bottom: 12px;
       }
+      /* ── Top bar: header row — never scrolls ── */
       .panel-topbar {
         flex-shrink: 0;
-        padding: 20px 28px 16px;
+        padding: 16px 28px 12px;
         background: var(--bg);
-        max-width: 1600px;
-        width: 100%;
-        margin: 0 auto;
         border-bottom: 1px solid var(--div);
       }
+
+      /* ── Scrollable content — takes all remaining height ── */
+      /* min-height:0 is CRITICAL: without it flex children won't shrink */
+      .panel-scroll {
         flex: 1;
         min-height: 0;
         overflow-y: auto;
         overflow-x: hidden;
         padding: 20px 28px 48px;
-        max-width: 1600px;
-        width: 100%;
-        margin: 0 auto;
       }
       .panel-scroll::-webkit-scrollbar { width: 5px; }
       .panel-scroll::-webkit-scrollbar-track { background: transparent; }
@@ -211,12 +209,11 @@ class IndeklimaPanel extends HTMLElement {
         min-height: 0;
         overflow-y: auto;
         padding: 24px 28px 48px;
-        max-width: 1600px;
-        margin: 0 auto;
       }
 
 
       /* Scrollable content — takes all remaining height */
+      .header-icon {
         width: 52px; height: 52px;
         border-radius: 16px;
         background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%);
@@ -262,21 +259,16 @@ class IndeklimaPanel extends HTMLElement {
         overflow: auto;
       }
 
-      /* ── Tabs (now part of header row) ── */
+      /* ── Tabs: full-width tab bar below the header row ── */
       .tabs {
         display: flex;
-        gap: 4px;
-        background: var(--bg2);
-        border-radius: 14px;
-        padding: 4px;
-        margin-left: auto;
-        border: 1px solid var(--div);
+        gap: 2px;
       }
       .tab {
         flex: 1;
-        padding: 8px 14px;
+        padding: 9px 12px;
         border-radius: 10px;
-        border: none;
+        border: 1px solid transparent;
         background: transparent;
         color: var(--sub);
         cursor: pointer;
@@ -288,11 +280,12 @@ class IndeklimaPanel extends HTMLElement {
         white-space: nowrap;
       }
       .tab.active {
-        background: var(--bg3);
+        background: var(--bg2);
+        border-color: var(--div);
         color: var(--text);
         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
       }
-      .tab:hover:not(.active) { color: var(--text); }
+      .tab:hover:not(.active) { color: var(--text); background: rgba(255,255,255,0.04); }
 
       /* ── Score ring ── */
       .score-section {
@@ -396,12 +389,51 @@ class IndeklimaPanel extends HTMLElement {
       .qs-label { font-size: 10px; color: var(--sub); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
       .qs-trend { font-size: 13px; font-weight: 700; margin-left: 3px; }
 
-      /* ── Section header ── */
+      /* ── Section header (legacy, kept for compatibility) ── */
       .section-header {
         font-size: 11px; font-weight: 600;
         text-transform: uppercase; letter-spacing: 1.2px;
         color: var(--sub);
         margin-bottom: 10px; margin-top: 4px;
+      }
+
+      /* ── Section boxes: tydelige kasser med klare grænser ── */
+      .section-box {
+        background: var(--bg2);
+        border: 1px solid rgba(148,163,184,0.18);
+        border-radius: 14px;
+        overflow: hidden;
+        margin-bottom: 12px;
+      }
+      .section-box-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border-bottom: 1px solid rgba(148,163,184,0.12);
+        background: rgba(0,0,0,0.18);
+      }
+      .section-box-title {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--sub);
+        flex: 1;
+      }
+      .section-box-badge {
+        font-size: 9px;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 4px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
+      .section-box-body {
+        padding: 14px 16px;
+      }
+      .section-box-body-flush {
+        padding: 0;
       }
 
       /* ── Room cards ── */
@@ -693,69 +725,93 @@ class IndeklimaPanel extends HTMLElement {
     const trends   = d.trends   || {};
 
     return `
-      <!-- Score ring -->
-      <div class="score-section">
-        <div class="score-ring-wrap">
-          <svg class="score-ring-svg" viewBox="0 0 120 120">
-            <circle class="score-ring-bg"   cx="60" cy="60" r="${r}" />
-            <circle class="score-ring-fill" cx="60" cy="60" r="${r}"
-              stroke="${color}"
-              stroke-dasharray="${dashVal} ${dashOff}"
-              stroke-dashoffset="0" />
-          </svg>
-          <div class="score-ring-center">
-            <div class="score-value" style="color:${color}">${Math.round(severity)}</div>
-            <div class="score-unit">/ 100</div>
-          </div>
-        </div>
-
-        <div class="score-info">
-          <div class="score-status-badge" style="background:${color}22; color:${color};">
-            <span class="dot" style="background:${color}"></span>
+      <!-- SEKTION 1: Score -->
+      <div class="section-box">
+        <div class="section-box-header">
+          <div class="section-box-title">Husstandens indeklima</div>
+          <div class="section-box-badge" style="background:${color}22;color:${color};">
             ${this._statusLabel(status)}
           </div>
-          <div class="score-title">Husstandens indeklima</div>
-          <div class="score-sub">${d.room_count || 0} rum overvåges</div>
-
-          <div class="score-meta-row">
-            <div class="score-meta-chip">
-              🌀 <span>Luftcirkulation</span>
-              <strong style="color:${this._circColor(d.air_circulation)}">${this._circLabel(d.air_circulation)}</strong>
+        </div>
+        <div class="section-box-body">
+          <div class="score-section" style="background:none;border:none;padding:0;margin:0;overflow:visible;">
+            <div class="score-ring-wrap">
+              <svg class="score-ring-svg" viewBox="0 0 120 120">
+                <circle class="score-ring-bg"   cx="60" cy="60" r="${r}" />
+                <circle class="score-ring-fill" cx="60" cy="60" r="${r}"
+                  stroke="${color}"
+                  stroke-dasharray="${dashVal} ${dashOff}"
+                  stroke-dashoffset="0" />
+              </svg>
+              <div class="score-ring-center">
+                <div class="score-value" style="color:${color}">${Math.round(severity)}</div>
+                <div class="score-unit">/ 100</div>
+              </div>
             </div>
-            <div class="score-meta-chip">
-              🪟 <span>Åbne vinduer</span>
-              <strong>${d.open_windows_count || 0}</strong>
+            <div class="score-info">
+              <div class="score-title">${this._statusLabel(status)}</div>
+              <div class="score-sub">${d.room_count || 0} rum overvåges</div>
+              <div class="score-meta-row">
+                <div class="score-meta-chip">
+                  🌀 <span>Luftcirkulation</span>
+                  <strong style="color:${this._circColor(d.air_circulation)}">${this._circLabel(d.air_circulation)}</strong>
+                </div>
+                <div class="score-meta-chip">
+                  🪟 <span>Åbne vinduer</span>
+                  <strong>${d.open_windows_count || 0}</strong>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Quick stats -->
-      <div class="quick-stats">
-        ${this._qs("🌡️", this._fmt(averages.temperature, "°C", 1), "Temp", trends.humidity, false)}
-        ${this._qs("💧", this._fmt(averages.humidity, "%", 0), "Fugtighed", trends.humidity, true)}
-        ${this._qs("🫧", this._fmt(averages.co2, "ppm", 0), "CO₂", trends.co2, true)}
-        ${this._qs("🧭", this._fmt(averages.pressure, "hPa", 0), "Lufttryk", "stable", false)}
+      <!-- SEKTION 2: Gennemsnitlige målinger -->
+      <div class="section-box">
+        <div class="section-box-header">
+          <div class="section-box-title">Gennemsnitlige målinger</div>
+        </div>
+        <div class="section-box-body" style="padding:12px 14px;">
+          <div class="quick-stats" style="margin-bottom:0;">
+            ${this._qs("🌡️", this._fmt(averages.temperature, "°C", 1), "Temp", trends.humidity, false)}
+            ${this._qs("💧", this._fmt(averages.humidity, "%", 0), "Fugtighed", trends.humidity, true)}
+            ${this._qs("🫧", this._fmt(averages.co2, "ppm", 0), "CO₂", trends.co2, true)}
+            ${this._qs("🧭", this._fmt(averages.pressure, "hPa", 0), "Lufttryk", "stable", false)}
+          </div>
+        </div>
       </div>
 
-      <!-- Trends -->
-      <div class="section-header">Tendenser (30 min)</div>
-      <div class="trends-row">
-        ${this._trendCard("💧", "Fugtighed", trends.humidity)}
-        ${this._trendCard("🫧", "CO₂", trends.co2)}
-        ${this._trendCard("📊", "Alvorlighed", trends.severity)}
+      <!-- SEKTION 3: Tendenser -->
+      <div class="section-box">
+        <div class="section-box-header">
+          <div class="section-box-title">Tendenser (30 min)</div>
+        </div>
+        <div class="section-box-body" style="padding:12px 14px;">
+          <div class="trends-row" style="margin-bottom:0;">
+            ${this._trendCard("💧", "Fugtighed", trends.humidity)}
+            ${this._trendCard("🫧", "CO₂", trends.co2)}
+            ${this._trendCard("📊", "Alvorlighed", trends.severity)}
+          </div>
+        </div>
       </div>
 
-      <!-- Open windows -->
-      <div class="section-header">Åbne vinduer / døre</div>
-      ${d.open_windows && d.open_windows.length
-        ? `<div class="windows-list">${d.open_windows.map(r => `
-            <div class="window-chip">
-              <span class="window-chip-icon">🪟</span>${r}
-            </div>`).join("")}
-           </div>`
-        : `<div class="no-windows">Ingen åbne vinduer registreret</div>`
-      }
+      <!-- SEKTION 4: Åbne vinduer -->
+      <div class="section-box">
+        <div class="section-box-header">
+          <div class="section-box-title">Åbne vinduer / døre</div>
+          ${d.open_windows && d.open_windows.length
+            ? `<div class="section-box-badge" style="background:rgba(14,165,233,0.15);color:var(--teal);">${d.open_windows.length} åben</div>`
+            : ""}
+        </div>
+        <div class="section-box-body">
+          ${d.open_windows && d.open_windows.length
+            ? `<div class="windows-list" style="margin-bottom:0;">${d.open_windows.map(r => `
+                <div class="window-chip"><span class="window-chip-icon">🪟</span>${r}</div>`).join("")}
+               </div>`
+            : `<div class="no-windows" style="background:none;border:none;padding:4px 0;">Ingen åbne vinduer registreret</div>`
+          }
+        </div>
+      </div>
     `;
   }
 
@@ -833,8 +889,15 @@ class IndeklimaPanel extends HTMLElement {
       : "";
 
     return `
-      <div class="section-header">${rooms.length} rum</div>
-      <div class="rooms-grid">${roomsHTML}</div>
+      <div class="section-box">
+        <div class="section-box-header">
+          <div class="section-box-title">Rum</div>
+          <div class="section-box-badge" style="background:var(--bg3);color:var(--sub);">${rooms.length} rum</div>
+        </div>
+        <div class="section-box-body" style="padding:12px 14px;">
+          <div class="rooms-grid">${roomsHTML}</div>
+        </div>
+      </div>
       ${detailHTML}
     `;
   }
@@ -896,74 +959,102 @@ class IndeklimaPanel extends HTMLElement {
     const rooms   = Array.isArray(vent.rooms)  ? vent.rooms  : (vent.rooms ? [vent.rooms] : []);
 
     return `
-      <!-- Ventilation recommendation -->
-      <div class="vent-card" style="border-left: 4px solid ${color}; background: linear-gradient(135deg, ${color}12 0%, var(--bg2) 60%)">
-        <div class="vent-card-header">
-          <div class="vent-icon-big" style="background:${color}20">
-            <span style="font-size:26px">${this._ventIcon(vStatus)}</span>
-          </div>
-          <div>
-            <div class="vent-title" style="color:${color}">${this._ventLabel(vStatus)}</div>
-            <div class="vent-sub">
-              ${rooms.length > 0 ? `Berørte rum: ${rooms.join(", ")}` : "Ingen specifikke rum"}
-            </div>
-          </div>
+      <!-- SEKTION 1: Udluftningsanbefaling -->
+      <div class="section-box">
+        <div class="section-box-header">
+          <div class="section-box-title">Udluftningsanbefaling</div>
+          <div class="section-box-badge" style="background:${color}22;color:${color};">${this._ventIcon(vStatus)} ${this._ventLabel(vStatus)}</div>
         </div>
-
-        ${reasons.length > 0 ? `
-          <div class="section-header">Årsager</div>
-          <div class="vent-reasons">
-            ${reasons.map(r => `<div class="vent-reason-chip">⚠️ ${r}</div>`).join("")}
-          </div>` : ""}
-
-        ${vent.outdoor_temp != null ? `
-          <div class="section-header">Udendørs vejr</div>
-          <div class="vent-outdoor">
-            <div class="vent-outdoor-stat">
-              <div class="val">${this._fmt(vent.outdoor_temp, "°C", 1)}</div>
-              <div class="lbl">Temperatur</div>
+        <div class="section-box-body">
+          <div class="vent-card" style="background:none;border:none;padding:0;margin:0;">
+            <div class="vent-card-header" style="padding:0 0 12px 0;">
+              <div class="vent-icon-big" style="background:${color}20">
+                <span style="font-size:26px">${this._ventIcon(vStatus)}</span>
+              </div>
+              <div>
+                <div class="vent-title" style="color:${color}">${this._ventLabel(vStatus)}</div>
+                <div class="vent-sub">
+                  ${rooms.length > 0 ? `Berørte rum: ${rooms.join(", ")}` : "Ingen specifikke rum"}
+                </div>
+              </div>
             </div>
-            <div class="vent-outdoor-stat">
-              <div class="val">${this._fmt(vent.outdoor_humidity, "%", 0)}</div>
-              <div class="lbl">Fugtighed</div>
-            </div>
-          </div>` : `
-          <div style="color:var(--sub);font-size:13px;padding:8px 0;">
-            ⚙️ Ingen vejrintegration konfigureret — tilføj en weather entity i indstillinger for at få vejrbaserede anbefalinger.
-          </div>`}
-      </div>
-
-      <!-- Air circulation -->
-      <div class="section-header" style="margin-top:8px">Luftcirkulation</div>
-      <div class="circ-card">
-        <div class="circ-icon-wrap ${circ}">
-          ${this._circIcon(circ)}
-        </div>
-        <div class="circ-info">
-          <div class="circ-label" style="color:${this._circColor(circ)}">${this._circLabel(circ)}</div>
-          <div class="circ-detail">
-            ${(d.open_internal_doors || []).length} indendørs døre åbne
-            ${(d.open_internal_doors || []).length >= 3
-              ? " – +5% severity bonus aktiv! 🎉"
-              : " – Åbn døre for bedre cirkulation"}
+            ${reasons.length > 0 ? `
+              <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--sub);margin-bottom:6px;">Årsager</div>
+              <div class="vent-reasons">
+                ${reasons.map(r => `<div class="vent-reason-chip">⚠️ ${r}</div>`).join("")}
+              </div>` : ""}
           </div>
-          ${(d.open_internal_doors || []).length > 0 ? `
-            <div class="circ-doors-row">
-              ${(d.open_internal_doors || []).map(r => `<span class="circ-door-chip">🚪 ${r}</span>`).join("")}
-            </div>` : ""}
         </div>
       </div>
 
-      <!-- Open windows -->
-      <div class="section-header">Åbne udendørs vinduer</div>
-      ${(d.open_windows || []).length > 0
-        ? `<div class="windows-list">
-            ${(d.open_windows || []).map(r => `
-              <div class="window-chip">
-                <span class="window-chip-icon">🪟</span>${r}
-              </div>`).join("")}
-           </div>`
-        : `<div class="no-windows">Ingen udendørs vinduer åbne</div>`}
+      <!-- SEKTION 2: Udendørs vejr -->
+      <div class="section-box">
+        <div class="section-box-header">
+          <div class="section-box-title">Udendørs vejr</div>
+        </div>
+        <div class="section-box-body">
+          ${vent.outdoor_temp != null ? `
+            <div class="vent-outdoor">
+              <div class="vent-outdoor-stat">
+                <div class="val">${this._fmt(vent.outdoor_temp, "°C", 1)}</div>
+                <div class="lbl">Temperatur</div>
+              </div>
+              <div class="vent-outdoor-stat">
+                <div class="val">${this._fmt(vent.outdoor_humidity, "%", 0)}</div>
+                <div class="lbl">Fugtighed</div>
+              </div>
+            </div>` : `
+            <div style="color:var(--sub);font-size:13px;">
+              ⚙️ Ingen vejrintegration konfigureret — tilføj en weather entity i indstillinger.
+            </div>`}
+        </div>
+      </div>
+
+      <!-- SEKTION 3: Luftcirkulation -->
+      <div class="section-box">
+        <div class="section-box-header">
+          <div class="section-box-title">Luftcirkulation</div>
+          <div class="section-box-badge" style="background:${this._circColor(circ)}22;color:${this._circColor(circ)};">${this._circLabel(circ)}</div>
+        </div>
+        <div class="section-box-body">
+          <div class="circ-card" style="background:none;border:none;padding:0;margin:0;">
+            <div class="circ-icon-wrap ${circ}">
+              ${this._circIcon(circ)}
+            </div>
+            <div class="circ-info">
+              <div class="circ-label" style="color:${this._circColor(circ)}">${this._circLabel(circ)}</div>
+              <div class="circ-detail">
+                ${(d.open_internal_doors || []).length} indendørs døre åbne
+                ${(d.open_internal_doors || []).length >= 3
+                  ? " – +5% severity bonus aktiv! 🎉"
+                  : " – Åbn døre for bedre cirkulation"}
+              </div>
+              ${(d.open_internal_doors || []).length > 0 ? `
+                <div class="circ-doors-row">
+                  ${(d.open_internal_doors || []).map(r => `<span class="circ-door-chip">🚪 ${r}</span>`).join("")}
+                </div>` : ""}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SEKTION 4: Åbne udendørs vinduer -->
+      <div class="section-box">
+        <div class="section-box-header">
+          <div class="section-box-title">Åbne udendørs vinduer</div>
+          ${(d.open_windows || []).length > 0
+            ? `<div class="section-box-badge" style="background:rgba(14,165,233,0.15);color:var(--teal);">${d.open_windows.length} åben</div>`
+            : ""}
+        </div>
+        <div class="section-box-body">
+          ${(d.open_windows || []).length > 0
+            ? `<div class="windows-list" style="margin-bottom:0;">
+                ${(d.open_windows || []).map(r => `
+                  <div class="window-chip"><span class="window-chip-icon">🪟</span>${r}</div>`).join("")}
+               </div>`
+            : `<div class="no-windows" style="background:none;border:none;padding:4px 0;">Ingen udendørs vinduer åbne</div>`}
+        </div>
+      </div>
     `;
   }
 
@@ -1009,18 +1100,18 @@ class IndeklimaPanel extends HTMLElement {
             <div class="version">v${d?.version || "2.4.1"} · Silver Tier</div>
           </div>
           ${this._stale ? '<span style="font-size:11px;color:var(--sub);padding:6px 10px;background:var(--bg2);border-radius:8px;border:1px solid var(--div)">⟳ Opdaterer…</span>' : ''}
-          ${d ? `<div class="tabs">
-            ${[
-              { id: "overview",    label: "🏠 Overblik" },
-              { id: "rooms",       label: "🚪 Rum" },
-              { id: "ventilation", label: "🌬️ Udluftning" },
-            ].map(t => `
-              <button class="tab${this._tab === t.id ? " active" : ""}" data-tab="${t.id}">
-                ${t.label}
-              </button>`).join("")}
-          </div>` : ""}
           <button class="header-refresh" id="refresh-btn">⟳ Opdater</button>
         </div>
+        ${d ? `<div class="tabs">
+          ${[
+            { id: "overview",    label: "🏠 Overblik" },
+            { id: "rooms",       label: "🚪 Rum" },
+            { id: "ventilation", label: "🌬️ Udluftning" },
+          ].map(t => `
+            <button class="tab${this._tab === t.id ? " active" : ""}" data-tab="${t.id}">
+              ${t.label}
+            </button>`).join("")}
+        </div>` : ""}
       </div>
 
       <div class="panel-scroll${this._stale ? " skel-stale" : ""}">
