@@ -665,14 +665,14 @@ class IndeklimaTabletCard extends HTMLElement {
         .circ-lbl { font-size:12px; font-weight:600; }
 
         /* Col 2 */
-        .rooms-list { display:flex; flex-direction:column; gap:5px; }
+        .rooms-list { display:flex; flex-direction:column; gap:10px; }
         .room-row {
           display:flex; align-items:center; gap:8px;
           background:var(--bg2); border-radius:12px;
-          padding:8px 10px; border-left:4px solid transparent;
+          padding:13px 10px; border-left:4px solid transparent;
         }
-        .rr-left { flex-shrink:0; min-width:90px; }
-        .rr-name { font-size:13px; font-weight:700; margin-bottom:3px; }
+        .rr-left { flex-shrink:0; min-width:100px; }
+        .rr-name { font-size:13px; font-weight:700; margin-bottom:6px; }
         .rr-pill {
           font-size:9px; font-weight:700; padding:2px 7px; border-radius:20px;
           text-transform:uppercase; letter-spacing:.4px; display:inline-block;
@@ -680,7 +680,7 @@ class IndeklimaTabletCard extends HTMLElement {
         @keyframes blink { 0%,100%{opacity:1}50%{opacity:.55} }
 
         .rr-metrics { display:flex; gap:5px; flex:1; }
-        .rrm { background:var(--bg); border-radius:8px; padding:5px 8px; text-align:center; flex:1; }
+        .rrm { background:var(--bg); border-radius:8px; padding:8px 8px; text-align:center; flex:1; }
         .rrm-v { font-size:13px; font-weight:700; line-height:1.1; }
         .rrm-l { font-size:8px; color:var(--sub); margin-top:1px; text-transform:uppercase; }
 
