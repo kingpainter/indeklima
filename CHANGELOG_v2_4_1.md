@@ -1,16 +1,24 @@
 # Changelog - Indeklima v2.4.1
 
-## Version 2.4.1 - Diagnostics, System Health & Setup Failure Handling
+## Version 2.4.1 - Diagnostics, System Health, Repair Flow & Fixes
 
-**Release Date:** March 2026  
-**Type:** MINOR — New Gold Tier features, backward compatible  
+**Release Date:** May 2026
+**Type:** MINOR — New Gold Tier features, bug fixes, backward compatible
 **Previous Version:** 2.4.0
 
 ---
 
 ## 🎯 Gold Tier Progress
 
-This release adds three key features required for Gold Tier compliance on the Home Assistant Integration Quality Scale.
+This release completes all remaining Gold Tier requirements except verified test coverage:
+
+| Requirement | Status |
+|---|---|
+| Diagnostics platform | ✅ Done (v2.4.1) |
+| System health | ✅ Done (v2.4.1) |
+| Setup failure handling | ✅ Done (v2.4.1) |
+| Repair flow | ✅ Done (v2.4.1) |
+| Unit tests (>95%) | 🔄 Tests written, coverage to be verified |
 
 ---
 
@@ -18,11 +26,9 @@ This release adds three key features required for Gold Tier compliance on the Ho
 
 ### 1. Integration Diagnostics (`diagnostics.py`)
 
-Users can now download a full diagnostics report directly from the Home Assistant UI.
+Users can download a full diagnostics report directly from the HA UI.
 
-**How to access:**
-- Settings → Devices & Services → Indeklima → ⋮ (three dots) → **Download diagnostics**
-- Also available per device (hub + each room) from the device info page
+**Access:** Settings → Devices & Services → Indeklima → ⋮ → Download diagnostics
 
 **Config entry diagnostics includes:**
 - Integration version
@@ -35,51 +41,71 @@ Users can now download a full diagnostics report directly from the Home Assistan
 - Hub device: global severity, status, all room summaries, ventilation/circulation
 - Room device: individual sensor availability, current readings, severity score
 
-✅ No sensitive data is exposed. `async_redact_data` is applied to all config data.
-
 ---
 
 ### 2. System Health (`system_health.py`)
 
-Indeklima now shows up in the Home Assistant system health overview.
+Indeklima now appears in the HA system health overview.
 
-**How to access:**
-- Settings → System → Repairs → ⋮ → **System information** → scroll to Indeklima
-
-**Shows:**
-| Field | Description |
-|-------|-------------|
-| Integration version | Current version (e.g. 2.4.1) |
-| Config entries loaded | Number of active config entries |
-| Coordinator status | `ok` or `update_failed` |
-| Rooms monitored | Total rooms configured |
-| Overall status | `good` / `warning` / `critical` |
-| Severity score | e.g. `24.3 / 100` |
-| Sensors configured | Total sensor entities across all rooms |
-| Sensors unavailable | How many sensors are currently offline |
-| Rooms in critical state | Count of critical rooms |
-| Rooms in warning state | Count of warning rooms |
-| Ventilation recommendation | `yes` / `no` / `optional` |
-| Air circulation | `good` / `moderate` / `poor` |
-| Weather entity configured | `yes` / `no` |
+**Access:** Settings → System → Repairs → ⋮ → System information → Indeklima
 
 ---
 
-### 3. Setup Failure Handling (`__init__.py`)
+### 3. Repair Flow (`repairs.py`)
 
-Two improvements to how the integration handles errors:
+Actionable repair issues are now surfaced in the HA Repairs dashboard.
 
-#### `ConfigEntryNotReady` — Setup retry
-If `async_config_entry_first_refresh()` fails during integration setup (e.g. HA is starting up and sensors aren't ready yet), the integration now raises `ConfigEntryNotReady` with a clear error message.
+**Access:** Settings → System → Repairs
 
-**Before (v2.4.0):** Unhandled exception → integration fails permanently until manual reload  
-**After (v2.4.1):** `ConfigEntryNotReady` → HA automatically retries setup every 30s, no restart needed
+**Two issue types:**
 
-#### `UpdateFailed` — Coordinator error handling
-The `_async_update_data()` method now wraps its logic in a try/except that raises `UpdateFailed` on unexpected errors.
+| Issue | Severity | Trigger |
+|---|---|---|
+| `sensor_unavailable` | Warning | A configured sensor entity is unavailable |
+| `coordinator_update_failed` | Error | The coordinator fails to fetch data |
 
-**Before:** Unhandled Python exceptions silently crashed the update cycle  
-**After:** `UpdateFailed` → HA marks entities as unavailable and shows the error in the integration page
+- Issues are raised automatically during each update cycle
+- Issues are cleared automatically when the problem resolves
+- Both issues present a confirm-and-dismiss repair flow
+
+---
+
+### 4. Setup Failure Handling (`__init__.py`)
+
+- `ConfigEntryNotReady` raised on first refresh failure → HA retries automatically every 30s
+- `UpdateFailed` raised on coordinator errors → entities marked unavailable, error shown in UI
+- Coordinator-failed repair issue raised/cleared automatically on each update
+
+---
+
+### 5. Unit Tests (`tests/`)
+
+Full test suite added:
+
+| File | Coverage |
+|---|---|
+| `test_const.py` | version, constants, `normalize_room_id` |
+| `test_init.py` | season, severity, status, trends, circulation, sensor values |
+| `test_repairs.py` | issue raising/clearing, fix flow factory |
+| `test_websocket.py` | WS handlers, room sorting, error paths |
+| `test_diagnostics.py` | config entry + device diagnostics |
+
+Run with:
+```
+pytest --cov=custom_components/indeklima --cov-report=term-missing
+```
+
+---
+
+### 6. Bug Fixes
+
+| Bug | Fix |
+|---|---|
+| Panel showed `v2.3.4` despite manifest saying `2.4.1` | `__version__` was defined in `const.py` at `2.3.4` — now correctly `2.4.1`. `const.py` is the single source of truth. |
+| Panel showed "ingen vejr konfig" despite weather entity being configured | Panel now uses `weather_configured` field from WS response to distinguish "not configured" from "configured but no outdoor issues" |
+| Shadow DOM scroll/viewport broken on 1440p+ screens | JS-driven height via `ResizeObserver` + `getBoundingClientRect()` replaces CSS-only approach |
+| `_CACHE_KEY` used in `_load()` but never defined | Now defined in `constructor` |
+| All sensors showed `—` after restart | Timing issue — coordinator not finished with first update when panel loaded. No code change needed; documented as known startup behavior. |
 
 ---
 
@@ -87,8 +113,19 @@ The `_async_update_data()` method now wraps its logic in a try/except that raise
 
 ```
 custom_components/indeklima/
-├── diagnostics.py          # Config entry + device diagnostics
-└── system_health.py        # System health info
+└── repairs.py              # Repair flow for sensor + coordinator issues
+
+tests/
+├── __init__.py
+├── conftest.py             # Shared fixtures
+├── test_const.py
+├── test_init.py
+├── test_repairs.py
+├── test_websocket.py
+└── test_diagnostics.py
+
+pytest.ini
+requirements_test.txt
 ```
 
 ---
@@ -96,28 +133,20 @@ custom_components/indeklima/
 ## 🔄 Changed Files
 
 | File | Change |
-|------|--------|
-| `__init__.py` | + `ConfigEntryNotReady` on setup, + `UpdateFailed` in coordinator |
-| `strings.json` | + `system_health` translation section |
-| `da.json` | + `system_health` translation section (Danish) |
-| `const.py` | Version → 2.4.1 |
-| `manifest.json` | Version → 2.4.1 |
+|---|---|
+| `const.py` | `__version__` bumped to `2.4.1` (single source of truth) |
+| `__init__.py` | Repair flow integrated; `_get_sensor_values` raises/clears issues per entity; version docstring fixed |
+| `manifest.json` | `quality_scale: silver` added |
+| `strings.json` | `issues` section added (EN) |
+| `translations/da.json` | `issues` section added (DA) |
+| `frontend/indeklima-panel.js` | Scroll fix, `_CACHE_KEY`, weather display fix, version bump |
+| `websocket.py` | Version header updated |
+| `sensor.py` | Version docstring updated |
+| `config_flow.py` | Version docstring updated |
+| `panel.py` | Version header updated |
 
 ---
 
 ## ✅ Backward Compatibility
 
-No breaking changes. All existing sensors, dashboard cards, and blueprints work exactly as before.
-
----
-
-## 🎯 Quality Tier
-
-Still **Silver Tier** officially — Gold Tier requires unit tests (>95% coverage) in addition to diagnostics, system health, and proper error handling. Tests are planned for v2.5.0.
-
----
-
-## 🐛 Bug Fixes
-
-- Integration no longer requires manual reload if sensors are temporarily unavailable at HA startup
-- Coordinator update errors are now properly surfaced in the HA UI instead of being silently swallowed
+No breaking changes. All existing sensors, dashboard cards, automations, and blueprints work exactly as before.

@@ -59,6 +59,12 @@ from .const import (
 )
 from .panel import async_register_panel, async_unregister_panel, async_unregister_cards_resource
 from .websocket import async_register_websocket_commands
+from .repairs import (
+    raise_coordinator_failed_issue,
+    clear_coordinator_failed_issue,
+    raise_sensor_unavailable_issue,
+    clear_sensor_unavailable_issue,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -191,7 +197,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             return self.humidity_summer_max
         return self.humidity_winter_max
 
-    def _get_sensor_values(self, entity_ids: list[str]) -> list[float]:
+    def _get_sensor_values(self, entity_ids: list[str], room_name: str = "") -> list[float]:
         """Get numeric values from multiple sensors."""
         values = []
         for entity_id in entity_ids:
@@ -199,8 +205,19 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             if state and state.state not in ("unknown", "unavailable"):
                 try:
                     values.append(float(state.state))
+                    # Clear any existing repair issue for this sensor
+                    if room_name:
+                        clear_sensor_unavailable_issue(
+                            self.hass, self.entry.entry_id, entity_id
+                        )
                 except (ValueError, TypeError):
                     pass
+            else:
+                # Sensor is unavailable — raise a repair issue
+                if room_name:
+                    raise_sensor_unavailable_issue(
+                        self.hass, self.entry.entry_id, room_name, entity_id
+                    )
         return values
 
     def _calculate_severity(self, room_data: dict) -> float:
@@ -416,10 +433,14 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from sensors."""
         try:
-            return await self._async_do_update()
+            result = await self._async_do_update()
+            # Clear coordinator-failed issue on successful update
+            clear_coordinator_failed_issue(self.hass, self.entry.entry_id)
+            return result
         except UpdateFailed:
             raise
         except Exception as err:
+            raise_coordinator_failed_issue(self.hass, self.entry.entry_id, str(err))
             raise UpdateFailed(f"Unexpected error: {err}") from err
 
     async def _async_do_update(self) -> dict[str, Any]:
@@ -454,7 +475,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
             # Humidity sensors
             if humidity_sensors := room.get(CONF_HUMIDITY_SENSORS):
-                values = self._get_sensor_values(humidity_sensors)
+                values = self._get_sensor_values(humidity_sensors, room_name)
                 if values:
                     avg = sum(values) / len(values)
                     room_data["humidity"] = avg
@@ -463,7 +484,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
             # Temperature sensors
             if temp_sensors := room.get(CONF_TEMPERATURE_SENSORS):
-                values = self._get_sensor_values(temp_sensors)
+                values = self._get_sensor_values(temp_sensors, room_name)
                 if values:
                     avg = sum(values) / len(values)
                     room_data["temperature"] = avg
@@ -472,7 +493,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
             # CO2 sensors
             if co2_sensors := room.get(CONF_CO2_SENSORS):
-                values = self._get_sensor_values(co2_sensors)
+                values = self._get_sensor_values(co2_sensors, room_name)
                 if values:
                     avg = sum(values) / len(values)
                     room_data["co2"] = avg
@@ -481,7 +502,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
             # VOC sensors
             if voc_sensors := room.get(CONF_VOC_SENSORS):
-                values = self._get_sensor_values(voc_sensors)
+                values = self._get_sensor_values(voc_sensors, room_name)
                 if values:
                     avg = sum(values) / len(values)
                     room_data["voc"] = avg
@@ -490,7 +511,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
             # Formaldehyde sensors
             if formaldehyde_sensors := room.get(CONF_FORMALDEHYDE_SENSORS):
-                values = self._get_sensor_values(formaldehyde_sensors)
+                values = self._get_sensor_values(formaldehyde_sensors, room_name)
                 if values:
                     avg = sum(values) / len(values)
                     room_data["formaldehyde"] = avg
@@ -499,7 +520,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
             # Pressure sensors
             if pressure_sensors := room.get(CONF_PRESSURE_SENSORS):
-                values = self._get_sensor_values(pressure_sensors)
+                values = self._get_sensor_values(pressure_sensors, room_name)
                 if values:
                     avg = sum(values) / len(values)
                     room_data["pressure"] = avg

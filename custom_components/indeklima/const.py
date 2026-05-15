@@ -1,10 +1,10 @@
 """Constants for Indeklima integration.
 
-Version: 2.3.4
+Version: 2.4.1
 """
 from typing import Final
 
-__version__ = "2.3.4"
+__version__ = "2.4.1"
 
 DOMAIN: Final = "indeklima"
 

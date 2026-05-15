@@ -6,7 +6,17 @@
         "description": "Welcome to Indeklima with per-room sensors!",
         "data": {
           "name": "Integration name"
-        }
+          "issues": {
+    "sensor_unavailable": {
+      "title": "Sensor unavailable: {entity_id}",
+      "description": "The sensor **{entity_id}** configured for room **{room_name}** is unavailable. Check that the device is powered and reachable, then dismiss this issue."
+    },
+    "coordinator_update_failed": {
+      "title": "Indeklima failed to update",
+      "description": "The coordinator could not fetch sensor data. Error: {error}\n\nTry reloading the integration from Settings → Devices & Services → Indeklima → ⋮ → Reload."
+    }
+  }
+}
       },
       "room_menu": {
         "title": "Room Overview",
@@ -240,6 +250,16 @@
       "ventilation_status": "Ventilation recommendation",
       "air_circulation": "Air circulation",
       "weather_configured": "Weather entity configured"
+    }
+  },
+  "issues": {
+    "sensor_unavailable": {
+      "title": "Sensor unavailable: {entity_id}",
+      "description": "The sensor **{entity_id}** configured for room **{room_name}** is unavailable. Check that the device is powered and reachable, then dismiss this issue."
+    },
+    "coordinator_update_failed": {
+      "title": "Indeklima failed to update",
+      "description": "The coordinator could not fetch sensor data. Error: {error}\n\nTry reloading the integration from Settings \u2192 Devices & Services \u2192 Indeklima \u2192 \u22ee \u2192 Reload."
     }
   }
 }

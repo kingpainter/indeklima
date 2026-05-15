@@ -241,5 +241,15 @@
       "air_circulation": "Luftcirkulation",
       "weather_configured": "Vejrenhed konfigureret"
     }
+  },
+  "issues": {
+    "sensor_unavailable": {
+      "title": "Sensor utilg\u00e6ngelig: {entity_id}",
+      "description": "Sensoren **{entity_id}** konfigureret for rum **{room_name}** er utilg\u00e6ngelig. Kontroll\u00e9r at enheden er t\u00e6ndt og tilg\u00e6ngelig, og afvis derefter denne fejl."
+    },
+    "coordinator_update_failed": {
+      "title": "Indeklima kunne ikke opdatere",
+      "description": "Koordinatoren kunne ikke hente sensordata. Fejl: {error}\n\nFors\u00f8g at genindl\u00e6se integrationen fra Indstillinger \u2192 Enheder & tjenester \u2192 Indeklima \u2192 \u22ee \u2192 Genindl\u00e6s."
+    }
   }
 }

@@ -1,0 +1,6 @@
+# Test dependencies for Indeklima integration
+homeassistant
+pytest
+pytest-asyncio
+pytest-cov
+pytest-homeassistant-custom-component

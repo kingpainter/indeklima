@@ -1,5 +1,5 @@
 # File Name: panel.py
-# Version: 2.4.0
+# Version: 2.4.1
 # Description: Panel and Lovelace card registration for Indeklima.
 #              Registers the sidebar panel (admin only) and the custom Lovelace
 #              card as static HTTP paths.
