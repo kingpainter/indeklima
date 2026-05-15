@@ -1,6 +1,6 @@
 """Indeklima integration for Home Assistant.
 
-Version: 2.4.0
+Version: 2.4.1
 """
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 // Indeklima Panel
-// Version: 2.4.0
+// Version: 2.4.1
 // Description: Sidebar panel for the Indeklima Home Assistant integration.
 //              Shows live climate data for all rooms with severity indicators,
 //              trends, ventilation recommendation and air circulation status.
@@ -18,6 +18,8 @@ class IndeklimaPanel extends HTMLElement {
     this._errCount = 0;
     this._interval = null;
     this._selectedRoom = null;
+    this._CACHE_KEY = "indeklima_panel_cache";
+    this._resizeObserver = null;
   }
 
   set hass(h) {
@@ -28,6 +30,7 @@ class IndeklimaPanel extends HTMLElement {
 
   connectedCallback() {
     this._render();
+    this._startResizeObserver();
     this._interval = setInterval(() => {
       if (this._errCount > 5) { clearInterval(this._interval); return; }
       if (document.visibilityState === "visible") this._load();
@@ -36,6 +39,35 @@ class IndeklimaPanel extends HTMLElement {
 
   disconnectedCallback() {
     clearInterval(this._interval);
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
+    }
+    if (this._applyHeight) {
+      window.removeEventListener("resize", this._applyHeight);
+    }
+  }
+
+  _startResizeObserver() {
+    // JS-driven height — reliable in HA Shadow DOM at all resolutions
+    const applyHeight = () => {
+      const host = this.shadowRoot.host || this;
+      const rect = host.getBoundingClientRect();
+      const available = rect.height || window.innerHeight;
+      const scroll = this.shadowRoot.querySelector(".panel-scroll");
+      const topbar = this.shadowRoot.querySelector(".panel-topbar");
+      if (scroll && topbar) {
+        const topbarH = topbar.getBoundingClientRect().height || 0;
+        scroll.style.height = (available - topbarH) + "px";
+      }
+    };
+
+    // Apply immediately and on resize
+    applyHeight();
+    this._resizeObserver = new ResizeObserver(applyHeight);
+    this._resizeObserver.observe(document.documentElement);
+    window.addEventListener("resize", applyHeight);
+    this._applyHeight = applyHeight;  // store ref for cleanup
   }
 
   // ── Data ──────────────────────────────────────────────────────────────────
@@ -1003,6 +1035,9 @@ class IndeklimaPanel extends HTMLElement {
                 <div class="val">${this._fmt(vent.outdoor_humidity, "%", 0)}</div>
                 <div class="lbl">Fugtighed</div>
               </div>
+            </div>` : vent.weather_configured ? `
+            <div style="color:var(--sub);font-size:13px;">
+              ⏳ Vejrdata ikke tilgængeligt endnu — integration konfigureret.
             </div>` : `
             <div style="color:var(--sub);font-size:13px;">
               ⚙️ Ingen vejrintegration konfigureret — tilføj en weather entity i indstillinger.
@@ -1120,6 +1155,8 @@ class IndeklimaPanel extends HTMLElement {
     `;
 
         this._bindEvents();
+    // Reapply height after every render (DOM may have changed)
+    if (this._applyHeight) requestAnimationFrame(this._applyHeight);
   }
 
   _bindEvents() {
