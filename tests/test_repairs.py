@@ -1,7 +1,7 @@
 """Tests for repairs.py."""
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 import pytest
 
 from custom_components.indeklima.repairs import (
@@ -15,7 +15,8 @@ from custom_components.indeklima.repairs import (
     SensorUnavailableRepairFlow,
     CoordinatorFailedRepairFlow,
 )
-from .conftest import mock_hass, mock_entry
+from homeassistant.components.repairs import ConfirmRepairFlow
+from .conftest import mock_hass
 
 
 class TestIssueIds:
@@ -28,53 +29,68 @@ class TestRaiseSensorUnavailableIssue:
     def test_calls_async_create_issue(self, mock_hass):
         with patch(
             "custom_components.indeklima.repairs.async_create_issue"
-        ) as mock_create, patch(
-            "custom_components.indeklima.repairs.IssueSeverity"
-        ) as mock_severity:
-            mock_severity.WARNING = "warning"
+        ) as mock_create:
             raise_sensor_unavailable_issue(
                 mock_hass, "entry_1", "Stue", "sensor.stue_humidity"
             )
             mock_create.assert_called_once()
-            call_kwargs = mock_create.call_args
-            assert call_kwargs[0][1] == "indeklima"  # domain
-            assert "sensor_unavailable" in call_kwargs[0][2]  # issue_id
 
     def test_issue_id_contains_entity(self, mock_hass):
         with patch(
             "custom_components.indeklima.repairs.async_create_issue"
-        ) as mock_create, patch(
-            "custom_components.indeklima.repairs.IssueSeverity"
-        ):
+        ) as mock_create:
             raise_sensor_unavailable_issue(
                 mock_hass, "entry_1", "Stue", "sensor.stue_humidity"
             )
             issue_id = mock_create.call_args[0][2]
             assert "sensor.stue_humidity" in issue_id
 
+    def test_issue_id_contains_sensor_unavailable(self, mock_hass):
+        with patch(
+            "custom_components.indeklima.repairs.async_create_issue"
+        ) as mock_create:
+            raise_sensor_unavailable_issue(
+                mock_hass, "entry_1", "Stue", "sensor.stue_humidity"
+            )
+            issue_id = mock_create.call_args[0][2]
+            assert issue_id.startswith(ISSUE_SENSOR_UNAVAILABLE)
+
+    def test_translation_placeholders(self, mock_hass):
+        with patch(
+            "custom_components.indeklima.repairs.async_create_issue"
+        ) as mock_create:
+            raise_sensor_unavailable_issue(
+                mock_hass, "entry_1", "Stue", "sensor.stue_humidity"
+            )
+            kwargs = mock_create.call_args[1]
+            assert kwargs["translation_placeholders"]["room_name"] == "Stue"
+            assert kwargs["translation_placeholders"]["entity_id"] == "sensor.stue_humidity"
+
 
 class TestRaiseCoordinatorFailedIssue:
     def test_calls_async_create_issue(self, mock_hass):
         with patch(
             "custom_components.indeklima.repairs.async_create_issue"
-        ) as mock_create, patch(
-            "custom_components.indeklima.repairs.IssueSeverity"
-        ) as mock_severity:
-            mock_severity.ERROR = "error"
+        ) as mock_create:
             raise_coordinator_failed_issue(mock_hass, "entry_1", "timeout error")
             mock_create.assert_called_once()
 
     def test_error_message_capped(self, mock_hass):
-        """Long error messages should be capped."""
         long_error = "x" * 500
         with patch(
             "custom_components.indeklima.repairs.async_create_issue"
-        ) as mock_create, patch(
-            "custom_components.indeklima.repairs.IssueSeverity"
-        ):
+        ) as mock_create:
             raise_coordinator_failed_issue(mock_hass, "entry_1", long_error)
             placeholders = mock_create.call_args[1]["translation_placeholders"]
             assert len(placeholders["error"]) <= 200
+
+    def test_issue_id_contains_coordinator_failed(self, mock_hass):
+        with patch(
+            "custom_components.indeklima.repairs.async_create_issue"
+        ) as mock_create:
+            raise_coordinator_failed_issue(mock_hass, "entry_1", "err")
+            issue_id = mock_create.call_args[0][2]
+            assert issue_id.startswith(ISSUE_COORDINATOR_FAILED)
 
 
 class TestClearIssues:
@@ -86,7 +102,7 @@ class TestClearIssues:
             mock_delete.assert_called_once_with(
                 mock_hass,
                 "indeklima",
-                "coordinator_update_failed_entry_1",
+                f"{ISSUE_COORDINATOR_FAILED}_entry_1",
             )
 
     def test_clear_sensor_unavailable(self, mock_hass):
@@ -122,6 +138,5 @@ class TestAsyncCreateFixFlow:
 
     @pytest.mark.asyncio
     async def test_unknown_issue_returns_fallback(self, mock_hass):
-        from homeassistant.components.repairs import ConfirmRepairFlow
         flow = await async_create_fix_flow(mock_hass, "unknown_issue_xyz", {})
         assert isinstance(flow, ConfirmRepairFlow)
