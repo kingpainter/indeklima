@@ -3,14 +3,8 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.components.repairs import (
-    ConfirmRepairFlow,
-    RepairsFlow,
-    async_create_issue,
-    async_delete_issue,
-)
+from homeassistant.components.repairs import ConfirmRepairFlow, RepairsFlow
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.issue_registry import IssueSeverity
 
 from .const import DOMAIN
 
@@ -22,6 +16,44 @@ ISSUE_SENSOR_UNAVAILABLE = "sensor_unavailable"
 ISSUE_COORDINATOR_FAILED = "coordinator_update_failed"
 
 
+# ── Compatibility shim for HA repairs API ─────────────────────────────────────
+# async_create_issue / async_delete_issue moved between HA versions.
+# Try the modern location first, fall back gracefully.
+
+def _get_create_issue():
+    try:
+        from homeassistant.components.repairs import async_create_issue
+        return async_create_issue
+    except ImportError:
+        pass
+    try:
+        from homeassistant.helpers.issue_registry import async_create_issue
+        return async_create_issue
+    except ImportError:
+        return None
+
+
+def _get_delete_issue():
+    try:
+        from homeassistant.components.repairs import async_delete_issue
+        return async_delete_issue
+    except ImportError:
+        pass
+    try:
+        from homeassistant.helpers.issue_registry import async_delete_issue
+        return async_delete_issue
+    except ImportError:
+        return None
+
+
+def _get_issue_severity():
+    try:
+        from homeassistant.helpers.issue_registry import IssueSeverity
+        return IssueSeverity
+    except ImportError:
+        return None
+
+
 # ── Issue raising helpers ─────────────────────────────────────────────────────
 
 def raise_sensor_unavailable_issue(
@@ -31,7 +63,12 @@ def raise_sensor_unavailable_issue(
     entity_id: str,
 ) -> None:
     """Raise a repair issue for an unavailable sensor."""
-    async_create_issue(
+    create_issue = _get_create_issue()
+    IssueSeverity = _get_issue_severity()
+    if create_issue is None or IssueSeverity is None:
+        _LOGGER.debug("repairs API not available, skipping issue creation")
+        return
+    create_issue(
         hass,
         DOMAIN,
         f"{ISSUE_SENSOR_UNAVAILABLE}_{entry_id}_{entity_id}",
@@ -54,7 +91,12 @@ def raise_coordinator_failed_issue(
     error_msg: str,
 ) -> None:
     """Raise a repair issue when the coordinator update fails."""
-    async_create_issue(
+    create_issue = _get_create_issue()
+    IssueSeverity = _get_issue_severity()
+    if create_issue is None or IssueSeverity is None:
+        _LOGGER.debug("repairs API not available, skipping issue creation")
+        return
+    create_issue(
         hass,
         DOMAIN,
         f"{ISSUE_COORDINATOR_FAILED}_{entry_id}",
@@ -72,14 +114,20 @@ def raise_coordinator_failed_issue(
 
 def clear_coordinator_failed_issue(hass: HomeAssistant, entry_id: str) -> None:
     """Clear the coordinator-failed repair issue after a successful update."""
-    async_delete_issue(hass, DOMAIN, f"{ISSUE_COORDINATOR_FAILED}_{entry_id}")
+    delete_issue = _get_delete_issue()
+    if delete_issue is None:
+        return
+    delete_issue(hass, DOMAIN, f"{ISSUE_COORDINATOR_FAILED}_{entry_id}")
 
 
 def clear_sensor_unavailable_issue(
     hass: HomeAssistant, entry_id: str, entity_id: str
 ) -> None:
     """Clear a sensor-unavailable repair issue once the sensor comes back."""
-    async_delete_issue(
+    delete_issue = _get_delete_issue()
+    if delete_issue is None:
+        return
+    delete_issue(
         hass, DOMAIN, f"{ISSUE_SENSOR_UNAVAILABLE}_{entry_id}_{entity_id}"
     )
 
