@@ -169,6 +169,7 @@ class TestAirCirculation:
 
 class TestGetSensorValues:
     def test_available_sensor_returns_value(self, mock_hass, mock_entry):
+        mock_hass.states.get.side_effect = None  # reset fixture default
         mock_hass.states.get.return_value = make_state("42.5")
         coord = _make_coord(mock_hass, mock_entry)
         with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
@@ -178,6 +179,7 @@ class TestGetSensorValues:
         mock_raise.assert_not_called()
 
     def test_unavailable_sensor_returns_empty(self, mock_hass, mock_entry):
+        mock_hass.states.get.side_effect = None
         mock_hass.states.get.return_value = make_state("unavailable", unavailable=True)
         coord = _make_coord(mock_hass, mock_entry)
         with patch("custom_components.indeklima.raise_sensor_unavailable_issue"):
@@ -185,13 +187,14 @@ class TestGetSensorValues:
         assert values == []
 
     def test_none_state_returns_empty(self, mock_hass, mock_entry):
-        mock_hass.states.get.return_value = None
+        # fixture default: side_effect returns None — no change needed
         coord = _make_coord(mock_hass, mock_entry)
         with patch("custom_components.indeklima.raise_sensor_unavailable_issue"):
             values = coord._get_sensor_values(["sensor.test"], "Stue")
         assert values == []
 
     def test_multiple_sensors(self, mock_hass, mock_entry):
+        mock_hass.states.get.side_effect = None
         def get_state(entity_id):
             return make_state("40.0") if "a" in entity_id else make_state("60.0")
         mock_hass.states.get.side_effect = get_state
@@ -201,7 +204,7 @@ class TestGetSensorValues:
         assert values == [40.0, 60.0]
 
     def test_no_room_name_skips_repair(self, mock_hass, mock_entry):
-        mock_hass.states.get.return_value = None
+        # fixture default returns None — no change needed
         coord = _make_coord(mock_hass, mock_entry)
         with patch("custom_components.indeklima.raise_sensor_unavailable_issue") as mock_raise:
             coord._get_sensor_values(["sensor.test"])
@@ -214,17 +217,20 @@ class TestGetWeatherData:
         assert coord._get_weather_data() == {}
 
     def test_unavailable_entity_returns_empty(self, mock_hass, mock_entry):
+        mock_hass.states.get.side_effect = None
         mock_hass.states.get.return_value = make_state("unavailable", unavailable=True)
         coord = _make_coord(mock_hass, mock_entry, weather_entity="weather.home")
         assert coord._get_weather_data() == {}
 
     def test_none_state_returns_empty(self, mock_hass, mock_entry):
-        mock_hass.states.get.return_value = None
+        # fixture default returns None
         coord = _make_coord(mock_hass, mock_entry, weather_entity="weather.home")
         assert coord._get_weather_data() == {}
 
     def test_returns_temperature_and_humidity(self, mock_hass, mock_entry):
-        state = make_state("sunny")
+        mock_hass.states.get.side_effect = None
+        state = MagicMock()
+        state.state = "sunny"
         state.attributes = {"temperature": 15.0, "humidity": 70.0}
         mock_hass.states.get.return_value = state
         coord = _make_coord(mock_hass, mock_entry, weather_entity="weather.home")
@@ -233,7 +239,9 @@ class TestGetWeatherData:
         assert data["humidity"] == 70.0
 
     def test_falls_back_to_current_temperature(self, mock_hass, mock_entry):
-        state = make_state("sunny")
+        mock_hass.states.get.side_effect = None
+        state = MagicMock()
+        state.state = "sunny"
         state.attributes = {"current_temperature": 12.0}
         mock_hass.states.get.return_value = state
         coord = _make_coord(mock_hass, mock_entry, weather_entity="weather.home")
@@ -273,7 +281,9 @@ class TestCalculateVentilationRecommendation:
         assert result["status"] == VENTILATION_YES
 
     def test_bad_climate_cold_outside_returns_optional(self, mock_hass, mock_entry):
-        state = make_state("sunny")
+        mock_hass.states.get.side_effect = None
+        state = MagicMock()
+        state.state = "sunny"
         state.attributes = {"temperature": 2.0, "humidity": 50.0}
         mock_hass.states.get.return_value = state
         coord = _make_coord(mock_hass, mock_entry, weather_entity="weather.home")
@@ -281,7 +291,9 @@ class TestCalculateVentilationRecommendation:
         assert result["status"] == VENTILATION_OPTIONAL
 
     def test_bad_climate_humid_outside_returns_no(self, mock_hass, mock_entry):
-        state = make_state("sunny")
+        mock_hass.states.get.side_effect = None
+        state = MagicMock()
+        state.state = "sunny"
         state.attributes = {"temperature": 18.0, "humidity": 80.0}
         mock_hass.states.get.return_value = state
         coord = _make_coord(mock_hass, mock_entry, weather_entity="weather.home")
@@ -289,7 +301,9 @@ class TestCalculateVentilationRecommendation:
         assert result["status"] == VENTILATION_NO
 
     def test_bad_climate_good_weather_returns_yes(self, mock_hass, mock_entry):
-        state = make_state("sunny")
+        mock_hass.states.get.side_effect = None
+        state = MagicMock()
+        state.state = "sunny"
         state.attributes = {"temperature": 15.0, "humidity": 50.0}
         mock_hass.states.get.return_value = state
         coord = _make_coord(mock_hass, mock_entry, weather_entity="weather.home")
@@ -297,7 +311,9 @@ class TestCalculateVentilationRecommendation:
         assert result["status"] == VENTILATION_YES
 
     def test_outdoor_temp_set_when_weather_available(self, mock_hass, mock_entry):
-        state = make_state("sunny")
+        mock_hass.states.get.side_effect = None
+        state = MagicMock()
+        state.state = "sunny"
         state.attributes = {"temperature": 15.0, "humidity": 50.0}
         mock_hass.states.get.return_value = state
         coord = _make_coord(mock_hass, mock_entry, weather_entity="weather.home")

@@ -31,7 +31,7 @@ jobs:
             --cov=custom_components/indeklima \
             --cov-report=term-missing \
             --cov-report=xml \
-            --cov-fail-under=58 \
+            --cov-fail-under=63 \
             --cov-config=.coveragerc \
             -v
 
