@@ -272,7 +272,8 @@ class TestGetSensorValues:
     def test_available_sensor_returns_value(self, mock_hass, mock_entry):
         mock_hass.states.get.return_value = make_state("42.5")
         coord = self._make_coordinator(mock_hass, mock_entry)
-        with patch("custom_components.indeklima.clear_sensor_unavailable_issue"):
+        with patch("custom_components.indeklima.repairs.clear_sensor_unavailable_issue", MagicMock()), \
+             patch("custom_components.indeklima.clear_sensor_unavailable_issue", MagicMock()):
             values = coord._get_sensor_values(["sensor.test"], "Stue")
         assert values == [42.5]
 
