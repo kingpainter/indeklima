@@ -1,2 +1,1 @@
-// Indeklima Panel
-// Version: 2.5.0
+DUMMY_WILL_BE_REPLACED
