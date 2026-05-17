@@ -5,14 +5,14 @@
 </p>
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
-[![Version](https://img.shields.io/badge/version-2.4.1-blue.svg)](https://github.com/kingpainter/indeklima)
+[![Version](https://img.shields.io/badge/version-2.5.1-blue.svg)](https://github.com/kingpainter/indeklima)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Quality Scale](https://img.shields.io/badge/Quality%20Scale-Silver-silver.svg)](https://developers.home-assistant.io/docs/integration_quality_scale)
+[![Quality Scale](https://img.shields.io/badge/Quality%20Scale-Gold-gold.svg)](https://developers.home-assistant.io/docs/integration_quality_scale)
 
 Advanced indoor climate monitoring for Home Assistant with multi-room support, intelligent severity scoring, trend analysis, ventilation recommendations, and a built-in sidebar panel.
 
-**Current Version:** 2.4.1
-**Quality Scale:** Silver Tier ⭐ (approaching Gold)
+**Current Version:** 2.5.1
+**Quality Scale:** Gold Tier 🥇
 
 ---
 
@@ -24,6 +24,7 @@ Advanced indoor climate monitoring for Home Assistant with multi-room support, i
 - **Multiple sensors per room** — Average calculated automatically across sensors
 - **Season-based thresholds** — Different humidity limits for summer and winter
 - **Pressure sensor support** — Informational only, does not affect severity score
+- **Mold risk monitoring** — Per-room and global mold risk (Low/Moderate/High/Critical) based on humidity and temperature
 
 ### 📈 Trend Analysis
 - **30-minute rolling window** — Rising/Falling/Stable for humidity, CO2, and severity
@@ -41,6 +42,13 @@ Advanced indoor climate monitoring for Home Assistant with multi-room support, i
 - **Session cache** — Instant load from cache while fresh data fetches
 - **Skeleton loader** — Smooth first-load experience
 
+### 🦠 Mold Risk Detection
+- **Per-room mold risk** — Low / Moderate / High / Critical calculated from humidity + temperature
+- **Global average** — Hub sensor `mold_risk_avg` aggregates across all rooms
+- **Dedicated sensor support** — Optional per-room dedicated humidity sensor for mold calculation; falls back to room humidity sensor
+- **Informational only** — Does not affect severity scoring (same principle as pressure)
+- **Visible everywhere** — Shown on all Lovelace cards and the sidebar panel
+
 ### 🔧 Integration Quality
 - **Diagnostics** — Download full diagnostics from Settings → Devices & Services
 - **System health** — Appears in Settings → System → System information
@@ -50,7 +58,7 @@ Advanced indoor climate monitoring for Home Assistant with multi-room support, i
 
 ### 🤖 Automation Ready
 - **Automation Blueprint** — Ready-made notification automation with cooldown
-- **18 hub sensors** — All accessible in automations and dashboards
+- **19 hub sensors** — All accessible in automations and dashboards (including `mold_risk_avg`)
 - **Per-room metric sensors** — Separate HA entities per room for temperature, humidity, CO2, pressure
 
 ---
@@ -121,6 +129,7 @@ WebSocket API → Sidebar Panel
 | VOC | 20 |
 | Formaldehyde | 20 |
 | Pressure | 0 (informational only) |
+| Mold risk | 0 (informational only) |
 | Air circulation bonus | −5% |
 
 **Status thresholds:**
@@ -164,7 +173,9 @@ pytest --cov=custom_components/indeklima --cov-report=term-missing
 
 | Version | Highlights |
 |---|---|
-| **2.4.1** | Repair flow, unit tests, panel scroll fix, weather display fix, `__version__` source of truth fix |
+| **2.5.1** | Mold risk shown on all Lovelace cards and panel — always visible with color coding |
+| 2.5.0 | Gold Tier: mold risk sensor, repair flow, fast startup (30s scan interval), diagnostics, system health |
+| 2.4.1 | Repair flow, unit tests, panel scroll fix, weather display fix, `__version__` source of truth fix |
 | 2.4.0 | Diagnostics, system health, setup failure handling, sidebar panel, WebSocket API |
 | 2.3.3 | Pressure sensor support |
 | 2.3.2 | Documentation improvements |
@@ -174,7 +185,7 @@ pytest --cov=custom_components/indeklima --cov-report=term-missing
 | 2.1.0 | Ventilation recommendations, automation blueprint |
 | 2.0.0 | Device organisation, modern naming, trend analysis |
 
-Full changelogs: see `CHANGELOG_v2_4_1.md` and `CHANGELOG_v2_4_0.md`.
+Full changelogs: see [CHANGELOG_v2_5_1.md](CHANGELOG_v2_5_1.md), [CHANGELOG_v2_5_0.md](CHANGELOG_v2_5_0.md), [CHANGELOG_v2_4_1.md](CHANGELOG_v2_4_1.md) and [CHANGELOG_v2_4_0.md](CHANGELOG_v2_4_0.md).
 
 ---
 

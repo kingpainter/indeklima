@@ -1,10 +1,10 @@
 // Indeklima – Custom Lovelace Cards
-// Version: 2.5.0
+// Version: 2.5.1
 // Cards:
 //   custom:indeklima-room-card   – single room card (mobile/tablet)
 //   custom:indeklima-hub-card    – house overview, original mobile design (vertical)
 //   custom:indeklima-tablet-card – house overview, landscape/tablet 3-column
-// Last Updated: March 2026
+// Last Updated: May 2026
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared helpers
@@ -221,6 +221,7 @@ class IndeklimaRoomCard extends HTMLElement {
         .footer { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
         .chip { font-size:10px; background:var(--bg2); padding:3px 7px; border-radius:6px; color:var(--sub); }
         .chip.open { color:#0ea5e9; }
+        .chip.mold-low      { color:#10b981; background:#10b9811a; }
         .chip.mold-moderate { color:#f59e0b; background:#f59e0b1a; }
         .chip.mold-high     { color:#f97316; background:#f973161a; }
         .chip.mold-critical { color:#ef4444; background:#ef44441a; animation:blink 2s infinite; }
@@ -243,7 +244,7 @@ class IndeklimaRoomCard extends HTMLElement {
               ${r.outdoor_windows_open > 0 ? `<span class="chip open">\uD83E\uDE9F ${r.outdoor_windows_open} vindue${r.outdoor_windows_open>1?"r":""}</span>` : ""}
               ${r.internal_doors_open  > 0 ? `<span class="chip open">\uD83D\uDEAA ${r.internal_doors_open} d\u00f8r${r.internal_doors_open>1?"e":""}</span>` : ""}
               ${r.air_circulation_bonus    ? `<span class="chip open">\uD83D\uDCA8 Bonus aktiv</span>` : ""}
-              ${r.mold_risk && r.mold_risk !== "low" ? `<span class="chip mold-${r.mold_risk}">${moldIcon(r.mold_risk)} ${moldLabel(r.mold_risk)}</span>` : ""}
+              <span class="chip mold-${r.mold_risk || 'low'}">${moldIcon(r.mold_risk)} ${moldLabel(r.mold_risk)}</span>
             </div>`}
         </div>
       </ha-card>`;
@@ -316,7 +317,7 @@ class IndeklimaHubCard extends HTMLElement {
         <div class="rc-name">${esc(r.name)}</div>
         <div class="rc-metrics">${metrics}</div>
         <span class="rc-pill" style="background:${rc}22;color:${rc};${r.status!=="good"?"animation:blink 2s infinite;":""}">${statusLabel(r.status)}</span>
-        ${r.mold_risk && r.mold_risk !== "low" ? `<span class="rc-mold" style="background:${moldColor(r.mold_risk)}1a;color:${moldColor(r.mold_risk)}">${moldIcon(r.mold_risk)}</span>` : ""}
+        <span class="rc-mold" style="background:${moldColor(r.mold_risk||'low')}1a;color:${moldColor(r.mold_risk||'low')};font-size:11px;padding:2px 6px;border-radius:6px;">${moldIcon(r.mold_risk)} ${moldLabel(r.mold_risk)}</span>
       </div>`;
     }).join("");
 
@@ -380,6 +381,14 @@ class IndeklimaHubCard extends HTMLElement {
         .rc-val     { font-size:12px; font-weight:700; line-height:1.1; }
         .rc-lbl     { font-size:8px; color:var(--sub); margin-top:1px; text-transform:uppercase; }
 
+        .mold-hub-row {
+          display:flex; align-items:center; gap:10px;
+          background:var(--bg2); border-radius:12px; padding:12px;
+          border-left:3px solid;
+        }
+        .mold-hub-icon  { font-size:22px; flex-shrink:0; }
+        .mold-hub-title { font-size:14px; font-weight:700; }
+        .mold-hub-sub   { font-size:11px; color:var(--sub); margin-top:2px; }
         .vent-row {
           display:flex; align-items:center; gap:10px;
           background:var(--bg2); border-radius:12px; padding:12px;
@@ -447,6 +456,16 @@ class IndeklimaHubCard extends HTMLElement {
                   <div class="trend-label" style="color:${trendColor(trends.severity)}">${trendLabel(trends.severity)}</div>
                 </div>
               </div>` : ""}
+
+            <div class="divider"></div>
+            <div class="section-lbl">Skimmelrisiko</div>
+            <div class="mold-hub-row" style="border-left-color:${moldColor(d.mold_risk||'low')}">
+              <div class="mold-hub-icon">${moldIcon(d.mold_risk)}</div>
+              <div>
+                <div class="mold-hub-title" style="color:${moldColor(d.mold_risk||'low')}">${moldLabel(d.mold_risk)}</div>
+                <div class="mold-hub-sub">Husgennemsnit baseret på fugt og temperatur</div>
+              </div>
+            </div>
 
             <div class="divider"></div>
             <div class="section-lbl">Udluftning</div>
@@ -568,6 +587,16 @@ class IndeklimaTabletCard extends HTMLElement {
         <span class="circ-ico">${d.air_circulation==="good"?"&#128168;":d.air_circulation==="moderate"?"&#127744;":"&#128682;"}</span>
         <span class="circ-lbl" style="color:${circColor(d.air_circulation)}">${circLabel(d.air_circulation)}</span>
       </div>
+
+      <div class="divider"></div>
+      <div class="sec-lbl">Skimmelrisiko</div>
+      <div class="mold-tab-row" style="border-left-color:${moldColor(d.mold_risk||'low')}">
+        <span class="mold-tab-ico">${moldIcon(d.mold_risk)}</span>
+        <div>
+          <div class="mold-tab-ttl" style="color:${moldColor(d.mold_risk||'low')}">${moldLabel(d.mold_risk)}</div>
+          <div class="mold-tab-sub">Husgennemsnit</div>
+        </div>
+      </div>
     `;
 
     // ── Col 2: Room rows ──────────────────────────────────────────────────────
@@ -579,7 +608,7 @@ class IndeklimaTabletCard extends HTMLElement {
           <div class="rr-left">
             <div class="rr-name">${esc(r.name)}</div>
             <span class="rr-pill" style="background:${rc}22;color:${rc};${r.status!=="good"?"animation:blink 2s infinite;":""}">${statusLabel(r.status)}</span>
-            ${r.mold_risk && r.mold_risk !== "low" ? `<span class="rr-mold" style="font-size:11px;margin-left:4px;color:${moldColor(r.mold_risk)}">${moldIcon(r.mold_risk)} ${moldLabel(r.mold_risk)}</span>` : ""}
+            <span class="rr-mold" style="font-size:11px;margin-left:4px;color:${moldColor(r.mold_risk||'low')}">${moldIcon(r.mold_risk)} ${moldLabel(r.mold_risk)}</span>
           </div>
           <div class="rr-metrics">
             ${r.temperature_sensors_count>0?`<div class="rrm"><div class="rrm-v">${fmtNum(r.temperature,"\u00b0C",1)}</div><div class="rrm-l">Temp</div></div>`:""}
@@ -682,6 +711,15 @@ class IndeklimaTabletCard extends HTMLElement {
         .circ-row { display:flex; align-items:center; gap:6px; }
         .circ-ico { font-size:16px; }
         .circ-lbl { font-size:12px; font-weight:600; }
+
+        .mold-tab-row {
+          display:flex; align-items:center; gap:8px;
+          background:var(--bg2); border-radius:10px;
+          padding:8px 10px; border-left:3px solid;
+        }
+        .mold-tab-ico { font-size:18px; flex-shrink:0; }
+        .mold-tab-ttl { font-size:12px; font-weight:700; }
+        .mold-tab-sub { font-size:10px; color:var(--sub); margin-top:1px; }
 
         /* Col 2 */
         .rooms-list { display:flex; flex-direction:column; gap:10px; }
