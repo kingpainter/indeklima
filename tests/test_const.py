@@ -33,7 +33,7 @@ class TestVersion:
         assert all(p.isdigit() for p in parts)
 
     def test_version_value(self):
-        assert __version__ == "2.4.1"
+        assert __version__ == "2.5.0"
 
 
 class TestConstants:
