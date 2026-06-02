@@ -1,6 +1,6 @@
 """Indeklima integration for Home Assistant.
 
-Version: 2.5.0
+Version: 2.5.1
 """
 from __future__ import annotations
 
@@ -49,6 +49,11 @@ from .const import (
     MOLD_RISK_MODERATE,
     MOLD_RISK_HIGH,
     MOLD_RISK_CRITICAL,
+    DEHUMIDIFIER_YES,
+    DEHUMIDIFIER_NO,
+    DEHUMIDIFIER_OPTIONAL,
+    DEHUMIDIFIER_NIGHT_START,
+    DEHUMIDIFIER_NIGHT_END,
     SCAN_INTERVAL,
     TREND_WINDOW,
     STATUS_GOOD,
@@ -407,6 +412,48 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
         return weather_data
 
+    def _calculate_dehumidifier_recommendation(self, room_data: dict) -> str:
+        """Calculate dehumidifier recommendation for a single room.
+
+        Returns DEHUMIDIFIER_YES / NO / OPTIONAL based on:
+        - mold_risk (high/critical  → yes)
+        - humidity trend + level    → yes if rising above threshold
+        - outdoor windows open      → no (natural ventilation preferred)
+        - night suppression         → no if mold_risk is low and it is night
+        """
+        humidity = room_data.get("humidity")
+        mold_risk = room_data.get("mold_risk", MOLD_RISK_LOW)
+        outdoor_open = room_data.get("outdoor_windows_open", 0)
+        humidity_max = self._get_humidity_max()
+
+        # If outdoor windows are open, natural ventilation is already happening
+        if outdoor_open > 0:
+            return DEHUMIDIFIER_NO
+
+        # Mold risk is high or critical — always recommend dehumidifier
+        if mold_risk in (MOLD_RISK_HIGH, MOLD_RISK_CRITICAL):
+            return DEHUMIDIFIER_YES
+
+        # Night suppression: 23:00–06:00, only suppress when mold_risk is low
+        hour = datetime.now().hour
+        is_night = hour >= DEHUMIDIFIER_NIGHT_START or hour < DEHUMIDIFIER_NIGHT_END
+        if is_night and mold_risk == MOLD_RISK_LOW:
+            return DEHUMIDIFIER_NO
+
+        # Humidity is above threshold
+        if humidity is not None and humidity > humidity_max:
+            # Moderate mold risk on top of high humidity → definite yes
+            if mold_risk == MOLD_RISK_MODERATE:
+                return DEHUMIDIFIER_YES
+            # Humidity above threshold but mold risk low → optional
+            return DEHUMIDIFIER_OPTIONAL
+
+        # Moderate mold risk even without humidity breach → optional
+        if mold_risk == MOLD_RISK_MODERATE:
+            return DEHUMIDIFIER_OPTIONAL
+
+        return DEHUMIDIFIER_NO
+
     def _calculate_ventilation_recommendation(self, data: dict) -> dict:
         """Calculate ventilation recommendation."""
         recommendation = {
@@ -650,6 +697,15 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             room_data["status"] = self._get_status_from_severity(severity)
             all_severity.append(severity)
 
+            # Dehumidifier — only if a dehumidifier entity is configured for this room
+            has_dehumidifier = bool(room.get(CONF_DEHUMIDIFIER))
+            room_data["has_dehumidifier"] = has_dehumidifier
+            room_data["dehumidifier_recommendation"] = (
+                self._calculate_dehumidifier_recommendation(room_data)
+                if has_dehumidifier
+                else DEHUMIDIFIER_NO
+            )
+
             data["rooms"][room_name] = room_data
 
         # Calculate global averages
@@ -686,6 +742,17 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             data["mold_risk"] = _MOLD_FROM_SCORE[worst]
         else:
             data["mold_risk"] = MOLD_RISK_LOW
+
+        # Calculate global dehumidifier recommendation (worst-room: yes > optional > no)
+        _DEHUM_SCORE = {DEHUMIDIFIER_NO: 0, DEHUMIDIFIER_OPTIONAL: 1, DEHUMIDIFIER_YES: 2}
+        _DEHUM_FROM_SCORE = [DEHUMIDIFIER_NO, DEHUMIDIFIER_OPTIONAL, DEHUMIDIFIER_YES]
+        dehum_scores = [
+            _DEHUM_SCORE[r.get("dehumidifier_recommendation", DEHUMIDIFIER_NO)]
+            for r in data["rooms"].values()
+        ]
+        data["dehumidifier_recommendation"] = (
+            _DEHUM_FROM_SCORE[max(dehum_scores)] if dehum_scores else DEHUMIDIFIER_NO
+        )
 
         # Calculate trends
         if all_humidity:

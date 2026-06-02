@@ -213,6 +213,23 @@
           "optional": "Optional"
         }
       },
+      "dehumidifier_recommendation": {
+        "name": "Dehumidifier recommendation",
+        "state": {
+          "yes": "Yes",
+          "no": "No",
+          "optional": "Optional"
+        }
+      },
+      "mold_risk_avg": {
+        "name": "Mold risk",
+        "state": {
+          "low": "Low",
+          "moderate": "Moderate",
+          "high": "High",
+          "critical": "Critical"
+        }
+      },
       "room_status": {
         "name": "Status",
         "state": {

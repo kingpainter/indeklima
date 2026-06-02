@@ -1,8 +1,8 @@
 # File Name: websocket.py
-# Version: 2.5.0
+# Version: 2.5.1
 # Description: WebSocket API for the Indeklima panel.
 #              Exposes coordinator data to the frontend panel via HA WebSocket API.
-# Last Updated: March 2026
+# Last Updated: June 2026
 
 from __future__ import annotations
 
@@ -58,6 +58,8 @@ def ws_get_climate_data(hass: HomeAssistant, connection, msg) -> None:
                 "co2":               room_data.get("co2"),
                 "pressure":          room_data.get("pressure"),
                 "mold_risk":         room_data.get("mold_risk", "low"),
+                "dehumidifier_recommendation": room_data.get("dehumidifier_recommendation", "no"),
+                "has_dehumidifier":   room_data.get("has_dehumidifier", False),
                 "outdoor_windows_open": room_data.get("outdoor_windows_open", 0),
                 "internal_doors_open":  room_data.get("internal_doors_open", 0),
                 "temperature_sensors_count": room_data.get("temperature_sensors_count", 0),
@@ -90,6 +92,7 @@ def ws_get_climate_data(hass: HomeAssistant, connection, msg) -> None:
                 "pressure":    averages.get("pressure"),
             },
             "mold_risk": data.get("mold_risk", "low"),
+            "dehumidifier_recommendation": data.get("dehumidifier_recommendation", "no"),
             "trends": {
                 "humidity": trends.get("humidity", "stable"),
                 "co2":      trends.get("co2", "stable"),
@@ -144,6 +147,8 @@ def ws_get_room_data(hass: HomeAssistant, connection, msg) -> None:
             "co2":               room.get("co2"),
             "pressure":          room.get("pressure"),
             "mold_risk":         room.get("mold_risk", "low"),
+            "dehumidifier_recommendation": room.get("dehumidifier_recommendation", "no"),
+            "has_dehumidifier":   room.get("has_dehumidifier", False),
             "mold_humidity":     room.get("mold_humidity"),
             "mold_sensors_count": room.get("mold_sensors_count", 0),
             "outdoor_windows_open": room.get("outdoor_windows_open", 0),

@@ -31,6 +31,7 @@ from .const import (
     TREND_STABLE,
     VENTILATION_NO,
     MOLD_RISK_LOW,
+    DEHUMIDIFIER_NO,
     normalize_room_id,
     __version__,
 )
@@ -136,6 +137,18 @@ async def async_setup_entry(
                 "mold_risk",
             )
         )
+
+        # Add dehumidifier recommendation sensor (always — calculated from
+        # mold_risk + humidity even without a physical dehumidifier configured)
+        entities.append(
+            IndeklimaRoomMetricSensor(
+                coordinator,
+                entry,
+                room_name,
+                room_id,
+                "dehumidifier_recommendation",
+            )
+        )
     
     async_add_entities(entities)
 
@@ -192,6 +205,8 @@ class IndeklimaGlobalSensor(CoordinatorEntity, SensorEntity):
             return ventilation.get("status", VENTILATION_NO)
         elif self._sensor_type == "mold_risk_avg":
             return self.coordinator.data.get("mold_risk", MOLD_RISK_LOW)
+        elif self._sensor_type == "dehumidifier_recommendation":
+            return self.coordinator.data.get("dehumidifier_recommendation", DEHUMIDIFIER_NO)
         elif self._sensor_type.startswith("trend_"):
             # Get trend value
             trend_key = self._sensor_type.replace("trend_", "")
@@ -404,8 +419,8 @@ class IndeklimaRoomMetricSensor(CoordinatorEntity, SensorEntity):
             return round(value, 0)
         elif self._sensor_type == "pressure":
             return round(value, 1)
-        elif self._sensor_type == "mold_risk":
-            # mold_risk is a string level — return as-is
+        elif self._sensor_type in ("mold_risk", "dehumidifier_recommendation"):
+            # String states — return as-is
             return value
         else:
             return round(value, 1)

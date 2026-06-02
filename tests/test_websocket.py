@@ -24,6 +24,8 @@ def _make_coordinator(rooms_data=None, averages=None, trends=None, ventilation=N
         "open_internal_doors": [],
         "air_circulation": "moderate",
         "averages": averages or {"humidity": 45.0, "temperature": 22.0, "co2": 400.0, "pressure": 1013.0},
+        "mold_risk": "low",
+        "dehumidifier_recommendation": "no",
         "trends": trends or {"humidity": "stable", "co2": "stable", "severity": "stable"},
         "ventilation": ventilation or {
             "status": "no",
@@ -40,12 +42,15 @@ def _make_coordinator(rooms_data=None, averages=None, trends=None, ventilation=N
                 "humidity": 45.0,
                 "co2": 400.0,
                 "pressure": 1013.0,
+                "mold_risk": "low",
+                "dehumidifier_recommendation": "no",
                 "outdoor_windows_open": 0,
                 "internal_doors_open": 1,
                 "temperature_sensors_count": 1,
                 "humidity_sensors_count": 1,
                 "co2_sensors_count": 1,
                 "pressure_sensors_count": 1,
+                "mold_sensors_count": 0,
             },
             "Soveværelse": {
                 "status": "warning",
@@ -54,12 +59,15 @@ def _make_coordinator(rooms_data=None, averages=None, trends=None, ventilation=N
                 "humidity": 65.0,
                 "co2": None,
                 "pressure": None,
+                "mold_risk": "moderate",
+                "dehumidifier_recommendation": "optional",
                 "outdoor_windows_open": 0,
                 "internal_doors_open": 0,
                 "temperature_sensors_count": 1,
                 "humidity_sensors_count": 1,
                 "co2_sensors_count": 0,
                 "pressure_sensors_count": 0,
+                "mold_sensors_count": 0,
             },
         },
     }
@@ -157,6 +165,42 @@ class TestWsGetClimateData:
         result = conn.send_result.call_args[0][1]
         assert result["ventilation"]["weather_configured"] is False
 
+    def test_mold_risk_in_result(self):
+        hass = MagicMock()
+        coord = _make_coordinator()
+        hass.data = {DOMAIN: {"e1": coord}}
+        conn = self._call(hass, coord)
+        result = conn.send_result.call_args[0][1]
+        assert "mold_risk" in result
+        assert result["mold_risk"] == "low"
+
+    def test_dehumidifier_recommendation_in_result(self):
+        hass = MagicMock()
+        coord = _make_coordinator()
+        hass.data = {DOMAIN: {"e1": coord}}
+        conn = self._call(hass, coord)
+        result = conn.send_result.call_args[0][1]
+        assert "dehumidifier_recommendation" in result
+        assert result["dehumidifier_recommendation"] == "no"
+
+    def test_room_has_mold_risk_field(self):
+        hass = MagicMock()
+        coord = _make_coordinator()
+        hass.data = {DOMAIN: {"e1": coord}}
+        conn = self._call(hass, coord)
+        result = conn.send_result.call_args[0][1]
+        stue = next(r for r in result["rooms"] if r["name"] == "Stue")
+        assert stue["mold_risk"] == "low"
+
+    def test_room_has_dehumidifier_recommendation_field(self):
+        hass = MagicMock()
+        coord = _make_coordinator()
+        hass.data = {DOMAIN: {"e1": coord}}
+        conn = self._call(hass, coord)
+        result = conn.send_result.call_args[0][1]
+        sovevaer = next(r for r in result["rooms"] if r["name"] == "Soveværelse")
+        assert sovevaer["dehumidifier_recommendation"] == "optional"
+
 
 class TestWsGetRoomData:
     def _call(self, hass, coord, room_name):
@@ -188,3 +232,19 @@ class TestWsGetRoomData:
         msg = {"id": 1, "room_name": "Stue"}
         ws_get_room_data(hass, connection, msg)
         connection.send_error.assert_called_once()
+
+    def test_room_data_has_mold_risk(self):
+        hass = MagicMock()
+        coord = _make_coordinator()
+        conn = self._call(hass, coord, "Stue")
+        result = conn.send_result.call_args[0][1]
+        assert "mold_risk" in result
+        assert result["mold_risk"] == "low"
+
+    def test_room_data_has_dehumidifier_recommendation(self):
+        hass = MagicMock()
+        coord = _make_coordinator()
+        conn = self._call(hass, coord, "Soveværelse")
+        result = conn.send_result.call_args[0][1]
+        assert "dehumidifier_recommendation" in result
+        assert result["dehumidifier_recommendation"] == "optional"

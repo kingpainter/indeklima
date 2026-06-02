@@ -203,6 +203,23 @@
           "optional": "Valgfrit"
         }
       },
+      "dehumidifier_recommendation": {
+        "name": "Affugteranbefaling",
+        "state": {
+          "yes": "Ja",
+          "no": "Nej",
+          "optional": "Valgfrit"
+        }
+      },
+      "mold_risk_avg": {
+        "name": "Skimmelrisiko",
+        "state": {
+          "low": "Lav",
+          "moderate": "Moderat",
+          "high": "H\u00f8j",
+          "critical": "Kritisk"
+        }
+      },
       "room_status": {
         "name": "Status",
         "state": {

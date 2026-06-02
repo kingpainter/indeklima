@@ -1,66 +1,49 @@
-# Home Assistant Compliance Checklist
+# Home Assistant Compliance — Indeklima
 
-This document tracks how Indeklima follows Home Assistant's official guidelines.
-
-**Last Updated:** May 2026 (v2.4.1)
+**Version:** 2.5.14  
+**Quality Scale:** Gold Tier 🥇  
+**Last Updated:** June 2026
 
 ---
 
-## ✅ Integration Quality Scale — Silver Tier (approaching Gold)
+## ✅ Integration Quality Scale — Gold Tier
 
 Based on: https://developers.home-assistant.io/docs/integration_quality_scale_index/
 
-### Bronze Requirements ✅
-- ✅ **Config flow** — Complete UI-based setup, no YAML
-- ✅ **Async** — All functions are async, no blocking calls
-- ✅ **Entity naming** — `has_entity_name = True` throughout
-- ✅ **Device info** — All entities have `DeviceInfo`
-- ✅ **Unique IDs** — All entities have `unique_id`
-- ✅ **Documentation** — README.md and CHANGELOG files
-- ✅ **Code style** — Type hints, docstrings, English constants
+### Bronze ✅
+- ✅ Config flow — komplet UI-baseret opsætning, ingen YAML
+- ✅ Async — alle funktioner er async, ingen blokerende kald
+- ✅ Entity naming — `has_entity_name = True` gennemgående
+- ✅ Device info — alle entiteter har `DeviceInfo`
+- ✅ Unique IDs — alle entiteter har `unique_id`
+- ✅ Documentation — README.md, CHANGELOG.md, TROUBLESHOOTING.md
+- ✅ Code style — type hints, docstrings, engelske konstanter
 
-### Silver Requirements ✅
-- ✅ **Device registry** — Hub + room devices, `via_device` linking
-- ✅ **Entity categorization** — Correct `SensorDeviceClass` per sensor
-- ✅ **Options flow** — Full options flow: thresholds, rooms, weather entity
-- ✅ **Translations** — `strings.json` (EN) + `translations/da.json` (DA)
-- ✅ **Error handling** — `ConfigEntryNotReady`, `UpdateFailed`, try/catch, logging
-- ✅ **Coordinator pattern** — `DataUpdateCoordinator` with 5-min interval
-- ✅ **Quality scale declared** — `quality_scale: silver` in `manifest.json`
+### Silver ✅
+- ✅ Device registry — Hub + rum-enheder, `via_device` linking
+- ✅ Entity categorization — korrekt `SensorDeviceClass` per sensor
+- ✅ Options flow — grænseværdier, rum, weather entity
+- ✅ Translations — `strings.json` (EN) + `translations/da.json` (DA)
+- ✅ Error handling — `ConfigEntryNotReady`, `UpdateFailed`, try/catch, logging
+- ✅ Coordinator pattern — `DataUpdateCoordinator`, 30s interval
+- ✅ Quality scale declared — `quality_scale: gold` i `manifest.json`
 
-### Gold Requirements
-- ✅ **Diagnostics** — Config entry + per-device diagnostics (`diagnostics.py`)
-- ✅ **System health** — Appears in HA system info (`system_health.py`)
-- ✅ **Repair flow** — Actionable issues for sensor/coordinator failures (`repairs.py`)
-- ✅ **Setup failure handling** — `ConfigEntryNotReady` + `UpdateFailed`
-- ✅ **`entry.runtime_data`** — Modern HA pattern, no raw `hass.data` in sensor.py
-- 🔄 **Test coverage >95%** — Tests written, coverage to be verified
+### Gold ✅
+- ✅ Diagnostics — `diagnostics.py`
+- ✅ System health — `system_health.py`
+- ✅ Repair flow — `repairs.py` for sensor/coordinator-fejl
+- ✅ Setup failure handling — `ConfigEntryNotReady` + `UpdateFailed`
+- ✅ `entry.runtime_data` — moderne HA-mønster
+- ✅ Unit tests — testsuite i `tests/`
 
 ---
 
 ## 📋 Entity Guidelines
 
-### Naming ✅
 ```python
 _attr_has_entity_name = True
-_attr_name = "Status"  # Device name prepended automatically
-```
-Results in: `sensor.indeklima_hub_status`, `sensor.indeklima_stue_humidity`
-
-### Device Info ✅
-```python
-DeviceInfo(
-    identifiers={(DOMAIN, f"{entry.entry_id}_hub")},
-    name="Indeklima Hub",
-    manufacturer="Indeklima",
-    model="Climate Monitor v2",
-    sw_version=__version__,
-)
-```
-
-### Unique IDs ✅
-```python
-self._attr_unique_id = f"{entry.entry_id}_{sensor_type}"
+_attr_name = "Status"
+# → sensor.indeklima_hub_status, sensor.indeklima_stue_humidity
 ```
 
 ---
@@ -69,23 +52,16 @@ self._attr_unique_id = f"{entry.entry_id}_{sensor_type}"
 
 ```
 Indeklima Hub
-├── Severity Score
-├── Status
-├── Average Humidity / Temperature / CO2 / Pressure
-├── Open Windows
-├── Air Circulation
-├── Trend: Humidity / CO2 / Severity
-└── Ventilation Recommendation
+├── Severity Score, Status
+├── Average: Humidity / Temperature / CO2 / Pressure
+├── Open Windows, Air Circulation
+├── Trends: Humidity / CO2 / Severity
+├── Ventilation Recommendation
+└── Mold Risk Average
 
-Indeklima Stue  (via Hub)
-├── Status
-├── Temperature
-├── Humidity
-├── CO2
-└── Pressure
-
-Indeklima Soveværelse  (via Hub)
-└── ...
+Indeklima <Rum>  (via Hub)
+├── Status, Temperature, Humidity, CO2, Pressure
+└── Mold Risk
 ```
 
 ---
@@ -93,33 +69,32 @@ Indeklima Soveværelse  (via Hub)
 ## 🔄 Data Flow
 
 ```
-Physical Sensors
-    → HA States
+Physical Sensors → HA States
     → IndeklimaDataCoordinator._async_do_update()
-        ├── _get_sensor_values()  [raises repair issues if unavailable]
+        ├── _get_sensor_values()       [raises repair issues if unavailable]
         ├── _calculate_severity()
+        ├── _calculate_mold_risk()
         ├── _calculate_trend()
         ├── _calculate_air_circulation()
-        └── _calculate_ventilation_recommendation()
+        ├── _calculate_ventilation_recommendation()
+        └── _calculate_dehumidifier_recommendation()
     → coordinator.data
     → CoordinatorEntity sensors update
-    → WebSocket → Sidebar Panel
+    → WebSocket API (get_climate_data / get_room_data)
+    → Sidebar Panel (2 tabs) + Lovelace Cards
 ```
 
 ---
 
-## 🏗️ Modern HA Patterns Used
+## 🏗️ Moderne HA-mønstre
 
-### `entry.runtime_data` ✅ (v2.4.1)
+### `entry.runtime_data`
 ```python
-# async_setup_entry in __init__.py
-entry.runtime_data = coordinator
-
-# sensor.py
-coordinator = entry.runtime_data
+entry.runtime_data = coordinator      # __init__.py
+coordinator = entry.runtime_data      # sensor.py
 ```
 
-### `ConfigEntryNotReady` ✅
+### `ConfigEntryNotReady`
 ```python
 try:
     await coordinator.async_config_entry_first_refresh()
@@ -127,7 +102,7 @@ except Exception as err:
     raise ConfigEntryNotReady(...) from err
 ```
 
-### `UpdateFailed` ✅
+### `UpdateFailed`
 ```python
 async def _async_update_data(self):
     try:
@@ -139,9 +114,8 @@ async def _async_update_data(self):
         raise UpdateFailed(...) from err
 ```
 
-### Repair flow ✅
+### Repair flow
 ```python
-# repairs.py
 async def async_create_fix_flow(hass, issue_id, data) -> RepairsFlow:
     if issue_id.startswith(ISSUE_SENSOR_UNAVAILABLE):
         return SensorUnavailableRepairFlow()
@@ -151,29 +125,27 @@ async def async_create_fix_flow(hass, issue_id, data) -> RepairsFlow:
 
 ---
 
-## 🌍 Translations
+## 🌍 Oversættelser
 
-- `strings.json` — English (primary)
-- `translations/da.json` — Danish
-- Sections: `config`, `options`, `entity`, `system_health`, `issues`
-
-All code uses English constants; translations are in JSON only.
+- `strings.json` — Engelsk (primær)
+- `translations/da.json` — Dansk
+- Al kode bruger engelske konstanter; oversættelser kun i JSON
 
 ---
 
-## 🧪 Testing
+## 🧪 Tests
 
 ```
 tests/
-├── conftest.py         # Shared fixtures and helpers
-├── test_const.py       # version, constants, normalize_room_id
-├── test_init.py        # coordinator: season, severity, status, trends, circulation, sensor values
-├── test_repairs.py     # issue raising/clearing, fix flow factory
-├── test_websocket.py   # WS handlers, room sorting, error paths
-└── test_diagnostics.py # config entry + device diagnostics
+├── conftest.py          # Fixtures og helpers
+├── test_const.py        # version, konstanter, normalize_room_id
+├── test_init.py         # coordinator: season, severity, status, trends, circulation
+├── test_repairs.py      # issue raising/clearing, fix flow factory
+├── test_websocket.py    # WS handlers, room sorting, mold_risk, dehumidifier
+├── test_diagnostics.py  # config entry + device diagnostics
+└── test_system_health.py
 ```
 
-Run:
 ```bash
 pytest --cov=custom_components/indeklima --cov-report=term-missing
 ```
@@ -186,48 +158,41 @@ pytest --cov=custom_components/indeklima --cov-report=term-missing
 {
   "domain": "indeklima",
   "name": "Indeklima",
-  "version": "2.4.1",
+  "version": "2.5.14",
   "config_flow": true,
   "integration_type": "hub",
   "iot_class": "local_polling",
-  "quality_scale": "silver",
-  "codeowners": ["@kingpainter"],
-  "documentation": "https://github.com/kingpainter/indeklima",
-  "issue_tracker": "https://github.com/kingpainter/indeklima/issues",
-  "requirements": [],
-  "dependencies": []
+  "quality_scale": "gold",
+  "codeowners": ["@kingpainter"]
 }
 ```
 
-`quality_scale` bumpes til `gold` når test-coverage er verificeret >95%.
-
 ---
 
-## 📈 Severity Scoring
+## 📈 Alvorligheds-scoring
 
-| Metric | Max points |
+| Metrik | Max point |
 |---|---|
-| Humidity (over threshold) | 30 |
-| CO2 (over threshold) | 30 |
-| VOC (over threshold) | 20 |
-| Formaldehyde (over threshold) | 20 |
-| Pressure | 0 — informational only |
-| Air circulation bonus | −5% af samlet score |
+| Fugtighed | 30 |
+| CO₂ | 30 |
+| VOC | 20 |
+| Formaldehyd | 20 |
+| Lufttryk | 0 — informativt |
+| Skimmelrisiko | 0 — informativt |
+| Luftcirkulations-bonus | −5% |
 
 | Score | Status |
 |---|---|
-| 0–29 | Good |
-| 30–59 | Warning |
-| 60–100 | Critical |
+| 0–29 | ✅ God |
+| 30–59 | ⚠️ Advarsel |
+| 60–100 | 🔴 Kritisk |
 
 ---
 
-## 📚 Reference
+## 📚 Referencer
 
 - [Integration Quality Scale](https://developers.home-assistant.io/docs/integration_quality_scale_index/)
 - [Entity Guidelines](https://developers.home-assistant.io/docs/core/entity/)
-- [Device Registry](https://developers.home-assistant.io/docs/device_registry_index/)
 - [Repairs](https://developers.home-assistant.io/docs/repairs/)
 - [Diagnostics](https://developers.home-assistant.io/docs/diagnostics/)
-- [Config Flow](https://developers.home-assistant.io/docs/config_entries_config_flow_handler/)
 - [Data Coordinator](https://developers.home-assistant.io/docs/integration_fetching_data/)
