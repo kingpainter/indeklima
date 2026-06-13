@@ -25,6 +25,7 @@ from .const import (
     CONF_FORMALDEHYDE_SENSORS,
     CONF_PRESSURE_SENSORS,
     CONF_MOLD_SENSORS,
+    CONF_DEHUMIDIFIER,
     CONF_WINDOW_SENSORS,
     CONF_WINDOW_ENTITY,
     CONF_WINDOW_IS_OUTDOOR,
@@ -238,6 +239,8 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         """Get numeric values from multiple sensors."""
         values = []
         for entity_id in entity_ids:
+            if not entity_id:
+                continue
             state = self.hass.states.get(entity_id)
             if state and state.state not in ("unknown", "unavailable"):
                 try:
@@ -675,6 +678,8 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
                     else:
                         continue
 
+                    if not entity_id:
+                        continue
                     state = self.hass.states.get(entity_id)
                     if state and state.state == "on":  # on = open
                         if is_outdoor:
