@@ -144,7 +144,10 @@ class TestCalculateDehumidifierRecommendation:
 
     def test_night_moderate_mold_still_optional(self, mock_hass, mock_entry):
         coord = _make_coord(mock_hass, mock_entry)
-        room = self._base_room(humidity=65.0, mold_risk=MOLD_RISK_MODERATE)
+        # Night suppression only skips when mold_risk == LOW.
+        # Moderate mold bypasses night suppression and reaches humidity check.
+        # humidity=50 (below threshold 55/60) + moderate mold -> OPTIONAL
+        room = self._base_room(humidity=50.0, mold_risk=MOLD_RISK_MODERATE)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
             mock_dt.now.return_value = MagicMock(month=6, hour=2)
             result = coord._calculate_dehumidifier_recommendation(room)
