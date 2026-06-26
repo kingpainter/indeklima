@@ -122,7 +122,7 @@ class TestCalculateDehumidifierRecommendation:
         coord = _make_coord(mock_hass, mock_entry)
         room = self._base_room(mold_risk=MOLD_RISK_HIGH)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
-            mock_dt.now.return_value = MagicMock(hour=12)
+            mock_dt.now.return_value = MagicMock(month=6, hour=12)
             result = coord._calculate_dehumidifier_recommendation(room)
         assert result == DEHUMIDIFIER_YES
 
@@ -130,7 +130,7 @@ class TestCalculateDehumidifierRecommendation:
         coord = _make_coord(mock_hass, mock_entry)
         room = self._base_room(mold_risk=MOLD_RISK_CRITICAL)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
-            mock_dt.now.return_value = MagicMock(hour=14)
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
             result = coord._calculate_dehumidifier_recommendation(room)
         assert result == DEHUMIDIFIER_YES
 
@@ -138,7 +138,7 @@ class TestCalculateDehumidifierRecommendation:
         coord = _make_coord(mock_hass, mock_entry)
         room = self._base_room(humidity=65.0, mold_risk=MOLD_RISK_LOW)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
-            mock_dt.now.return_value = MagicMock(hour=2)  # 02:00 = night
+            mock_dt.now.return_value = MagicMock(month=6, hour=2)
             result = coord._calculate_dehumidifier_recommendation(room)
         assert result == DEHUMIDIFIER_NO
 
@@ -146,7 +146,7 @@ class TestCalculateDehumidifierRecommendation:
         coord = _make_coord(mock_hass, mock_entry)
         room = self._base_room(humidity=65.0, mold_risk=MOLD_RISK_MODERATE)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
-            mock_dt.now.return_value = MagicMock(hour=2)
+            mock_dt.now.return_value = MagicMock(month=6, hour=2)
             result = coord._calculate_dehumidifier_recommendation(room)
         assert result == DEHUMIDIFIER_OPTIONAL
 
@@ -154,7 +154,7 @@ class TestCalculateDehumidifierRecommendation:
         coord = _make_coord(mock_hass, mock_entry)
         room = self._base_room(humidity=65.0, mold_risk=MOLD_RISK_LOW)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
-            mock_dt.now.return_value = MagicMock(hour=14)
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
             result = coord._calculate_dehumidifier_recommendation(room)
         assert result == DEHUMIDIFIER_OPTIONAL
 
@@ -162,7 +162,7 @@ class TestCalculateDehumidifierRecommendation:
         coord = _make_coord(mock_hass, mock_entry)
         room = self._base_room(humidity=65.0, mold_risk=MOLD_RISK_MODERATE)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
-            mock_dt.now.return_value = MagicMock(hour=14)
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
             result = coord._calculate_dehumidifier_recommendation(room)
         assert result == DEHUMIDIFIER_YES
 
@@ -170,7 +170,7 @@ class TestCalculateDehumidifierRecommendation:
         coord = _make_coord(mock_hass, mock_entry)
         room = self._base_room(humidity=45.0, mold_risk=MOLD_RISK_LOW)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
-            mock_dt.now.return_value = MagicMock(hour=14)
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
             result = coord._calculate_dehumidifier_recommendation(room)
         assert result == DEHUMIDIFIER_NO
 
@@ -178,7 +178,7 @@ class TestCalculateDehumidifierRecommendation:
         coord = _make_coord(mock_hass, mock_entry)
         room = self._base_room(humidity=50.0, mold_risk=MOLD_RISK_MODERATE)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
-            mock_dt.now.return_value = MagicMock(hour=14)
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
             result = coord._calculate_dehumidifier_recommendation(room)
         assert result == DEHUMIDIFIER_OPTIONAL
 
@@ -252,8 +252,9 @@ class TestProcessRoom:
         assert result["mold_humidity"] == 80.0
 
     def test_mold_risk_falls_back_to_humidity(self, mock_hass, mock_entry):
+        # 72% is above 70 (moderate) but below 75 (high threshold = 70+5)
         mock_hass.states.get.side_effect = self._make_state_map({
-            "sensor.hum": "72.0",
+            "sensor.hum": "76.0",  # 76 >= 70+5 -> MOLD_RISK_HIGH
         })
         room_cfg = {
             "name": "Stue",
@@ -349,7 +350,7 @@ class TestProcessRoom:
         with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
              patch("custom_components.indeklima.raise_sensor_unavailable_issue"), \
              patch("custom_components.indeklima.dt_util") as mock_dt:
-            mock_dt.now.return_value = MagicMock(hour=14)
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
             result = coord._process_room(room_cfg, data)
         assert result["has_dehumidifier"] is True
         assert result["dehumidifier_recommendation"] != DEHUMIDIFIER_NO
@@ -470,19 +471,18 @@ class TestAsyncDoUpdate:
 
     @pytest.mark.asyncio
     async def test_global_mold_risk_is_worst_room(self, mock_hass, mock_entry):
+        # Use explicit entity IDs that don't overlap on substring match
         def get_state(entity_id):
-            if "stue" in entity_id:
+            if entity_id == "sensor.stue_hum":
                 return make_state("50.0")   # low mold
-            if "sov" in entity_id:
-                return make_state("85.0")   # critical mold
+            if entity_id == "sensor.soverum_hum":
+                return make_state("85.0")   # critical mold (>= 70+15)
             return None
         mock_hass.states.get.side_effect = get_state
 
         rooms = [
-            {"name": "Stue", CONF_HUMIDITY_SENSORS: ["sensor.stue_hum"],
-             CONF_TEMPERATURE_SENSORS: ["sensor.stue_temp"]},
-            {"name": "Soverum", CONF_HUMIDITY_SENSORS: ["sensor.sov_hum"],
-             CONF_TEMPERATURE_SENSORS: ["sensor.sov_temp"]},
+            {"name": "Stue", CONF_HUMIDITY_SENSORS: ["sensor.stue_hum"]},
+            {"name": "Soverum", CONF_HUMIDITY_SENSORS: ["sensor.soverum_hum"]},
         ]
         coord = _make_coord(mock_hass, mock_entry, rooms=rooms)
 
@@ -533,17 +533,19 @@ class TestAsyncDoUpdate:
 
     @pytest.mark.asyncio
     async def test_global_dehumidifier_worst_room_wins(self, mock_hass, mock_entry):
+        # Stue: low humidity -> NO; Soverum: 85% humidity -> critical mold -> YES
         def get_state(entity_id):
-            if "sov" in entity_id:
-                return make_state("85.0")
-            return make_state("45.0")
+            if entity_id == "sensor.soverum_hum":
+                return make_state("85.0")  # critical mold -> DEHUMIDIFIER_YES
+            return make_state("45.0")      # Stue: low -> DEHUMIDIFIER_NO
         mock_hass.states.get.side_effect = get_state
 
         rooms = [
-            {"name": "Stue", CONF_HUMIDITY_SENSORS: ["sensor.stue_hum"],
+            {"name": "Stue",
+             CONF_HUMIDITY_SENSORS: ["sensor.stue_hum"],
              CONF_DEHUMIDIFIER: "switch.stue_dehum"},
-            {"name": "Soverum", CONF_HUMIDITY_SENSORS: ["sensor.sov_hum"],
-             CONF_TEMPERATURE_SENSORS: ["sensor.sov_temp"],
+            {"name": "Soverum",
+             CONF_HUMIDITY_SENSORS: ["sensor.soverum_hum"],
              CONF_DEHUMIDIFIER: "switch.sov_dehum"},
         ]
         coord = _make_coord(mock_hass, mock_entry, rooms=rooms)
@@ -557,5 +559,5 @@ class TestAsyncDoUpdate:
             mock_dt.utcnow.return_value = datetime(2026, 6, 1, 12, 0, 0)
             result = await coord._async_do_update()
 
-        # Soverum at 85% -> critical mold -> dehumidifier YES wins globally
+        # Soverum at 85% -> critical mold -> DEHUMIDIFIER_YES wins globally
         assert result["dehumidifier_recommendation"] == DEHUMIDIFIER_YES

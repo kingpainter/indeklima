@@ -91,7 +91,7 @@ class TestAsyncGetConfigEntryDiagnostics:
         result = await async_get_config_entry_diagnostics(hass, mock_entry)
 
         assert "integration_version" in result
-        assert result["integration_version"] == "2.5.0"
+        assert result["integration_version"] == "2.5.2"
 
     @pytest.mark.asyncio
     async def test_returns_sensor_availability(self, mock_hass, mock_entry):

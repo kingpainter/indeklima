@@ -48,15 +48,15 @@ class TestGetSeason:
     def test_summer_months(self, mock_hass, mock_entry):
         coord = _make_coord(mock_hass, mock_entry)
         for month in [5, 6, 7, 8, 9]:
-            with patch("custom_components.indeklima.datetime") as mock_dt:
-                mock_dt.now.return_value = datetime(2026, month, 1)
+            with patch("custom_components.indeklima.dt_util") as mock_dt:
+                mock_dt.now.return_value = MagicMock(month=month)
                 assert coord._get_season() == SEASON_SUMMER
 
     def test_winter_months(self, mock_hass, mock_entry):
         coord = _make_coord(mock_hass, mock_entry)
         for month in [1, 2, 3, 4, 10, 11, 12]:
-            with patch("custom_components.indeklima.datetime") as mock_dt:
-                mock_dt.now.return_value = datetime(2026, month, 1)
+            with patch("custom_components.indeklima.dt_util") as mock_dt:
+                mock_dt.now.return_value = MagicMock(month=month)
                 assert coord._get_season() == SEASON_WINTER
 
 
@@ -139,13 +139,13 @@ class TestCalculateTrend:
         assert coord._calculate_trend("humidity", 50.0) == TREND_STABLE
 
     def test_denominator_zero_returns_stable(self, mock_hass, mock_entry):
+        from datetime import timezone
         coord = _make_coord(mock_hass, mock_entry)
-        # Same timestamp (denominator will be 0 — all timestamps equal)
-        now = datetime(2026, 5, 15, 12, 0, 0)
+        # Use timezone-aware datetime to match dt_util.utcnow() output
+        now = datetime(2026, 5, 15, 12, 0, 0, tzinfo=timezone.utc)
         coord.history["co2"] = [(now, 500.0), (now, 500.0)]
-        with patch("custom_components.indeklima.datetime") as mock_dt:
-            mock_dt.now.return_value = now
-            mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+        with patch("custom_components.indeklima.dt_util") as mock_dt:
+            mock_dt.utcnow.return_value = now
             result = coord._calculate_trend("co2", 500.0)
         assert result == TREND_STABLE
 
