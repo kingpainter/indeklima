@@ -1,12 +1,14 @@
 """Indeklima integration for Home Assistant.
 
-Version: 2.5.1
+Version: 2.5.2
 """
 from __future__ import annotations
 
 import logging
 from datetime import timedelta, datetime
 from typing import Any
+
+from homeassistant.util import dt as dt_util
 
 from homeassistant.config_entries import ConfigEntry, ConfigEntryNotReady
 from homeassistant.const import Platform
@@ -223,7 +225,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
     def _get_season(self) -> str:
         """Determine current season."""
-        month = datetime.now().month
+        month = dt_util.now().month
         if 5 <= month <= 9:
             return SEASON_SUMMER
         return SEASON_WINTER
@@ -336,7 +338,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
     def _calculate_trend(self, key: str, current_value: float) -> str:
         """Calculate trend for a metric."""
-        now = datetime.now()
+        now = dt_util.utcnow()
 
         # Add current value to history
         self.history[key].append((now, current_value))
@@ -438,7 +440,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             return DEHUMIDIFIER_YES
 
         # Night suppression: 23:00–06:00, only suppress when mold_risk is low
-        hour = datetime.now().hour
+        hour = dt_util.now().hour
         is_night = hour >= DEHUMIDIFIER_NIGHT_START or hour < DEHUMIDIFIER_NIGHT_END
         if is_night and mold_risk == MOLD_RISK_LOW:
             return DEHUMIDIFIER_NO
@@ -552,6 +554,17 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             raise_coordinator_failed_issue(self.hass, self.entry.entry_id, str(err))
             raise UpdateFailed(f"Unexpected error: {err}") from err
 
+    # ── Module-level lookup tables (defined once, not per call) ─────────────
+    _MOLD_SCORE: dict[str, int] = {
+        "low": 0,
+        "moderate": 1,
+        "high": 2,
+        "critical": 3,
+    }
+    _MOLD_FROM_SCORE: list[str] = ["low", "moderate", "high", "critical"]
+    _DEHUM_SCORE: dict[str, int] = {"no": 0, "optional": 1, "yes": 2}
+    _DEHUM_FROM_SCORE: list[str] = ["no", "optional", "yes"]
+
     async def _async_do_update(self) -> dict[str, Any]:
         """Internal update implementation."""
         data = {
@@ -566,23 +579,14 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             "ventilation": {},
         }
 
-        all_humidity = []
-        all_temperature = []
-        all_co2 = []
-        all_voc = []
-        all_formaldehyde = []
-        all_pressure = []
-        all_severity = []
-        all_mold_risk_scores: list[int] = []  # numeric representation for averaging
-
-        # Helper: map mold risk level to sortable int
-        _MOLD_SCORE = {
-            MOLD_RISK_LOW: 0,
-            MOLD_RISK_MODERATE: 1,
-            MOLD_RISK_HIGH: 2,
-            MOLD_RISK_CRITICAL: 3,
-        }
-        _MOLD_FROM_SCORE = [MOLD_RISK_LOW, MOLD_RISK_MODERATE, MOLD_RISK_HIGH, MOLD_RISK_CRITICAL]
+        all_humidity: list[float] = []
+        all_temperature: list[float] = []
+        all_co2: list[float] = []
+        all_voc: list[float] = []
+        all_formaldehyde: list[float] = []
+        all_pressure: list[float] = []
+        all_severity: list[float] = []
+        all_mold_risk_scores: list[int] = []
 
         total_outdoor_windows_open = 0
         total_internal_doors_open = 0
@@ -590,142 +594,53 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         # Process each room
         for room in self.rooms:
             room_name = room.get("name")
-            room_data = {}
+            try:
+                room_data = self._process_room(room, data)
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning(
+                    "Indeklima: error processing room '%s' — skipping: %s",
+                    room_name,
+                    err,
+                )
+                continue
 
-            # Humidity sensors
-            if humidity_sensors := room.get(CONF_HUMIDITY_SENSORS):
-                values = self._get_sensor_values(humidity_sensors, room_name)
-                if values:
-                    avg = sum(values) / len(values)
-                    room_data["humidity"] = avg
-                    room_data["humidity_sensors_count"] = len(values)
-                    all_humidity.append(avg)
-
-            # Temperature sensors
-            if temp_sensors := room.get(CONF_TEMPERATURE_SENSORS):
-                values = self._get_sensor_values(temp_sensors, room_name)
-                if values:
-                    avg = sum(values) / len(values)
-                    room_data["temperature"] = avg
-                    room_data["temperature_sensors_count"] = len(values)
-                    all_temperature.append(avg)
-
-            # CO2 sensors
-            if co2_sensors := room.get(CONF_CO2_SENSORS):
-                values = self._get_sensor_values(co2_sensors, room_name)
-                if values:
-                    avg = sum(values) / len(values)
-                    room_data["co2"] = avg
-                    room_data["co2_sensors_count"] = len(values)
-                    all_co2.append(avg)
-
-            # VOC sensors
-            if voc_sensors := room.get(CONF_VOC_SENSORS):
-                values = self._get_sensor_values(voc_sensors, room_name)
-                if values:
-                    avg = sum(values) / len(values)
-                    room_data["voc"] = avg
-                    room_data["voc_sensors_count"] = len(values)
-                    all_voc.append(avg)
-
-            # Formaldehyde sensors
-            if formaldehyde_sensors := room.get(CONF_FORMALDEHYDE_SENSORS):
-                values = self._get_sensor_values(formaldehyde_sensors, room_name)
-                if values:
-                    avg = sum(values) / len(values)
-                    room_data["formaldehyde"] = avg
-                    room_data["formaldehyde_sensors_count"] = len(values)
-                    all_formaldehyde.append(avg)
-
-            # Pressure sensors
-            if pressure_sensors := room.get(CONF_PRESSURE_SENSORS):
-                values = self._get_sensor_values(pressure_sensors, room_name)
-                if values:
-                    avg = sum(values) / len(values)
-                    room_data["pressure"] = avg
-                    room_data["pressure_sensors_count"] = len(values)
-                    all_pressure.append(avg)
-
-            # Mold sensors (dedicated mold/moisture sensors, optional)
-            if mold_sensors := room.get(CONF_MOLD_SENSORS):
-                values = self._get_sensor_values(mold_sensors, room_name)
-                if values:
-                    avg = sum(values) / len(values)
-                    room_data["mold_humidity"] = avg  # raw humidity from mold sensor
-                    room_data["mold_sensors_count"] = len(values)
-
-            # Calculate mold risk using best available data:
-            # prefer dedicated mold sensor humidity, fall back to room humidity
-            mold_humidity = room_data.get("mold_humidity", room_data.get("humidity"))
-            mold_temp = room_data.get("temperature")
-            room_data["mold_risk"] = self._calculate_mold_risk(mold_humidity, mold_temp)
-
-            # Collect mold risk for global average
-            all_mold_risk_scores.append(_MOLD_SCORE[room_data["mold_risk"]])
-
-            # Window/door sensors
-            if window_sensors := room.get(CONF_WINDOW_SENSORS, []):
-                room_outdoor_open = 0
-                room_internal_open = 0
-
-                for window in window_sensors:
-                    if isinstance(window, str):
-                        entity_id = window
-                        is_outdoor = True  # Backward compatibility
-                    elif isinstance(window, dict):
-                        entity_id = window.get(CONF_WINDOW_ENTITY)
-                        is_outdoor = window.get(CONF_WINDOW_IS_OUTDOOR, True)
-                    else:
-                        continue
-
-                    if not entity_id:
-                        continue
-                    state = self.hass.states.get(entity_id)
-                    if state and state.state == "on":  # on = open
-                        if is_outdoor:
-                            room_outdoor_open += 1
-                            total_outdoor_windows_open += 1
-                            if room_name not in data["open_windows"]:
-                                data["open_windows"].append(room_name)
-                        else:
-                            room_internal_open += 1
-                            total_internal_doors_open += 1
-                            if room_name not in data["open_internal_doors"]:
-                                data["open_internal_doors"].append(room_name)
-
-                room_data["outdoor_windows_open"] = room_outdoor_open
-                room_data["internal_doors_open"] = room_internal_open
-
-            # Calculate room severity
-            severity = self._calculate_severity(room_data)
-            room_data["severity"] = severity
-            room_data["status"] = self._get_status_from_severity(severity)
-            all_severity.append(severity)
-
-            # Dehumidifier — only if a dehumidifier entity is configured for this room
-            has_dehumidifier = bool(room.get(CONF_DEHUMIDIFIER))
-            room_data["has_dehumidifier"] = has_dehumidifier
-            room_data["dehumidifier_recommendation"] = (
-                self._calculate_dehumidifier_recommendation(room_data)
-                if has_dehumidifier
-                else DEHUMIDIFIER_NO
+            all_severity.append(room_data.get("severity", 0.0))
+            if "humidity" in room_data:
+                all_humidity.append(room_data["humidity"])
+            if "temperature" in room_data:
+                all_temperature.append(room_data["temperature"])
+            if "co2" in room_data:
+                all_co2.append(room_data["co2"])
+            if "voc" in room_data:
+                all_voc.append(room_data["voc"])
+            if "formaldehyde" in room_data:
+                all_formaldehyde.append(room_data["formaldehyde"])
+            if "pressure" in room_data:
+                all_pressure.append(room_data["pressure"])
+            all_mold_risk_scores.append(
+                self._MOLD_SCORE.get(room_data.get("mold_risk", MOLD_RISK_LOW), 0)
             )
-
+            total_outdoor_windows_open += room_data.get("outdoor_windows_open", 0)
+            total_internal_doors_open += room_data.get("internal_doors_open", 0)
             data["rooms"][room_name] = room_data
 
+
         # Calculate global averages
+        def _avg(lst: list[float]) -> float:
+            return sum(lst) / len(lst)
+
         if all_humidity:
-            data["averages"]["humidity"] = sum(all_humidity) / len(all_humidity)
+            data["averages"]["humidity"] = _avg(all_humidity)
         if all_temperature:
-            data["averages"]["temperature"] = sum(all_temperature) / len(all_temperature)
+            data["averages"]["temperature"] = _avg(all_temperature)
         if all_co2:
-            data["averages"]["co2"] = sum(all_co2) / len(all_co2)
+            data["averages"]["co2"] = _avg(all_co2)
         if all_voc:
-            data["averages"]["voc"] = sum(all_voc) / len(all_voc)
+            data["averages"]["voc"] = _avg(all_voc)
         if all_formaldehyde:
-            data["averages"]["formaldehyde"] = sum(all_formaldehyde) / len(all_formaldehyde)
+            data["averages"]["formaldehyde"] = _avg(all_formaldehyde)
         if all_pressure:
-            data["averages"]["pressure"] = sum(all_pressure) / len(all_pressure)
+            data["averages"]["pressure"] = _avg(all_pressure)
 
         # Calculate global severity
         if all_severity:
@@ -743,20 +658,17 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
         # Calculate global mold risk (worst-room level)
         if all_mold_risk_scores:
-            worst = max(all_mold_risk_scores)
-            data["mold_risk"] = _MOLD_FROM_SCORE[worst]
+            data["mold_risk"] = self._MOLD_FROM_SCORE[max(all_mold_risk_scores)]
         else:
             data["mold_risk"] = MOLD_RISK_LOW
 
         # Calculate global dehumidifier recommendation (worst-room: yes > optional > no)
-        _DEHUM_SCORE = {DEHUMIDIFIER_NO: 0, DEHUMIDIFIER_OPTIONAL: 1, DEHUMIDIFIER_YES: 2}
-        _DEHUM_FROM_SCORE = [DEHUMIDIFIER_NO, DEHUMIDIFIER_OPTIONAL, DEHUMIDIFIER_YES]
         dehum_scores = [
-            _DEHUM_SCORE[r.get("dehumidifier_recommendation", DEHUMIDIFIER_NO)]
+            self._DEHUM_SCORE.get(r.get("dehumidifier_recommendation", DEHUMIDIFIER_NO), 0)
             for r in data["rooms"].values()
         ]
         data["dehumidifier_recommendation"] = (
-            _DEHUM_FROM_SCORE[max(dehum_scores)] if dehum_scores else DEHUMIDIFIER_NO
+            self._DEHUM_FROM_SCORE[max(dehum_scores)] if dehum_scores else DEHUMIDIFIER_NO
         )
 
         # Calculate trends
@@ -777,3 +689,81 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         data["ventilation"] = self._calculate_ventilation_recommendation(data)
 
         return data
+
+    def _process_room(self, room: dict, data: dict) -> dict[str, Any]:
+        """Process a single room and return its room_data dict.
+
+        Isolated so a bad sensor in one room cannot abort the full update cycle.
+        """
+        room_name = room.get("name")
+        room_data: dict[str, Any] = {}
+
+        # ── Scalar sensor groups ─────────────────────────────────────────────
+        for conf_key, data_key in (
+            (CONF_HUMIDITY_SENSORS, "humidity"),
+            (CONF_TEMPERATURE_SENSORS, "temperature"),
+            (CONF_CO2_SENSORS, "co2"),
+            (CONF_VOC_SENSORS, "voc"),
+            (CONF_FORMALDEHYDE_SENSORS, "formaldehyde"),
+            (CONF_PRESSURE_SENSORS, "pressure"),
+        ):
+            if sensors := room.get(conf_key):
+                values = self._get_sensor_values(sensors, room_name)
+                if values:
+                    room_data[data_key] = sum(values) / len(values)
+                    room_data[f"{data_key}_sensors_count"] = len(values)
+
+        # ── Dedicated mold sensors (optional) ─────────────────────────────────
+        if mold_sensors := room.get(CONF_MOLD_SENSORS):
+            values = self._get_sensor_values(mold_sensors, room_name)
+            if values:
+                room_data["mold_humidity"] = sum(values) / len(values)
+                room_data["mold_sensors_count"] = len(values)
+
+        mold_humidity = room_data.get("mold_humidity", room_data.get("humidity"))
+        room_data["mold_risk"] = self._calculate_mold_risk(
+            mold_humidity, room_data.get("temperature")
+        )
+
+        # ── Window / door sensors ─────────────────────────────────────────────
+        room_outdoor_open = 0
+        room_internal_open = 0
+        for window in room.get(CONF_WINDOW_SENSORS, []):
+            if isinstance(window, str):
+                entity_id = window
+                is_outdoor = True
+            elif isinstance(window, dict):
+                entity_id = window.get(CONF_WINDOW_ENTITY)
+                is_outdoor = window.get(CONF_WINDOW_IS_OUTDOOR, True)
+            else:
+                continue
+            if not entity_id:
+                continue
+            state = self.hass.states.get(entity_id)
+            if state and state.state == "on":
+                if is_outdoor:
+                    room_outdoor_open += 1
+                    if room_name not in data["open_windows"]:
+                        data["open_windows"].append(room_name)
+                else:
+                    room_internal_open += 1
+                    if room_name not in data["open_internal_doors"]:
+                        data["open_internal_doors"].append(room_name)
+        room_data["outdoor_windows_open"] = room_outdoor_open
+        room_data["internal_doors_open"] = room_internal_open
+
+        # ── Severity & status ─────────────────────────────────────────────────
+        severity = self._calculate_severity(room_data)
+        room_data["severity"] = severity
+        room_data["status"] = self._get_status_from_severity(severity)
+
+        # ── Dehumidifier recommendation ───────────────────────────────────────
+        has_dehumidifier = bool(room.get(CONF_DEHUMIDIFIER))
+        room_data["has_dehumidifier"] = has_dehumidifier
+        room_data["dehumidifier_recommendation"] = (
+            self._calculate_dehumidifier_recommendation(room_data)
+            if has_dehumidifier
+            else DEHUMIDIFIER_NO
+        )
+
+        return room_data
