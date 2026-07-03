@@ -1,12 +1,12 @@
 """Constants for Indeklima integration.
 
-Version: 2.5.2
+Version: 2.6.0
 """
 from typing import Final
 import re
 import unicodedata
 
-__version__ = "2.5.2"
+__version__ = "2.6.0"
 
 DOMAIN: Final = "indeklima"
 
@@ -20,9 +20,11 @@ CONF_FORMALDEHYDE_SENSORS: Final = "formaldehyde_sensors"
 CONF_PRESSURE_SENSORS: Final = "pressure_sensors"
 CONF_MOLD_SENSORS: Final = "mold_sensors"
 CONF_WINDOW_SENSORS: Final = "window_sensors"
-CONF_WINDOW_ENTITY: Final = "entity"
+CONF_WINDOW_ENTITY: Final = "entity_id"
 CONF_WINDOW_IS_OUTDOOR: Final = "is_outdoor"
 CONF_DEHUMIDIFIER: Final = "dehumidifier"
+CONF_DEHUMIDIFIER_LED: Final = "dehumidifier_led"
+CONF_DEHUMIDIFIER_BUTTON: Final = "dehumidifier_button"
 CONF_FAN: Final = "fan"
 CONF_WEATHER_ENTITY: Final = "weather_entity"
 CONF_NOTIFICATION_TARGETS: Final = "notification_targets"
@@ -35,6 +37,17 @@ CONF_MOLD_RISK_HUMIDITY: Final = "mold_risk_humidity"
 CONF_MOLD_RISK_TEMP_MIN: Final = "mold_risk_temp_min"
 CONF_MOLD_RISK_TEMP_MAX: Final = "mold_risk_temp_max"
 
+# Quiet hours (hub-level default, entry.options)
+CONF_QUIET_HOURS_START: Final = "quiet_hours_start"
+CONF_QUIET_HOURS_END: Final = "quiet_hours_end"
+
+# Quiet hours override (per room, stored on the room dict)
+CONF_ROOM_QUIET_HOURS_START: Final = "quiet_hours_start"
+CONF_ROOM_QUIET_HOURS_END: Final = "quiet_hours_end"
+
+# Dehumidifier auto-off duration (per room, stored on the room dict)
+CONF_DEHUMIDIFIER_ON_DURATION: Final = "dehumidifier_on_duration"
+
 # ── Defaults ──────────────────────────────────────────────────────────────────
 DEFAULT_HUMIDITY_SUMMER_MAX: Final = 60   # %
 DEFAULT_HUMIDITY_WINTER_MAX: Final = 55   # %
@@ -44,15 +57,14 @@ DEFAULT_FORMALDEHYDE_MAX: Final = 0.15   # mg/m³
 DEFAULT_MOLD_RISK_HUMIDITY: Final = 70   # %
 DEFAULT_MOLD_RISK_TEMP_MIN: Final = 5    # °C
 DEFAULT_MOLD_RISK_TEMP_MAX: Final = 35   # °C
+DEFAULT_QUIET_HOURS_START: Final = 23    # 23:00, matches previous hardcoded behaviour
+DEFAULT_QUIET_HOURS_END: Final = 6       # 06:00, matches previous hardcoded behaviour
+DEFAULT_DEHUMIDIFIER_ON_DURATION: Final = 45  # minutes
 
 SCAN_INTERVAL: Final = 30        # seconds
 TREND_WINDOW: Final = 1800       # seconds (30 min)
 NOTIFICATION_COOLDOWN: Final = 7200  # seconds (2 hours)
 CIRCULATION_BONUS: Final = 0.95  # 5% severity reduction
-
-# Night hours for dehumidifier suppression
-DEHUMIDIFIER_NIGHT_START: Final = 23
-DEHUMIDIFIER_NIGHT_END: Final = 6
 
 # ── Status constants ──────────────────────────────────────────────────────────
 STATUS_GOOD: Final = "good"
@@ -82,6 +94,11 @@ MOLD_RISK_CRITICAL: Final = "critical"
 DEHUMIDIFIER_YES: Final = "yes"
 DEHUMIDIFIER_NO: Final = "no"
 DEHUMIDIFIER_OPTIONAL: Final = "optional"
+
+# Dehumidifier control mode (actual switch control, not just recommendation)
+DEHUM_MODE_MANUAL: Final = "manual"
+DEHUM_MODE_AUTO: Final = "auto"
+DEHUM_MODE_OFF: Final = "off"
 
 # ── Sensor type definitions ───────────────────────────────────────────────────
 SENSOR_TYPES: Final[dict] = {

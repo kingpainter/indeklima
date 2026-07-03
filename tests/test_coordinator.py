@@ -14,6 +14,14 @@ from custom_components.indeklima.const import (
     DEHUMIDIFIER_YES,
     DEHUMIDIFIER_NO,
     DEHUMIDIFIER_OPTIONAL,
+    DEHUM_MODE_MANUAL,
+    DEHUM_MODE_AUTO,
+    DEHUM_MODE_OFF,
+    CONF_ROOM_QUIET_HOURS_START,
+    CONF_ROOM_QUIET_HOURS_END,
+    CONF_DEHUMIDIFIER_LED,
+    CONF_DEHUMIDIFIER_BUTTON,
+    CONF_DEHUMIDIFIER_ON_DURATION,
     STATUS_GOOD,
     STATUS_WARNING,
     STATUS_CRITICAL,
@@ -50,6 +58,10 @@ def _make_coord(hass, entry, rooms=None, weather_entity=None,
         coord.mold_risk_temp_min = mold_risk_temp_min
         coord.mold_risk_temp_max = mold_risk_temp_max
         coord.weather_entity = weather_entity
+        coord.quiet_hours_start = 23
+        coord.quiet_hours_end = 6
+        coord._dehumidifier_state = {}
+        coord._button_unsubs = []
         coord.history = {"humidity": [], "co2": [], "severity": []}
         return coord
 
@@ -116,14 +128,14 @@ class TestCalculateDehumidifierRecommendation:
     def test_outdoor_window_open_returns_no(self, mock_hass, mock_entry):
         coord = _make_coord(mock_hass, mock_entry)
         room = self._base_room(outdoor_open=1, mold_risk=MOLD_RISK_HIGH)
-        assert coord._calculate_dehumidifier_recommendation(room) == DEHUMIDIFIER_NO
+        assert coord._calculate_dehumidifier_recommendation(room, {}) == DEHUMIDIFIER_NO
 
     def test_high_mold_risk_returns_yes(self, mock_hass, mock_entry):
         coord = _make_coord(mock_hass, mock_entry)
         room = self._base_room(mold_risk=MOLD_RISK_HIGH)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
             mock_dt.now.return_value = MagicMock(month=6, hour=12)
-            result = coord._calculate_dehumidifier_recommendation(room)
+            result = coord._calculate_dehumidifier_recommendation(room, {})
         assert result == DEHUMIDIFIER_YES
 
     def test_critical_mold_risk_returns_yes(self, mock_hass, mock_entry):
@@ -131,7 +143,7 @@ class TestCalculateDehumidifierRecommendation:
         room = self._base_room(mold_risk=MOLD_RISK_CRITICAL)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
             mock_dt.now.return_value = MagicMock(month=6, hour=14)
-            result = coord._calculate_dehumidifier_recommendation(room)
+            result = coord._calculate_dehumidifier_recommendation(room, {})
         assert result == DEHUMIDIFIER_YES
 
     def test_night_low_mold_returns_no(self, mock_hass, mock_entry):
@@ -139,7 +151,7 @@ class TestCalculateDehumidifierRecommendation:
         room = self._base_room(humidity=65.0, mold_risk=MOLD_RISK_LOW)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
             mock_dt.now.return_value = MagicMock(month=6, hour=2)
-            result = coord._calculate_dehumidifier_recommendation(room)
+            result = coord._calculate_dehumidifier_recommendation(room, {})
         assert result == DEHUMIDIFIER_NO
 
     def test_night_moderate_mold_still_optional(self, mock_hass, mock_entry):
@@ -150,7 +162,7 @@ class TestCalculateDehumidifierRecommendation:
         room = self._base_room(humidity=50.0, mold_risk=MOLD_RISK_MODERATE)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
             mock_dt.now.return_value = MagicMock(month=6, hour=2)
-            result = coord._calculate_dehumidifier_recommendation(room)
+            result = coord._calculate_dehumidifier_recommendation(room, {})
         assert result == DEHUMIDIFIER_OPTIONAL
 
     def test_high_humidity_low_mold_returns_optional(self, mock_hass, mock_entry):
@@ -158,7 +170,7 @@ class TestCalculateDehumidifierRecommendation:
         room = self._base_room(humidity=65.0, mold_risk=MOLD_RISK_LOW)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
             mock_dt.now.return_value = MagicMock(month=6, hour=14)
-            result = coord._calculate_dehumidifier_recommendation(room)
+            result = coord._calculate_dehumidifier_recommendation(room, {})
         assert result == DEHUMIDIFIER_OPTIONAL
 
     def test_high_humidity_moderate_mold_returns_yes(self, mock_hass, mock_entry):
@@ -166,7 +178,7 @@ class TestCalculateDehumidifierRecommendation:
         room = self._base_room(humidity=65.0, mold_risk=MOLD_RISK_MODERATE)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
             mock_dt.now.return_value = MagicMock(month=6, hour=14)
-            result = coord._calculate_dehumidifier_recommendation(room)
+            result = coord._calculate_dehumidifier_recommendation(room, {})
         assert result == DEHUMIDIFIER_YES
 
     def test_good_conditions_returns_no(self, mock_hass, mock_entry):
@@ -174,7 +186,7 @@ class TestCalculateDehumidifierRecommendation:
         room = self._base_room(humidity=45.0, mold_risk=MOLD_RISK_LOW)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
             mock_dt.now.return_value = MagicMock(month=6, hour=14)
-            result = coord._calculate_dehumidifier_recommendation(room)
+            result = coord._calculate_dehumidifier_recommendation(room, {})
         assert result == DEHUMIDIFIER_NO
 
     def test_moderate_mold_no_humidity_breach_returns_optional(self, mock_hass, mock_entry):
@@ -182,7 +194,7 @@ class TestCalculateDehumidifierRecommendation:
         room = self._base_room(humidity=50.0, mold_risk=MOLD_RISK_MODERATE)
         with patch("custom_components.indeklima.dt_util") as mock_dt:
             mock_dt.now.return_value = MagicMock(month=6, hour=14)
-            result = coord._calculate_dehumidifier_recommendation(room)
+            result = coord._calculate_dehumidifier_recommendation(room, {})
         assert result == DEHUMIDIFIER_OPTIONAL
 
 
@@ -564,3 +576,282 @@ class TestAsyncDoUpdate:
 
         # Soverum at 85% -> critical mold -> DEHUMIDIFIER_YES wins globally
         assert result["dehumidifier_recommendation"] == DEHUMIDIFIER_YES
+
+
+# ── Quiet hours ──────────────────────────────────────────────
+
+class TestQuietHours:
+    def test_room_uses_hub_default_when_no_override(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        coord.quiet_hours_start = 23
+        coord.quiet_hours_end = 6
+        room = {"name": "Stue"}
+        assert coord._get_quiet_hours(room) == (23, 6)
+
+    def test_room_override_takes_precedence(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        coord.quiet_hours_start = 23
+        coord.quiet_hours_end = 6
+        room = {
+            "name": "Bad",
+            CONF_ROOM_QUIET_HOURS_START: 21,
+            CONF_ROOM_QUIET_HOURS_END: 8,
+        }
+        assert coord._get_quiet_hours(room) == (21, 8)
+
+    def test_is_quiet_hours_within_window(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        room = {"name": "Stue"}
+        with patch("custom_components.indeklima.dt_util") as mock_dt:
+            mock_dt.now.return_value = MagicMock(hour=2)
+            assert coord._is_quiet_hours(room) is True
+
+    def test_is_quiet_hours_outside_window(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        room = {"name": "Stue"}
+        with patch("custom_components.indeklima.dt_util") as mock_dt:
+            mock_dt.now.return_value = MagicMock(hour=14)
+            assert coord._is_quiet_hours(room) is False
+
+    def test_room_override_changes_quiet_window(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        room = {
+            "name": "Bad",
+            CONF_ROOM_QUIET_HOURS_START: 12,
+            CONF_ROOM_QUIET_HOURS_END: 15,
+        }
+        with patch("custom_components.indeklima.dt_util") as mock_dt:
+            mock_dt.now.return_value = MagicMock(hour=13)
+            assert coord._is_quiet_hours(room) is True
+
+    def test_recommendation_respects_room_override(self, mock_hass, mock_entry):
+        """Hub default is 23-06, but this room overrides to 12-15 (currently quiet).
+        Low mold risk during the room's own quiet window -> NO despite hub saying it's daytime."""
+        coord = _make_coord(mock_hass, mock_entry)
+        room_data = {
+            "humidity": 65.0,
+            "mold_risk": MOLD_RISK_LOW,
+            "outdoor_windows_open": 0,
+        }
+        room = {
+            "name": "Bad",
+            CONF_ROOM_QUIET_HOURS_START: 12,
+            CONF_ROOM_QUIET_HOURS_END: 15,
+        }
+        with patch("custom_components.indeklima.dt_util") as mock_dt:
+            mock_dt.now.return_value = MagicMock(hour=13)
+            result = coord._calculate_dehumidifier_recommendation(room_data, room)
+        assert result == DEHUMIDIFIER_NO
+
+
+# ── Dehumidifier control: start / stop / button / LED / auto ──────────────
+
+class TestDehumidifierControl:
+    def _room(self, **overrides):
+        room = {
+            "name": "Bad",
+            CONF_DEHUMIDIFIER: "switch.affugter",
+            CONF_DEHUMIDIFIER_LED: "light.bad_led",
+            CONF_DEHUMIDIFIER_BUTTON: "sensor.bad_knap",
+        }
+        room.update(overrides)
+        return room
+
+    @pytest.mark.asyncio
+    async def test_start_turns_on_switch_and_sets_manual_mode(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.async_create_task = MagicMock()
+        room = self._room()
+
+        await coord._async_start_dehumidifier(room, DEHUM_MODE_MANUAL)
+
+        mock_hass.services.async_call.assert_any_call(
+            "switch", "turn_on", {"entity_id": "switch.affugter"}, blocking=False
+        )
+        assert coord._dehumidifier_state["Bad"]["mode"] == DEHUM_MODE_MANUAL
+        assert coord._dehumidifier_state["Bad"]["unsub_timer"] is not None
+
+    @pytest.mark.asyncio
+    async def test_start_sets_led_manual_color(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.services.async_call = AsyncMock()
+        captured = []
+        mock_hass.async_create_task = MagicMock(side_effect=lambda coro: captured.append(coro))
+        room = self._room()
+
+        await coord._async_start_dehumidifier(room, DEHUM_MODE_MANUAL)
+        for coro in captured:
+            await coro
+
+        mock_hass.services.async_call.assert_any_call(
+            "light", "turn_on",
+            {"entity_id": "light.bad_led", "rgb_color": [0, 100, 255], "brightness_pct": 76},
+            blocking=False,
+        )
+
+    @pytest.mark.asyncio
+    async def test_start_sets_led_auto_color(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.services.async_call = AsyncMock()
+        captured = []
+        mock_hass.async_create_task = MagicMock(side_effect=lambda coro: captured.append(coro))
+        room = self._room()
+
+        await coord._async_start_dehumidifier(room, DEHUM_MODE_AUTO)
+        for coro in captured:
+            await coro
+
+        mock_hass.services.async_call.assert_any_call(
+            "light", "turn_on",
+            {"entity_id": "light.bad_led", "rgb_color": [255, 255, 133], "brightness_pct": 76},
+            blocking=False,
+        )
+
+    @pytest.mark.asyncio
+    async def test_stop_turns_off_switch_when_on(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.async_create_task = MagicMock()
+        mock_hass.states.get.side_effect = None
+        mock_hass.states.get.return_value = make_state("on")
+        room = self._room()
+        coord._dehumidifier_state["Bad"] = {"mode": DEHUM_MODE_MANUAL, "unsub_timer": MagicMock()}
+
+        await coord._async_stop_dehumidifier(room)
+
+        mock_hass.services.async_call.assert_any_call(
+            "switch", "turn_off", {"entity_id": "switch.affugter"}, blocking=False
+        )
+        assert coord._dehumidifier_state["Bad"]["mode"] == DEHUM_MODE_OFF
+
+    @pytest.mark.asyncio
+    async def test_stop_skips_turn_off_when_already_off(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.async_create_task = MagicMock()
+        mock_hass.states.get.side_effect = None
+        mock_hass.states.get.return_value = make_state("off")
+        room = self._room()
+
+        await coord._async_stop_dehumidifier(room)
+
+        for call in mock_hass.services.async_call.call_args_list:
+            assert call.args[:2] != ("switch", "turn_off")
+
+    @pytest.mark.asyncio
+    async def test_stop_cancels_pending_timer(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.async_create_task = MagicMock()
+        mock_hass.states.get.side_effect = None
+        mock_hass.states.get.return_value = make_state("off")
+        timer_unsub = MagicMock()
+        room = self._room()
+        coord._dehumidifier_state["Bad"] = {"mode": DEHUM_MODE_AUTO, "unsub_timer": timer_unsub}
+
+        await coord._async_stop_dehumidifier(room)
+
+        timer_unsub.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_button_press_turns_on_when_off(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.async_create_task = MagicMock()
+        mock_hass.states.get.side_effect = None
+        mock_hass.states.get.return_value = make_state("off")
+        room = self._room()
+
+        await coord._async_handle_button_press(room)
+
+        mock_hass.services.async_call.assert_any_call(
+            "switch", "turn_on", {"entity_id": "switch.affugter"}, blocking=False
+        )
+        assert coord._dehumidifier_state["Bad"]["mode"] == DEHUM_MODE_MANUAL
+
+    @pytest.mark.asyncio
+    async def test_button_press_turns_off_when_on(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.async_create_task = MagicMock()
+        mock_hass.states.get.side_effect = None
+        mock_hass.states.get.return_value = make_state("on")
+        room = self._room()
+
+        await coord._async_handle_button_press(room)
+
+        mock_hass.services.async_call.assert_any_call(
+            "switch", "turn_off", {"entity_id": "switch.affugter"}, blocking=False
+        )
+        assert coord._dehumidifier_state["Bad"]["mode"] == DEHUM_MODE_OFF
+
+    @pytest.mark.asyncio
+    async def test_button_press_noop_without_switch_configured(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        room = {"name": "Bad"}  # no CONF_DEHUMIDIFIER
+        # Should not raise even though nothing is configured
+        await coord._async_handle_button_press(room)
+        assert "Bad" not in coord._dehumidifier_state
+
+    def test_auto_control_starts_when_recommended(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        captured = []
+        mock_hass.async_create_task = MagicMock(side_effect=lambda coro: captured.append(coro))
+        room = self._room()
+        room_data = {"dehumidifier_recommendation": DEHUMIDIFIER_YES}
+
+        coord._maybe_auto_control_dehumidifier(room, room_data)
+
+        assert len(captured) == 1
+        captured[0].close()  # avoid "never awaited" warning; we only check scheduling
+
+    def test_auto_control_does_not_override_manual(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.async_create_task = MagicMock()
+        room = self._room()
+        coord._dehumidifier_state["Bad"] = {"mode": DEHUM_MODE_MANUAL, "unsub_timer": None}
+        room_data = {"dehumidifier_recommendation": DEHUMIDIFIER_YES}
+
+        coord._maybe_auto_control_dehumidifier(room, room_data)
+
+        mock_hass.async_create_task.assert_not_called()
+
+    def test_auto_control_skips_when_not_recommended(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.async_create_task = MagicMock()
+        room = self._room()
+        room_data = {"dehumidifier_recommendation": DEHUMIDIFIER_NO}
+
+        coord._maybe_auto_control_dehumidifier(room, room_data)
+
+        mock_hass.async_create_task.assert_not_called()
+
+
+# ── Button listener setup / teardown ──────────────────────────
+
+class TestDehumidifierListeners:
+    def test_setup_registers_listener_only_for_rooms_with_button(self, mock_hass, mock_entry):
+        rooms = [
+            {"name": "Bad", CONF_DEHUMIDIFIER_BUTTON: "sensor.bad_knap"},
+            {"name": "Stue"},  # no button configured
+        ]
+        coord = _make_coord(mock_hass, mock_entry, rooms=rooms)
+        with patch("custom_components.indeklima.async_track_state_change_event") as mock_track:
+            mock_track.return_value = MagicMock()
+            coord.async_setup_dehumidifier_listeners()
+        assert mock_track.call_count == 1
+        assert len(coord._button_unsubs) == 1
+
+    def test_unload_cancels_listeners_and_timers(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        listener_unsub = MagicMock()
+        timer_unsub = MagicMock()
+        coord._button_unsubs = [listener_unsub]
+        coord._dehumidifier_state = {"Bad": {"mode": DEHUM_MODE_AUTO, "unsub_timer": timer_unsub}}
+
+        coord.async_unload_dehumidifier_listeners()
+
+        listener_unsub.assert_called_once()
+        timer_unsub.assert_called_once()
+        assert coord._button_unsubs == []

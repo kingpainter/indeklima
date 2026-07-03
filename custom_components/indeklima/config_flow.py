@@ -29,6 +29,16 @@ from .const import (
     CONF_WINDOW_ENTITY,
     CONF_WINDOW_IS_OUTDOOR,
     CONF_DEHUMIDIFIER,
+    CONF_DEHUMIDIFIER_LED,
+    CONF_DEHUMIDIFIER_BUTTON,
+    CONF_DEHUMIDIFIER_ON_DURATION,
+    DEFAULT_DEHUMIDIFIER_ON_DURATION,
+    CONF_QUIET_HOURS_START,
+    CONF_QUIET_HOURS_END,
+    CONF_ROOM_QUIET_HOURS_START,
+    CONF_ROOM_QUIET_HOURS_END,
+    DEFAULT_QUIET_HOURS_START,
+    DEFAULT_QUIET_HOURS_END,
     CONF_FAN,
     CONF_WEATHER_ENTITY,
     CONF_NOTIFICATION_TARGETS,
@@ -102,6 +112,8 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             CONF_VOC_MAX: DEFAULT_VOC_MAX,
                             CONF_FORMALDEHYDE_MAX: DEFAULT_FORMALDEHYDE_MAX,
                             CONF_WEATHER_ENTITY: None,
+                            CONF_QUIET_HOURS_START: DEFAULT_QUIET_HOURS_START,
+                            CONF_QUIET_HOURS_END: DEFAULT_QUIET_HOURS_END,
                         },
                     )
 
@@ -142,9 +154,15 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self._temp_room_config[key] = val if isinstance(val, list) else [val]
             
             # Store devices - ONLY if valid
-            for key in [CONF_DEHUMIDIFIER, CONF_FAN]:
+            for key in [CONF_DEHUMIDIFIER, CONF_FAN, CONF_DEHUMIDIFIER_LED, CONF_DEHUMIDIFIER_BUTTON]:
                 val = user_input.get(key)
                 if val and isinstance(val, str) and "." in val:
+                    self._temp_room_config[key] = val
+
+            # Store dehumidifier duration / quiet hours override (numeric, optional)
+            for key in [CONF_DEHUMIDIFIER_ON_DURATION, CONF_ROOM_QUIET_HOURS_START, CONF_ROOM_QUIET_HOURS_END]:
+                val = user_input.get(key)
+                if val is not None:
                     self._temp_room_config[key] = val
             
             # Store window sensors for next step
@@ -205,7 +223,10 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         
         window_sensors_default = defaults.get(CONF_WINDOW_SENSORS, [])
         if window_sensors_default and isinstance(window_sensors_default[0], dict):
-            window_sensors_default = [w[CONF_WINDOW_ENTITY] for w in window_sensors_default]
+            window_sensors_default = [
+                w.get(CONF_WINDOW_ENTITY) for w in window_sensors_default if isinstance(w, dict)
+            ]
+            window_sensors_default = [w for w in window_sensors_default if w]
         
         schema_dict = {
             vol.Required("name", default=defaults.get("name", "")): str,
@@ -247,7 +268,48 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             schema_dict[vol.Optional(CONF_DEHUMIDIFIER)] = selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["humidifier", "switch"])
             )
-        
+
+        # Dehumidifier LED entity (optional, any light) - shows manual/auto/off feedback
+        if CONF_DEHUMIDIFIER_LED in defaults and defaults[CONF_DEHUMIDIFIER_LED]:
+            schema_dict[vol.Optional(CONF_DEHUMIDIFIER_LED, default=defaults[CONF_DEHUMIDIFIER_LED])] = selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["light"])
+            )
+        else:
+            schema_dict[vol.Optional(CONF_DEHUMIDIFIER_LED)] = selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["light"])
+            )
+
+        # Dehumidifier button entity (optional, ANY domain - supports button/event/sensor
+        # click-count entities, since physical button hardware varies)
+        if CONF_DEHUMIDIFIER_BUTTON in defaults and defaults[CONF_DEHUMIDIFIER_BUTTON]:
+            schema_dict[vol.Optional(CONF_DEHUMIDIFIER_BUTTON, default=defaults[CONF_DEHUMIDIFIER_BUTTON])] = selector.EntitySelector(
+                selector.EntitySelectorConfig()
+            )
+        else:
+            schema_dict[vol.Optional(CONF_DEHUMIDIFIER_BUTTON)] = selector.EntitySelector(
+                selector.EntitySelectorConfig()
+            )
+
+        # Dehumidifier auto-off duration (minutes)
+        schema_dict[vol.Optional(
+            CONF_DEHUMIDIFIER_ON_DURATION,
+            default=defaults.get(CONF_DEHUMIDIFIER_ON_DURATION, DEFAULT_DEHUMIDIFIER_ON_DURATION),
+        )] = vol.All(vol.Coerce(int), vol.Range(min=5, max=240))
+
+        # Per-room quiet hours override (optional - falls back to hub default if unset)
+        schema_dict[vol.Optional(
+            CONF_ROOM_QUIET_HOURS_START,
+            description={"suggested_value": defaults.get(CONF_ROOM_QUIET_HOURS_START)},
+        )] = selector.NumberSelector(
+            selector.NumberSelectorConfig(min=0, max=23, step=1, mode=selector.NumberSelectorMode.BOX)
+        )
+        schema_dict[vol.Optional(
+            CONF_ROOM_QUIET_HOURS_END,
+            description={"suggested_value": defaults.get(CONF_ROOM_QUIET_HOURS_END)},
+        )] = selector.NumberSelector(
+            selector.NumberSelectorConfig(min=0, max=23, step=1, mode=selector.NumberSelectorMode.BOX)
+        )
+
         if CONF_FAN in defaults and defaults[CONF_FAN]:
             schema_dict[vol.Optional(CONF_FAN, default=defaults[CONF_FAN])] = selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["fan", "switch"])
@@ -292,6 +354,8 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
                 return await self.async_step_room_list()
             elif menu_choice == "weather":
                 return await self.async_step_weather_config()
+            elif menu_choice == "quiet_hours":
+                return await self.async_step_quiet_hours()
 
         return self.async_show_form(
             step_id="main_menu",
@@ -302,11 +366,41 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
                             {"label": "\u2699\ufe0f Gr\u00e6nsev\u00e6rdier", "value": "thresholds"},
                             {"label": "\U0001f3e0 Administrer rum", "value": "rooms"},
                             {"label": "\u2601\ufe0f Vejr integration", "value": "weather"},
+                            {"label": "Stilletid (affugter)", "value": "quiet_hours"},
                         ],
                         mode=selector.SelectSelectorMode.LIST,
                     )
                 ),
             }),
+        )
+
+    async def async_step_quiet_hours(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
+        """Configure global quiet hours for automatic dehumidifier control.
+
+        Individual rooms may override these via their own room configuration.
+        """
+        if user_input is not None:
+            return self.async_create_entry(title="", data={**self._config_entry.options, **user_input})
+
+        return self.async_show_form(
+            step_id="quiet_hours",
+            data_schema=vol.Schema({
+                vol.Optional(
+                    CONF_QUIET_HOURS_START,
+                    default=self._config_entry.options.get(CONF_QUIET_HOURS_START, DEFAULT_QUIET_HOURS_START),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=23, step=1, mode=selector.NumberSelectorMode.BOX)
+                ),
+                vol.Optional(
+                    CONF_QUIET_HOURS_END,
+                    default=self._config_entry.options.get(CONF_QUIET_HOURS_END, DEFAULT_QUIET_HOURS_END),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=23, step=1, mode=selector.NumberSelectorMode.BOX)
+                ),
+            }),
+            description_placeholders={
+                "info": "Affugtere tændes ikke automatisk i dette tidsrum, medmindre mold-risiko er høj eller kritisk. Enkelte rum kan overstyre dette individuelt."
+            },
         )
 
     async def async_step_thresholds(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
@@ -374,9 +468,14 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
                 if val:
                     self._temp_room_config[key] = val if isinstance(val, list) else [val]
             
-            for key in [CONF_DEHUMIDIFIER, CONF_FAN]:
+            for key in [CONF_DEHUMIDIFIER, CONF_FAN, CONF_DEHUMIDIFIER_LED, CONF_DEHUMIDIFIER_BUTTON]:
                 val = user_input.get(key)
                 if val and isinstance(val, str) and "." in val:
+                    self._temp_room_config[key] = val
+
+            for key in [CONF_DEHUMIDIFIER_ON_DURATION, CONF_ROOM_QUIET_HOURS_START, CONF_ROOM_QUIET_HOURS_END]:
+                val = user_input.get(key)
+                if val is not None:
                     self._temp_room_config[key] = val
             
             self._temp_window_sensors = user_input.get(CONF_WINDOW_SENSORS, [])
@@ -419,9 +518,14 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
                 if val:
                     self._temp_room_config[key] = val if isinstance(val, list) else [val]
             
-            for key in [CONF_DEHUMIDIFIER, CONF_FAN]:
+            for key in [CONF_DEHUMIDIFIER, CONF_FAN, CONF_DEHUMIDIFIER_LED, CONF_DEHUMIDIFIER_BUTTON]:
                 val = user_input.get(key)
                 if val and isinstance(val, str) and "." in val:
+                    self._temp_room_config[key] = val
+
+            for key in [CONF_DEHUMIDIFIER_ON_DURATION, CONF_ROOM_QUIET_HOURS_START, CONF_ROOM_QUIET_HOURS_END]:
+                val = user_input.get(key)
+                if val is not None:
                     self._temp_room_config[key] = val
             
             self._temp_window_sensors = user_input.get(CONF_WINDOW_SENSORS, [])
@@ -482,7 +586,10 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
         
         window_sensors_default = defaults.get(CONF_WINDOW_SENSORS, [])
         if window_sensors_default and isinstance(window_sensors_default[0], dict):
-            window_sensors_default = [w[CONF_WINDOW_ENTITY] for w in window_sensors_default]
+            window_sensors_default = [
+                w.get(CONF_WINDOW_ENTITY) for w in window_sensors_default if isinstance(w, dict)
+            ]
+            window_sensors_default = [w for w in window_sensors_default if w]
         
         schema_dict = {
             vol.Required("name", default=defaults.get("name", "")): str,
@@ -524,6 +631,42 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
             schema_dict[vol.Optional(CONF_DEHUMIDIFIER)] = selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["humidifier", "switch"])
             )
+
+        if CONF_DEHUMIDIFIER_LED in defaults and defaults[CONF_DEHUMIDIFIER_LED]:
+            schema_dict[vol.Optional(CONF_DEHUMIDIFIER_LED, default=defaults[CONF_DEHUMIDIFIER_LED])] = selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["light"])
+            )
+        else:
+            schema_dict[vol.Optional(CONF_DEHUMIDIFIER_LED)] = selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["light"])
+            )
+
+        if CONF_DEHUMIDIFIER_BUTTON in defaults and defaults[CONF_DEHUMIDIFIER_BUTTON]:
+            schema_dict[vol.Optional(CONF_DEHUMIDIFIER_BUTTON, default=defaults[CONF_DEHUMIDIFIER_BUTTON])] = selector.EntitySelector(
+                selector.EntitySelectorConfig()
+            )
+        else:
+            schema_dict[vol.Optional(CONF_DEHUMIDIFIER_BUTTON)] = selector.EntitySelector(
+                selector.EntitySelectorConfig()
+            )
+
+        schema_dict[vol.Optional(
+            CONF_DEHUMIDIFIER_ON_DURATION,
+            default=defaults.get(CONF_DEHUMIDIFIER_ON_DURATION, DEFAULT_DEHUMIDIFIER_ON_DURATION),
+        )] = vol.All(vol.Coerce(int), vol.Range(min=5, max=240))
+
+        schema_dict[vol.Optional(
+            CONF_ROOM_QUIET_HOURS_START,
+            description={"suggested_value": defaults.get(CONF_ROOM_QUIET_HOURS_START)},
+        )] = selector.NumberSelector(
+            selector.NumberSelectorConfig(min=0, max=23, step=1, mode=selector.NumberSelectorMode.BOX)
+        )
+        schema_dict[vol.Optional(
+            CONF_ROOM_QUIET_HOURS_END,
+            description={"suggested_value": defaults.get(CONF_ROOM_QUIET_HOURS_END)},
+        )] = selector.NumberSelector(
+            selector.NumberSelectorConfig(min=0, max=23, step=1, mode=selector.NumberSelectorMode.BOX)
+        )
         
         if CONF_FAN in defaults and defaults[CONF_FAN]:
             schema_dict[vol.Optional(CONF_FAN, default=defaults[CONF_FAN])] = selector.EntitySelector(

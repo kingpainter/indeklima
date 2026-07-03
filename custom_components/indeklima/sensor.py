@@ -221,6 +221,8 @@ class IndeklimaGlobalSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         """Return additional attributes."""
+        if not self.coordinator.data:
+            return {}
         if self._sensor_type == "open_windows":
             rooms = self.coordinator.data.get("open_windows", [])
             internal_rooms = self.coordinator.data.get("open_internal_doors", [])
@@ -439,5 +441,10 @@ class IndeklimaRoomMetricSensor(CoordinatorEntity, SensorEntity):
         count_key = f"{self._sensor_type}_sensors_count"
         if count_key in room_data:
             attrs["sensorer_brugt"] = room_data[count_key]
+
+        # Dehumidifier control mode (manual/auto/off) - only relevant for the
+        # dehumidifier_recommendation sensor, reflects actual switch control state
+        if self._sensor_type == "dehumidifier_recommendation" and "dehumidifier_mode" in room_data:
+            attrs["tilstand"] = room_data["dehumidifier_mode"]
         
         return attrs

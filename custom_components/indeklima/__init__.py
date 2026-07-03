@@ -15,6 +15,8 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.event import async_track_state_change_event, async_call_later
+from homeassistant.core import Event, EventStateChangedData, callback as ha_callback
 
 from .const import (
     normalize_room_id,
@@ -28,6 +30,19 @@ from .const import (
     CONF_PRESSURE_SENSORS,
     CONF_MOLD_SENSORS,
     CONF_DEHUMIDIFIER,
+    CONF_DEHUMIDIFIER_LED,
+    CONF_DEHUMIDIFIER_BUTTON,
+    CONF_DEHUMIDIFIER_ON_DURATION,
+    DEFAULT_DEHUMIDIFIER_ON_DURATION,
+    CONF_QUIET_HOURS_START,
+    CONF_QUIET_HOURS_END,
+    CONF_ROOM_QUIET_HOURS_START,
+    CONF_ROOM_QUIET_HOURS_END,
+    DEFAULT_QUIET_HOURS_START,
+    DEFAULT_QUIET_HOURS_END,
+    DEHUM_MODE_MANUAL,
+    DEHUM_MODE_AUTO,
+    DEHUM_MODE_OFF,
     CONF_WINDOW_SENSORS,
     CONF_WINDOW_ENTITY,
     CONF_WINDOW_IS_OUTDOOR,
@@ -55,8 +70,6 @@ from .const import (
     DEHUMIDIFIER_YES,
     DEHUMIDIFIER_NO,
     DEHUMIDIFIER_OPTIONAL,
-    DEHUMIDIFIER_NIGHT_START,
-    DEHUMIDIFIER_NIGHT_END,
     SCAN_INTERVAL,
     TREND_WINDOW,
     STATUS_GOOD,
@@ -148,6 +161,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async_register_websocket_commands(hass)
     await async_register_panel(hass)
 
+    # Register dehumidifier button listeners
+    coordinator.async_setup_dehumidifier_listeners()
+
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
     _LOGGER.info("Indeklima integration v%s setup completed", __version__)
@@ -160,6 +176,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # ── Unregister panel and cards resource (v2.4.0) ───────────────────────
     async_unregister_panel(hass)
     await async_unregister_cards_resource(hass)
+
+    # Cancel dehumidifier button listeners and pending timers
+    coordinator = entry.runtime_data
+    if coordinator is not None:
+        coordinator.async_unload_dehumidifier_listeners()
 
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id)
@@ -208,6 +229,19 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
         # Weather entity
         self.weather_entity = entry.options.get(CONF_WEATHER_ENTITY)
+
+        # Quiet hours (hub-level default; rooms may override via
+        # CONF_ROOM_QUIET_HOURS_START/END on the room dict)
+        self.quiet_hours_start = entry.options.get(
+            CONF_QUIET_HOURS_START, DEFAULT_QUIET_HOURS_START
+        )
+        self.quiet_hours_end = entry.options.get(
+            CONF_QUIET_HOURS_END, DEFAULT_QUIET_HOURS_END
+        )
+
+        # Dehumidifier control state per room: {room_name: {"mode": ..., "unsub_timer": ...}}
+        self._dehumidifier_state: dict[str, dict] = {}
+        self._button_unsubs: list = []
 
         # History for trends
         self.history: dict[str, list[tuple[datetime, float]]] = {
@@ -417,14 +451,29 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
         return weather_data
 
-    def _calculate_dehumidifier_recommendation(self, room_data: dict) -> str:
+    def _get_quiet_hours(self, room: dict) -> tuple[int, int]:
+        """Get the (start, end) quiet hours for a room.
+
+        Falls back to the hub-level default if the room has no override.
+        """
+        start = room.get(CONF_ROOM_QUIET_HOURS_START, self.quiet_hours_start)
+        end = room.get(CONF_ROOM_QUIET_HOURS_END, self.quiet_hours_end)
+        return start, end
+
+    def _is_quiet_hours(self, room: dict) -> bool:
+        """Check whether it is currently quiet hours for a room."""
+        start, end = self._get_quiet_hours(room)
+        hour = dt_util.now().hour
+        return hour >= start or hour < end
+
+    def _calculate_dehumidifier_recommendation(self, room_data: dict, room: dict) -> str:
         """Calculate dehumidifier recommendation for a single room.
 
         Returns DEHUMIDIFIER_YES / NO / OPTIONAL based on:
         - mold_risk (high/critical  → yes)
         - humidity trend + level    → yes if rising above threshold
         - outdoor windows open      → no (natural ventilation preferred)
-        - night suppression         → no if mold_risk is low and it is night
+        - quiet hours suppression   → no if mold_risk is low and it is quiet hours
         """
         humidity = room_data.get("humidity")
         mold_risk = room_data.get("mold_risk", MOLD_RISK_LOW)
@@ -439,10 +488,9 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         if mold_risk in (MOLD_RISK_HIGH, MOLD_RISK_CRITICAL):
             return DEHUMIDIFIER_YES
 
-        # Night suppression: 23:00–06:00, only suppress when mold_risk is low
-        hour = dt_util.now().hour
-        is_night = hour >= DEHUMIDIFIER_NIGHT_START or hour < DEHUMIDIFIER_NIGHT_END
-        if is_night and mold_risk == MOLD_RISK_LOW:
+        # Quiet hours suppression (configurable, default 23:00–06:00), only
+        # suppress when mold_risk is low
+        if self._is_quiet_hours(room) and mold_risk == MOLD_RISK_LOW:
             return DEHUMIDIFIER_NO
 
         # Humidity is above threshold
@@ -761,9 +809,169 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         has_dehumidifier = bool(room.get(CONF_DEHUMIDIFIER))
         room_data["has_dehumidifier"] = has_dehumidifier
         room_data["dehumidifier_recommendation"] = (
-            self._calculate_dehumidifier_recommendation(room_data)
+            self._calculate_dehumidifier_recommendation(room_data, room)
             if has_dehumidifier
             else DEHUMIDIFIER_NO
         )
 
+        # ── Dehumidifier auto-control (actual switch on/off) ────────────────────
+        if has_dehumidifier:
+            self._maybe_auto_control_dehumidifier(room, room_data)
+        room_data["dehumidifier_mode"] = self._dehumidifier_state.get(
+            room_name, {}
+        ).get("mode", DEHUM_MODE_OFF)
+
         return room_data
+
+    # ── Dehumidifier control: auto cycle, manual button, LED feedback ───────
+
+    def _maybe_auto_control_dehumidifier(self, room: dict, room_data: dict) -> None:
+        """Automatically start the dehumidifier if recommended.
+
+        Never overrides an active manual session, and never auto-starts
+        during quiet hours (already handled by the recommendation itself
+        returning NO, but this keeps the control path explicit).
+        """
+        room_name = room.get("name")
+        current = self._dehumidifier_state.get(room_name, {"mode": DEHUM_MODE_OFF})
+
+        if current.get("mode") == DEHUM_MODE_MANUAL:
+            return
+
+        recommendation = room_data.get("dehumidifier_recommendation", DEHUMIDIFIER_NO)
+        if recommendation == DEHUMIDIFIER_YES and current.get("mode") != DEHUM_MODE_AUTO:
+            self.hass.async_create_task(
+                self._async_start_dehumidifier(room, DEHUM_MODE_AUTO)
+            )
+
+    def async_setup_dehumidifier_listeners(self) -> None:
+        """Register state-change listeners for configured button entities."""
+        for room in self.rooms:
+            button_entity = room.get(CONF_DEHUMIDIFIER_BUTTON)
+            if not button_entity:
+                continue
+            unsub = async_track_state_change_event(
+                self.hass, [button_entity], self._make_button_handler(room)
+            )
+            self._button_unsubs.append(unsub)
+
+    def async_unload_dehumidifier_listeners(self) -> None:
+        """Cancel all button listeners and pending auto-off timers."""
+        for unsub in self._button_unsubs:
+            unsub()
+        self._button_unsubs = []
+
+        for state in self._dehumidifier_state.values():
+            if state.get("unsub_timer"):
+                state["unsub_timer"]()
+
+    def _make_button_handler(self, room: dict):
+        """Build a state-change callback bound to a specific room."""
+
+        @ha_callback
+        def _handler(event: Event[EventStateChangedData]) -> None:
+            self.hass.async_create_task(self._async_handle_button_press(room))
+
+        return _handler
+
+    async def _async_handle_button_press(self, room: dict) -> None:
+        """Handle a physical button press/click: toggle the dehumidifier.
+
+        Any state change on the configured button entity counts as a click —
+        this supports both real button/event entities and click-count
+        sensors that reset to null/unknown after each press.
+        """
+        switch_entity = room.get(CONF_DEHUMIDIFIER)
+        if not switch_entity:
+            return
+
+        state = self.hass.states.get(switch_entity)
+        is_on = bool(state and state.state == "on")
+
+        if is_on:
+            await self._async_stop_dehumidifier(room)
+        else:
+            await self._async_start_dehumidifier(room, DEHUM_MODE_MANUAL)
+
+    async def _async_start_dehumidifier(self, room: dict, mode: str) -> None:
+        """Turn the dehumidifier switch on, set the LED, and (re)start the auto-off timer."""
+        switch_entity = room.get(CONF_DEHUMIDIFIER)
+        if not switch_entity:
+            return
+        room_name = room.get("name")
+
+        domain = switch_entity.split(".")[0]
+        await self.hass.services.async_call(
+            domain, "turn_on", {"entity_id": switch_entity}, blocking=False
+        )
+        self._async_set_led(room, mode)
+
+        # Cancel any existing timer before starting a new one
+        existing = self._dehumidifier_state.get(room_name, {})
+        if existing.get("unsub_timer"):
+            existing["unsub_timer"]()
+
+        duration_minutes = room.get(
+            CONF_DEHUMIDIFIER_ON_DURATION, DEFAULT_DEHUMIDIFIER_ON_DURATION
+        )
+
+        @ha_callback
+        def _on_timer_finished(_now) -> None:
+            self.hass.async_create_task(self._async_stop_dehumidifier(room))
+
+        unsub_timer = async_call_later(
+            self.hass, duration_minutes * 60, _on_timer_finished
+        )
+
+        self._dehumidifier_state[room_name] = {"mode": mode, "unsub_timer": unsub_timer}
+
+    async def _async_stop_dehumidifier(self, room: dict) -> None:
+        """Turn the dehumidifier switch off, clear the LED, and cancel any timer."""
+        switch_entity = room.get(CONF_DEHUMIDIFIER)
+        room_name = room.get("name")
+
+        existing = self._dehumidifier_state.get(room_name, {})
+        if existing.get("unsub_timer"):
+            existing["unsub_timer"]()
+
+        if switch_entity:
+            state = self.hass.states.get(switch_entity)
+            if state and state.state == "on":
+                domain = switch_entity.split(".")[0]
+                await self.hass.services.async_call(
+                    domain, "turn_off", {"entity_id": switch_entity}, blocking=False
+                )
+
+        self._async_set_led(room, DEHUM_MODE_OFF)
+        self._dehumidifier_state[room_name] = {"mode": DEHUM_MODE_OFF, "unsub_timer": None}
+
+    def _async_set_led(self, room: dict, mode: str) -> None:
+        """Update the configured LED entity to reflect manual/auto/off state."""
+        led_entity = room.get(CONF_DEHUMIDIFIER_LED)
+        if not led_entity:
+            return
+
+        if mode == DEHUM_MODE_MANUAL:
+            service_data = {
+                "entity_id": led_entity,
+                "rgb_color": [0, 100, 255],
+                "brightness_pct": 76,
+            }
+            self.hass.async_create_task(
+                self.hass.services.async_call("light", "turn_on", service_data, blocking=False)
+            )
+        elif mode == DEHUM_MODE_AUTO:
+            service_data = {
+                "entity_id": led_entity,
+                "rgb_color": [255, 255, 133],
+                "brightness_pct": 76,
+            }
+            self.hass.async_create_task(
+                self.hass.services.async_call("light", "turn_on", service_data, blocking=False)
+            )
+        else:
+            self.hass.async_create_task(
+                self.hass.services.async_call(
+                    "light", "turn_off", {"entity_id": led_entity}, blocking=False
+                )
+            )

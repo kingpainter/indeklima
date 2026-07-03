@@ -2,21 +2,11 @@
   "config": {
     "step": {
       "user": {
-        "title": "Setup Indeklima v2.4.1",
+        "title": "Setup Indeklima v2.6.0",
         "description": "Welcome to Indeklima with per-room sensors!",
         "data": {
           "name": "Integration name"
-          "issues": {
-    "sensor_unavailable": {
-      "title": "Sensor unavailable: {entity_id}",
-      "description": "The sensor **{entity_id}** configured for room **{room_name}** is unavailable. Check that the device is powered and reachable, then dismiss this issue."
-    },
-    "coordinator_update_failed": {
-      "title": "Indeklima failed to update",
-      "description": "The coordinator could not fetch sensor data. Error: {error}\n\nTry reloading the integration from Settings → Devices & Services → Indeklima → ⋮ → Reload."
-    }
-  }
-}
+        }
       },
       "room_menu": {
         "title": "Room Overview",
@@ -38,6 +28,11 @@
           "pressure_sensors": "Pressure sensors",
           "window_sensors": "Window/door sensors",
           "dehumidifier": "Dehumidifier",
+          "dehumidifier_led": "Dehumidifier LED (light entity)",
+          "dehumidifier_button": "Dehumidifier button entity",
+          "dehumidifier_on_duration": "Dehumidifier auto-off duration (minutes)",
+          "quiet_hours_start": "Quiet hours start (override, optional)",
+          "quiet_hours_end": "Quiet hours end (override, optional)",
           "fan": "Fan/Ventilator",
           "notification_targets": "Notifications"
         }
@@ -109,6 +104,11 @@
           "pressure_sensors": "Pressure sensors",
           "window_sensors": "Window/door sensors",
           "dehumidifier": "Dehumidifier",
+          "dehumidifier_led": "Dehumidifier LED (light entity)",
+          "dehumidifier_button": "Dehumidifier button entity",
+          "dehumidifier_on_duration": "Dehumidifier auto-off duration (minutes)",
+          "quiet_hours_start": "Quiet hours start (override, optional)",
+          "quiet_hours_end": "Quiet hours end (override, optional)",
           "fan": "Fan/Ventilator",
           "notification_targets": "Notifications"
         }
@@ -126,6 +126,11 @@
           "pressure_sensors": "Pressure sensors",
           "window_sensors": "Window/door sensors",
           "dehumidifier": "Dehumidifier",
+          "dehumidifier_led": "Dehumidifier LED (light entity)",
+          "dehumidifier_button": "Dehumidifier button entity",
+          "dehumidifier_on_duration": "Dehumidifier auto-off duration (minutes)",
+          "quiet_hours_start": "Quiet hours start (override, optional)",
+          "quiet_hours_end": "Quiet hours end (override, optional)",
           "fan": "Fan/Ventilator",
           "notification_targets": "Notifications"
         }
@@ -135,6 +140,14 @@
         "description": "{info}",
         "data": {
           "weather_entity": "Weather entity"
+        }
+      },
+      "quiet_hours": {
+        "title": "Quiet Hours",
+        "description": "{info}",
+        "data": {
+          "quiet_hours_start": "Quiet hours start (hour, 0-23)",
+          "quiet_hours_end": "Quiet hours end (hour, 0-23)"
         }
       }
     }

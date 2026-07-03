@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Opsætning af Indeklima v2.3.3",
+        "title": "Opsætning af Indeklima v2.6.0",
         "description": "Velkommen til Indeklima med per-rum sensorer!",
         "data": {
           "name": "Navn på integration"
@@ -28,6 +28,11 @@
           "pressure_sensors": "Tryksensorer",
           "window_sensors": "Vindue/dør sensorer",
           "dehumidifier": "Affugter",
+          "dehumidifier_led": "Affugter LED (light-entitet)",
+          "dehumidifier_button": "Affugter knap-entitet",
+          "dehumidifier_on_duration": "Affugter auto-sluk varighed (minutter)",
+          "quiet_hours_start": "Stilletid start (overstyring, valgfri)",
+          "quiet_hours_end": "Stilletid slut (overstyring, valgfri)",
           "fan": "Ventilator",
           "notification_targets": "Notifikationer"
         }
@@ -99,6 +104,11 @@
           "pressure_sensors": "Tryksensorer",
           "window_sensors": "Vindue/dør sensorer",
           "dehumidifier": "Affugter",
+          "dehumidifier_led": "Affugter LED (light-entitet)",
+          "dehumidifier_button": "Affugter knap-entitet",
+          "dehumidifier_on_duration": "Affugter auto-sluk varighed (minutter)",
+          "quiet_hours_start": "Stilletid start (overstyring, valgfri)",
+          "quiet_hours_end": "Stilletid slut (overstyring, valgfri)",
           "fan": "Ventilator",
           "notification_targets": "Notifikationer"
         }
@@ -116,6 +126,11 @@
           "pressure_sensors": "Tryksensorer",
           "window_sensors": "Vindue/dør sensorer",
           "dehumidifier": "Affugter",
+          "dehumidifier_led": "Affugter LED (light-entitet)",
+          "dehumidifier_button": "Affugter knap-entitet",
+          "dehumidifier_on_duration": "Affugter auto-sluk varighed (minutter)",
+          "quiet_hours_start": "Stilletid start (overstyring, valgfri)",
+          "quiet_hours_end": "Stilletid slut (overstyring, valgfri)",
           "fan": "Ventilator",
           "notification_targets": "Notifikationer"
         }
@@ -125,6 +140,14 @@
         "description": "{info}",
         "data": {
           "weather_entity": "Vejr entity"
+        }
+      },
+      "quiet_hours": {
+        "title": "Stilletid",
+        "description": "{info}",
+        "data": {
+          "quiet_hours_start": "Stilletid start (time, 0-23)",
+          "quiet_hours_end": "Stilletid slut (time, 0-23)"
         }
       }
     }
