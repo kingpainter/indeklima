@@ -320,3 +320,156 @@ class TestCalculateVentilationRecommendation:
         result = coord._calculate_ventilation_recommendation(self._good_data())
         assert result["outdoor_temp"] == 15.0
         assert result["outdoor_humidity"] == 50.0
+
+
+# ── async_setup_entry / async_unload_entry / async_reload_entry ────────────
+#
+# These exercise the integration startup/shutdown lifecycle, in particular
+# the v2.5.0 behaviour where a failing first refresh must NOT abort setup
+# (sensors are picked up on the next 30s poll cycle instead).
+
+def _mock_coordinator(rooms=None):
+    """Build a MagicMock standing in for IndeklimaDataCoordinator."""
+    coordinator = MagicMock()
+    coordinator.async_config_entry_first_refresh = AsyncMock()
+    coordinator.rooms = rooms if rooms is not None else []
+    coordinator.async_setup_dehumidifier_listeners = MagicMock()
+    coordinator.async_unload_dehumidifier_listeners = MagicMock()
+    return coordinator
+
+
+class TestAsyncSetupEntry:
+    @pytest.mark.asyncio
+    async def test_happy_path_registers_devices_and_platforms(self, mock_hass, mock_entry):
+        from custom_components.indeklima import async_setup_entry
+        from custom_components.indeklima.const import DOMAIN
+
+        coordinator = _mock_coordinator(rooms=[{"name": "Stue"}, {"name": "Køkken"}])
+        mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
+        mock_device_registry = MagicMock()
+
+        with patch("custom_components.indeklima.IndeklimaDataCoordinator", return_value=coordinator), \
+             patch("custom_components.indeklima.dr") as mock_dr, \
+             patch("custom_components.indeklima.async_register_websocket_commands") as mock_ws, \
+             patch("custom_components.indeklima.async_register_panel", new_callable=AsyncMock) as mock_panel:
+            mock_dr.async_get.return_value = mock_device_registry
+            result = await async_setup_entry(mock_hass, mock_entry)
+
+        assert result is True
+        coordinator.async_config_entry_first_refresh.assert_awaited_once()
+        assert mock_entry.runtime_data is coordinator
+        assert mock_hass.data[DOMAIN][mock_entry.entry_id] is coordinator
+        # hub device + 2 room devices = 3 calls
+        assert mock_device_registry.async_get_or_create.call_count == 3
+        mock_ws.assert_called_once_with(mock_hass)
+        mock_panel.assert_awaited_once_with(mock_hass)
+        coordinator.async_setup_dehumidifier_listeners.assert_called_once()
+        mock_entry.add_update_listener.assert_called_once()
+        mock_entry.async_on_unload.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_first_refresh_failure_does_not_block_setup(self, mock_hass, mock_entry):
+        """Critical v2.5.0 behaviour: a failing first refresh must not abort setup —
+        sensors are picked up on the next scan cycle instead (logs a warning only)."""
+        from custom_components.indeklima import async_setup_entry
+
+        coordinator = _mock_coordinator()
+        coordinator.async_config_entry_first_refresh = AsyncMock(
+            side_effect=Exception("sensors unavailable at boot")
+        )
+        mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
+
+        with patch("custom_components.indeklima.IndeklimaDataCoordinator", return_value=coordinator), \
+             patch("custom_components.indeklima.dr") as mock_dr, \
+             patch("custom_components.indeklima.async_register_websocket_commands"), \
+             patch("custom_components.indeklima.async_register_panel", new_callable=AsyncMock):
+            mock_dr.async_get.return_value = MagicMock()
+            result = await async_setup_entry(mock_hass, mock_entry)
+
+        assert result is True
+        assert mock_entry.runtime_data is coordinator
+
+    @pytest.mark.asyncio
+    async def test_no_rooms_registers_only_hub_device(self, mock_hass, mock_entry):
+        from custom_components.indeklima import async_setup_entry
+
+        coordinator = _mock_coordinator(rooms=[])
+        mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
+        mock_device_registry = MagicMock()
+
+        with patch("custom_components.indeklima.IndeklimaDataCoordinator", return_value=coordinator), \
+             patch("custom_components.indeklima.dr") as mock_dr, \
+             patch("custom_components.indeklima.async_register_websocket_commands"), \
+             patch("custom_components.indeklima.async_register_panel", new_callable=AsyncMock):
+            mock_dr.async_get.return_value = mock_device_registry
+            await async_setup_entry(mock_hass, mock_entry)
+
+        assert mock_device_registry.async_get_or_create.call_count == 1
+
+
+class TestAsyncUnloadEntry:
+    @pytest.mark.asyncio
+    async def test_unload_cancels_listeners_and_unloads_platforms(self, mock_hass, mock_entry):
+        from custom_components.indeklima import async_unload_entry
+        from custom_components.indeklima.const import DOMAIN
+
+        coordinator = _mock_coordinator()
+        mock_entry.runtime_data = coordinator
+        mock_hass.data[DOMAIN] = {mock_entry.entry_id: coordinator}
+        mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
+
+        with patch("custom_components.indeklima.async_unregister_panel") as mock_unreg_panel, \
+             patch("custom_components.indeklima.async_unregister_cards_resource", new_callable=AsyncMock) as mock_unreg_cards:
+            result = await async_unload_entry(mock_hass, mock_entry)
+
+        assert result is True
+        mock_unreg_panel.assert_called_once_with(mock_hass)
+        mock_unreg_cards.assert_awaited_once_with(mock_hass)
+        coordinator.async_unload_dehumidifier_listeners.assert_called_once()
+        assert mock_entry.entry_id not in mock_hass.data[DOMAIN]
+
+    @pytest.mark.asyncio
+    async def test_unload_handles_missing_runtime_data(self, mock_hass, mock_entry):
+        """Should not crash if runtime_data is None (e.g. setup never completed)."""
+        from custom_components.indeklima import async_unload_entry
+        from custom_components.indeklima.const import DOMAIN
+
+        mock_entry.runtime_data = None
+        mock_hass.data[DOMAIN] = {mock_entry.entry_id: MagicMock()}
+        mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
+
+        with patch("custom_components.indeklima.async_unregister_panel"), \
+             patch("custom_components.indeklima.async_unregister_cards_resource", new_callable=AsyncMock):
+            result = await async_unload_entry(mock_hass, mock_entry)
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_unload_platforms_failure_keeps_data(self, mock_hass, mock_entry):
+        from custom_components.indeklima import async_unload_entry
+        from custom_components.indeklima.const import DOMAIN
+
+        coordinator = _mock_coordinator()
+        mock_entry.runtime_data = coordinator
+        mock_hass.data[DOMAIN] = {mock_entry.entry_id: coordinator}
+        mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=False)
+
+        with patch("custom_components.indeklima.async_unregister_panel"), \
+             patch("custom_components.indeklima.async_unregister_cards_resource", new_callable=AsyncMock):
+            result = await async_unload_entry(mock_hass, mock_entry)
+
+        assert result is False
+        assert mock_entry.entry_id in mock_hass.data[DOMAIN]
+
+
+class TestAsyncReloadEntry:
+    @pytest.mark.asyncio
+    async def test_reload_calls_unload_then_setup(self, mock_hass, mock_entry):
+        from custom_components.indeklima import async_reload_entry
+
+        with patch("custom_components.indeklima.async_unload_entry", new_callable=AsyncMock) as mock_unload, \
+             patch("custom_components.indeklima.async_setup_entry", new_callable=AsyncMock) as mock_setup:
+            await async_reload_entry(mock_hass, mock_entry)
+
+        mock_unload.assert_awaited_once_with(mock_hass, mock_entry)
+        mock_setup.assert_awaited_once_with(mock_hass, mock_entry)

@@ -266,6 +266,42 @@ class TestProcessRoom:
         assert result["mold_risk"] in (MOLD_RISK_HIGH, MOLD_RISK_CRITICAL)
         assert result["mold_humidity"] == 80.0
 
+    def test_mold_sensors_count_set_when_dedicated_sensor_configured(self, mock_hass, mock_entry):
+        mock_hass.states.get.side_effect = self._make_state_map({
+            "sensor.hum": "55.0",
+            "sensor.mold": "72.0",
+        })
+        room_cfg = {
+            "name": "Bad",
+            CONF_HUMIDITY_SENSORS: ["sensor.hum"],
+            CONF_MOLD_SENSORS: ["sensor.mold"],
+        }
+        coord = _make_coord(mock_hass, mock_entry)
+        data = {"open_windows": [], "open_internal_doors": []}
+        with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.raise_sensor_unavailable_issue"):
+            result = coord._process_room(room_cfg, data)
+        assert result["mold_sensors_count"] == 1
+        assert result["mold_humidity"] == 72.0
+
+    def test_mold_sensors_count_absent_without_dedicated_sensor(self, mock_hass, mock_entry):
+        """Mold risk is a calculated value (outdoor/room temp + room humidity sensor),
+        not a physical mold sensor — no dedicated sensor configured means no count."""
+        mock_hass.states.get.side_effect = self._make_state_map({
+            "sensor.hum": "72.0",
+        })
+        room_cfg = {
+            "name": "Bad",
+            CONF_HUMIDITY_SENSORS: ["sensor.hum"],
+        }
+        coord = _make_coord(mock_hass, mock_entry)
+        data = {"open_windows": [], "open_internal_doors": []}
+        with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.raise_sensor_unavailable_issue"):
+            result = coord._process_room(room_cfg, data)
+        assert "mold_sensors_count" not in result
+        assert result["mold_risk"] == MOLD_RISK_MODERATE  # fallback to room humidity (72% >= 70%)
+
     def test_mold_risk_falls_back_to_humidity(self, mock_hass, mock_entry):
         # 72% is above 70 (moderate) but below 75 (high threshold = 70+5)
         mock_hass.states.get.side_effect = self._make_state_map({

@@ -2,7 +2,7 @@
 
 **Multi-rum indeklima-overvågning til Home Assistant** — temperatur, fugtighed, CO₂, VOC, formaldehyd og lufttryk, med skimmelrisiko, affugter-anbefaling og et dansk brugerflade.
 
-![Version](https://img.shields.io/badge/version-2.6.0-blue)
+![Version](https://img.shields.io/badge/version-2.6.1-blue)
 ![Quality Scale](https://img.shields.io/badge/quality_scale-gold-gold)
 ![HACS](https://img.shields.io/badge/HACS-custom-orange)
 

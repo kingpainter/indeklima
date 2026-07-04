@@ -439,6 +439,11 @@ class IndeklimaRoomMetricSensor(CoordinatorEntity, SensorEntity):
         
         # Add count of sensors used
         count_key = f"{self._sensor_type}_sensors_count"
+        if self._sensor_type == "mold_risk":
+            # Mold risk has no sensor_type-matching count key in coordinator
+            # data -- the dedicated mold sensor count is stored as
+            # 'mold_sensors_count' (see IndeklimaDataCoordinator._process_room).
+            count_key = "mold_sensors_count"
         if count_key in room_data:
             attrs["sensorer_brugt"] = room_data[count_key]
 
