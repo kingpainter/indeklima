@@ -33,6 +33,8 @@ from .const import (
     CONF_DEHUMIDIFIER_BUTTON,
     CONF_DEHUMIDIFIER_ON_DURATION,
     DEFAULT_DEHUMIDIFIER_ON_DURATION,
+    CONF_ROOM_LED_CRITICAL_SEVERITY,
+    DEFAULT_LED_CRITICAL_SEVERITY,
     CONF_QUIET_HOURS_START,
     CONF_QUIET_HOURS_END,
     CONF_ROOM_QUIET_HOURS_START,
@@ -160,7 +162,7 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self._temp_room_config[key] = val
 
             # Store dehumidifier duration / quiet hours override (numeric, optional)
-            for key in [CONF_DEHUMIDIFIER_ON_DURATION, CONF_ROOM_QUIET_HOURS_START, CONF_ROOM_QUIET_HOURS_END]:
+            for key in [CONF_DEHUMIDIFIER_ON_DURATION, CONF_ROOM_QUIET_HOURS_START, CONF_ROOM_QUIET_HOURS_END, CONF_ROOM_LED_CRITICAL_SEVERITY]:
                 val = user_input.get(key)
                 if val is not None:
                     self._temp_room_config[key] = val
@@ -309,6 +311,13 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )] = selector.NumberSelector(
             selector.NumberSelectorConfig(min=0, max=23, step=1, mode=selector.NumberSelectorMode.BOX)
         )
+
+        # Per-room LED critical-alarm severity threshold override (LED-only;
+        # does not affect the room's official status classification)
+        schema_dict[vol.Optional(
+            CONF_ROOM_LED_CRITICAL_SEVERITY,
+            description={"suggested_value": defaults.get(CONF_ROOM_LED_CRITICAL_SEVERITY)},
+        )] = vol.All(vol.Coerce(int), vol.Range(min=1, max=100))
 
         if CONF_FAN in defaults and defaults[CONF_FAN]:
             schema_dict[vol.Optional(CONF_FAN, default=defaults[CONF_FAN])] = selector.EntitySelector(
@@ -473,7 +482,7 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
                 if val and isinstance(val, str) and "." in val:
                     self._temp_room_config[key] = val
 
-            for key in [CONF_DEHUMIDIFIER_ON_DURATION, CONF_ROOM_QUIET_HOURS_START, CONF_ROOM_QUIET_HOURS_END]:
+            for key in [CONF_DEHUMIDIFIER_ON_DURATION, CONF_ROOM_QUIET_HOURS_START, CONF_ROOM_QUIET_HOURS_END, CONF_ROOM_LED_CRITICAL_SEVERITY]:
                 val = user_input.get(key)
                 if val is not None:
                     self._temp_room_config[key] = val
@@ -523,7 +532,7 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
                 if val and isinstance(val, str) and "." in val:
                     self._temp_room_config[key] = val
 
-            for key in [CONF_DEHUMIDIFIER_ON_DURATION, CONF_ROOM_QUIET_HOURS_START, CONF_ROOM_QUIET_HOURS_END]:
+            for key in [CONF_DEHUMIDIFIER_ON_DURATION, CONF_ROOM_QUIET_HOURS_START, CONF_ROOM_QUIET_HOURS_END, CONF_ROOM_LED_CRITICAL_SEVERITY]:
                 val = user_input.get(key)
                 if val is not None:
                     self._temp_room_config[key] = val
@@ -668,6 +677,13 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
             selector.NumberSelectorConfig(min=0, max=23, step=1, mode=selector.NumberSelectorMode.BOX)
         )
         
+        # Per-room LED critical-alarm severity threshold override (LED-only;
+        # does not affect the room's official status classification)
+        schema_dict[vol.Optional(
+            CONF_ROOM_LED_CRITICAL_SEVERITY,
+            description={"suggested_value": defaults.get(CONF_ROOM_LED_CRITICAL_SEVERITY)},
+        )] = vol.All(vol.Coerce(int), vol.Range(min=1, max=100))
+
         if CONF_FAN in defaults and defaults[CONF_FAN]:
             schema_dict[vol.Optional(CONF_FAN, default=defaults[CONF_FAN])] = selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["fan", "switch"])

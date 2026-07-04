@@ -220,6 +220,21 @@ class IndeklimaPanel extends HTMLElement {
     return "#64748b";
   }
 
+  _dehumModeLabel(m) {
+    if (m === "manual") return "Manuel";
+    if (m === "auto")   return "Automatisk";
+    return "Fra";
+  }
+
+  _fmtTimeSince(iso) {
+    if (!iso) return "";
+    try {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return "";
+      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } catch (e) { return ""; }
+  }
+
   _fmt(val, unit, decimals = 0) {
     if (val == null || val === undefined) return "\u2013";
     const n = typeof val === "number" ? val : parseFloat(val);
@@ -1063,7 +1078,7 @@ class IndeklimaPanel extends HTMLElement {
           style="border-left-color:${color}; background:${bg}, var(--bg2);"
           data-room="${r.name}">
           <div class="room-card-header">
-            <div class="room-name">${r.name}</div>
+            <div class="room-name">${r.name}${r.led_alarm_active ? ` <span title="LED alarm aktiv" style="color:#ef4444;">\uD83D\uDD34</span>` : ""}</div>
             <div style="display:flex;align-items:center;gap:6px;">
               <span style="font-size:10px;color:${color};font-family:'DM Mono',monospace;font-weight:700;">${Math.round(severityPct)}</span>
               <div class="room-status-pill" style="background:${color}22; color:${color};">
@@ -1101,7 +1116,7 @@ class IndeklimaPanel extends HTMLElement {
             <div class="rsc-cell" style="border-bottom-color:${this._dehumColor(r.dehumidifier_recommendation)}">
               <div class="rsc-ico">${this._dehumIcon(r.dehumidifier_recommendation)}</div>
               <div class="rsc-val" style="color:${this._dehumColor(r.dehumidifier_recommendation)}">${r.dehumidifier_recommendation==="yes"?"T\u00e6nd":"Overv\u00e6j"}</div>
-              <div class="rsc-lbl">Affugter</div>
+              <div class="rsc-lbl">Affugter${r.dehumidifier_mode && r.dehumidifier_mode !== 'off' ? ` \u00b7 ${this._dehumModeLabel(r.dehumidifier_mode)}` : ''}</div>
             </div>` : ""}
           </div>
           ${this._sparkline(r.name, "severity")}
@@ -1154,6 +1169,8 @@ class IndeklimaPanel extends HTMLElement {
           <button class="room-detail-close" id="close-detail">-</button>
         </div>
         <div class="room-detail-body">
+          ${r.led_alarm_active ? `<div style="display:flex;align-items:center;gap:8px;background:#ef444422;color:#ef4444;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;margin-bottom:10px;">\uD83D\uDD34 LED alarm aktiv i dette rum</div>` : ""}
+          ${r.status === "critical" && r.kritisk_siden ? `<div style="font-size:11px;color:#ef4444;font-weight:600;margin-bottom:10px;">\u26A0\uFE0F Kritisk siden ${this._fmtTimeSince(r.kritisk_siden)}</div>` : ""}
           <div class="room-detail-metrics">
             ${r.temperature_sensors_count > 0 ? this._rdmCard("\uD83D\uDCCA-", this._fmt(r.temperature, "\u00b0C", 1), "Temperatur", r.temperature_sensors_count) : ""}
             ${r.humidity_sensors_count > 0    ? this._rdmCard("\uD83D\uDCCA-", this._fmt(r.humidity, "%", 0), "Fugtighed", r.humidity_sensors_count) : ""}
@@ -1181,7 +1198,7 @@ class IndeklimaPanel extends HTMLElement {
             ? `<div style="display:flex;align-items:center;gap:10px;margin-top:10px;background:var(--bg3);border-radius:10px;padding:12px;border-left:3px solid ${this._dehumColor(r.dehumidifier_recommendation)};">
                 <span style="font-size:22px;flex-shrink:0;">${this._dehumIcon(r.dehumidifier_recommendation)}</span>
                 <div>
-                  <div style="font-size:13px;font-weight:700;color:${this._dehumColor(r.dehumidifier_recommendation)};margin-bottom:3px;">${this._dehumLabel(r.dehumidifier_recommendation)}</div>
+                  <div style="font-size:13px;font-weight:700;color:${this._dehumColor(r.dehumidifier_recommendation)};margin-bottom:3px;">${this._dehumLabel(r.dehumidifier_recommendation)}${r.dehumidifier_mode && r.dehumidifier_mode !== 'off' ? ` \u00b7 ${this._dehumModeLabel(r.dehumidifier_mode)}` : ''}</div>
                   <div style="font-size:11px;color:var(--sub);line-height:1.5;">${r.dehumidifier_recommendation === "yes" ? "Fugt- eller skimmelrisiko er forh\u00f8jet \u2014 affugter anbefales aktiveret." : "Fugtniveauet er let forh\u00f8jet \u2014 overvej at t\u00e6nde affugteren."}</div>
                 </div>
               </div>`

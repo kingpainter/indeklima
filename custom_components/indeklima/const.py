@@ -1,12 +1,12 @@
 """Constants for Indeklima integration.
 
-Version: 2.6.1
+Version: 2.9.0
 """
 from typing import Final
 import re
 import unicodedata
 
-__version__ = "2.6.1"
+__version__ = "2.9.0"
 
 DOMAIN: Final = "indeklima"
 
@@ -48,6 +48,11 @@ CONF_ROOM_QUIET_HOURS_END: Final = "quiet_hours_end"
 # Dehumidifier auto-off duration (per room, stored on the room dict)
 CONF_DEHUMIDIFIER_ON_DURATION: Final = "dehumidifier_on_duration"
 
+# Per-room LED critical-alarm severity threshold override (optional; falls back
+# to DEFAULT_LED_CRITICAL_SEVERITY). LED-only -- does NOT affect the room's
+# official severity/status classification used elsewhere (status sensor etc.)
+CONF_ROOM_LED_CRITICAL_SEVERITY: Final = "led_critical_severity"
+
 # ── Defaults ──────────────────────────────────────────────────────────────────
 DEFAULT_HUMIDITY_SUMMER_MAX: Final = 60   # %
 DEFAULT_HUMIDITY_WINTER_MAX: Final = 55   # %
@@ -60,6 +65,11 @@ DEFAULT_MOLD_RISK_TEMP_MAX: Final = 35   # °C
 DEFAULT_QUIET_HOURS_START: Final = 23    # 23:00, matches previous hardcoded behaviour
 DEFAULT_QUIET_HOURS_END: Final = 6       # 06:00, matches previous hardcoded behaviour
 DEFAULT_DEHUMIDIFIER_ON_DURATION: Final = 45  # minutes
+
+# LED critical-alarm behaviour
+DEFAULT_LED_CRITICAL_SEVERITY: Final = 60  # matches the global STATUS_CRITICAL threshold by default
+DEHUM_LED_BLINK_INTERVAL: Final = 3        # seconds between blink toggles while in alarm
+DEHUM_LED_RECOVERY_CYCLES: Final = 2       # consecutive non-critical update cycles required before the alarm clears (avoids flicker around the threshold)
 
 SCAN_INTERVAL: Final = 30        # seconds
 TREND_WINDOW: Final = 1800       # seconds (30 min)

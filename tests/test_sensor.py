@@ -13,6 +13,7 @@ import pytest
 from custom_components.indeklima.sensor import (
     IndeklimaGlobalSensor,
     IndeklimaRoomMetricSensor,
+    IndeklimaRoomSensor,
 )
 from custom_components.indeklima.const import (
     SENSOR_TYPES,
@@ -37,6 +38,27 @@ def _make_room_metric_sensor(entry, room_name, sensor_type, coordinator_data=Non
     coordinator.data = coordinator_data
     room_id = room_name.lower()
     return IndeklimaRoomMetricSensor(coordinator, entry, room_name, room_id, sensor_type)
+
+
+def _make_room_status_sensor(entry, room_name, coordinator_data=None):
+    coordinator = MagicMock()
+    coordinator.data = coordinator_data
+    room_id = room_name.lower()
+    return IndeklimaRoomSensor(coordinator, entry, room_name, room_id, "status")
+
+
+class TestRoomStatusSensorKritiskSiden:
+    """kritisk_siden attribute on the room status sensor (v2.7.0+)."""
+
+    def test_kritisk_siden_present_when_critical(self, mock_entry):
+        data = {"rooms": {"Bad": {"status": "critical", "kritisk_siden": "2026-07-04T12:00:00"}}}
+        sensor = _make_room_status_sensor(mock_entry, "Bad", coordinator_data=data)
+        assert sensor.extra_state_attributes["kritisk_siden"] == "2026-07-04T12:00:00"
+
+    def test_kritisk_siden_absent_when_not_critical(self, mock_entry):
+        data = {"rooms": {"Bad": {"status": "good"}}}
+        sensor = _make_room_status_sensor(mock_entry, "Bad", coordinator_data=data)
+        assert "kritisk_siden" not in sensor.extra_state_attributes
 
 
 class TestGlobalMoldRiskSensor:

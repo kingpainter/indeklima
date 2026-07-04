@@ -34,6 +34,10 @@ from .const import (
     CONF_DEHUMIDIFIER_BUTTON,
     CONF_DEHUMIDIFIER_ON_DURATION,
     DEFAULT_DEHUMIDIFIER_ON_DURATION,
+    CONF_ROOM_LED_CRITICAL_SEVERITY,
+    DEFAULT_LED_CRITICAL_SEVERITY,
+    DEHUM_LED_BLINK_INTERVAL,
+    DEHUM_LED_RECOVERY_CYCLES,
     CONF_QUIET_HOURS_START,
     CONF_QUIET_HOURS_END,
     CONF_ROOM_QUIET_HOURS_START,
@@ -242,6 +246,13 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         # Dehumidifier control state per room: {room_name: {"mode": ..., "unsub_timer": ...}}
         self._dehumidifier_state: dict[str, dict] = {}
         self._button_unsubs: list = []
+
+        # LED critical-alarm blink timers per room: {room_name: unsub_callable}
+        self._led_blink_unsubs: dict[str, Any] = {}
+
+        # Critical-status start timestamp per room (independent of LED/dehumidifier
+        # config -- tracks the room's own severity status for any room)
+        self._room_critical_since: dict[str, datetime | None] = {}
 
         # History for trends
         self.history: dict[str, list[tuple[datetime, float]]] = {
@@ -805,6 +816,15 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         room_data["severity"] = severity
         room_data["status"] = self._get_status_from_severity(severity)
 
+        # ── Critical-status timestamp tracking (ALL rooms, independent of LED) ──
+        # Reflects the room's true, real-time severity status -- no hysteresis.
+        if room_data["status"] == STATUS_CRITICAL:
+            if self._room_critical_since.get(room_name) is None:
+                self._room_critical_since[room_name] = dt_util.utcnow()
+            room_data["kritisk_siden"] = self._room_critical_since[room_name].isoformat()
+        else:
+            self._room_critical_since[room_name] = None
+
         # ── Dehumidifier recommendation ───────────────────────────────────────
         has_dehumidifier = bool(room.get(CONF_DEHUMIDIFIER))
         room_data["has_dehumidifier"] = has_dehumidifier
@@ -820,6 +840,51 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         room_data["dehumidifier_mode"] = self._dehumidifier_state.get(
             room_name, {}
         ).get("mode", DEHUM_MODE_OFF)
+
+        # ── LED critical-alert refresh (every cycle, independent of mode changes) ──
+        # A blinking RED alarm always overrides the manual/auto colour. Hysteresis
+        # (DEHUM_LED_RECOVERY_CYCLES consecutive non-critical cycles) prevents
+        # flicker right around the threshold. The threshold is per-room
+        # configurable via CONF_ROOM_LED_CRITICAL_SEVERITY -- LED-only, does NOT
+        # affect the room's official status/severity classification.
+        led_entity = room.get(CONF_DEHUMIDIFIER_LED)
+        if led_entity:
+            state_entry = self._dehumidifier_state.setdefault(
+                room_name, {"mode": DEHUM_MODE_OFF, "unsub_timer": None}
+            )
+            led_threshold = room.get(
+                CONF_ROOM_LED_CRITICAL_SEVERITY, DEFAULT_LED_CRITICAL_SEVERITY
+            )
+            is_led_critical = room_data["severity"] >= led_threshold
+
+            if is_led_critical:
+                state_entry["recovery_count"] = 0
+                if not state_entry.get("led_alarm_active"):
+                    state_entry["led_alarm_active"] = True
+                    state_entry["led_color"] = "red"
+                    self._async_start_led_alarm_blink(room)
+            elif state_entry.get("led_alarm_active"):
+                state_entry["recovery_count"] = state_entry.get("recovery_count", 0) + 1
+                if state_entry["recovery_count"] >= DEHUM_LED_RECOVERY_CYCLES:
+                    state_entry["led_alarm_active"] = False
+                    state_entry["recovery_count"] = 0
+                    self._async_stop_led_alarm_blink(room_name)
+                    current_mode = state_entry.get("mode", DEHUM_MODE_OFF)
+                    desired_color = self._mode_to_led_color(current_mode)
+                    self._async_apply_led_color(room, desired_color)
+                    state_entry["led_color"] = desired_color
+                # else: still within the hysteresis window -- keep blinking
+            else:
+                # Not in alarm and not critical -- normal mode-colour refresh
+                current_mode = state_entry.get("mode", DEHUM_MODE_OFF)
+                desired_color = self._mode_to_led_color(current_mode)
+                if state_entry.get("led_color") != desired_color:
+                    self._async_apply_led_color(room, desired_color)
+                    state_entry["led_color"] = desired_color
+
+            # Expose alarm state on room_data so the frontend can mirror it
+            # (the physical LED itself is not visible remotely)
+            room_data["led_alarm_active"] = state_entry.get("led_alarm_active", False)
 
         return room_data
 
@@ -856,7 +921,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             self._button_unsubs.append(unsub)
 
     def async_unload_dehumidifier_listeners(self) -> None:
-        """Cancel all button listeners and pending auto-off timers."""
+        """Cancel all button listeners, pending auto-off timers, and LED blink timers."""
         for unsub in self._button_unsubs:
             unsub()
         self._button_unsubs = []
@@ -864,6 +929,10 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         for state in self._dehumidifier_state.values():
             if state.get("unsub_timer"):
                 state["unsub_timer"]()
+
+        for unsub in self._led_blink_unsubs.values():
+            unsub()
+        self._led_blink_unsubs = {}
 
     def _make_button_handler(self, room: dict):
         """Build a state-change callback bound to a specific room."""
@@ -894,7 +963,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             await self._async_start_dehumidifier(room, DEHUM_MODE_MANUAL)
 
     async def _async_start_dehumidifier(self, room: dict, mode: str) -> None:
-        """Turn the dehumidifier switch on, set the LED, and (re)start the auto-off timer."""
+        """Turn the dehumidifier switch on, (re)start the auto-off timer, and update the LED."""
         switch_entity = room.get(CONF_DEHUMIDIFIER)
         if not switch_entity:
             return
@@ -904,7 +973,6 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         await self.hass.services.async_call(
             domain, "turn_on", {"entity_id": switch_entity}, blocking=False
         )
-        self._async_set_led(room, mode)
 
         # Cancel any existing timer before starting a new one
         existing = self._dehumidifier_state.get(room_name, {})
@@ -924,9 +992,10 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         )
 
         self._dehumidifier_state[room_name] = {"mode": mode, "unsub_timer": unsub_timer}
+        self._async_set_led(room, mode)
 
     async def _async_stop_dehumidifier(self, room: dict) -> None:
-        """Turn the dehumidifier switch off, clear the LED, and cancel any timer."""
+        """Turn the dehumidifier switch off, cancel any timer, and update the LED."""
         switch_entity = room.get(CONF_DEHUMIDIFIER)
         room_name = room.get("name")
 
@@ -942,36 +1011,100 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
                     domain, "turn_off", {"entity_id": switch_entity}, blocking=False
                 )
 
-        self._async_set_led(room, DEHUM_MODE_OFF)
         self._dehumidifier_state[room_name] = {"mode": DEHUM_MODE_OFF, "unsub_timer": None}
+        self._async_set_led(room, DEHUM_MODE_OFF)
+
+    # ── LED colour mapping ───────────────────────────────────────────────────
+    _LED_COLORS: dict[str, dict] = {
+        "blue": {"rgb_color": [0, 100, 255], "brightness_pct": 76},
+        "yellow": {"rgb_color": [255, 255, 133], "brightness_pct": 76},
+        "red": {"rgb_color": [255, 0, 0], "brightness_pct": 100},
+    }
+
+    def _mode_to_led_color(self, mode: str) -> str:
+        """Map a dehumidifier control mode to its base LED colour (before alarm override)."""
+        if mode == DEHUM_MODE_MANUAL:
+            return "blue"
+        if mode == DEHUM_MODE_AUTO:
+            return "yellow"
+        return "off"
 
     def _async_set_led(self, room: dict, mode: str) -> None:
-        """Update the configured LED entity to reflect manual/auto/off state."""
+        """Update the configured LED entity to reflect manual/auto/off state.
+
+        If a critical-alert blink is currently active for this room, the alarm
+        always takes priority: this call only updates the stored control mode
+        and leaves the LED itself alone (the blink timer owns it until the
+        hysteresis window clears the alarm).
+        """
         led_entity = room.get(CONF_DEHUMIDIFIER_LED)
         if not led_entity:
             return
 
-        if mode == DEHUM_MODE_MANUAL:
-            service_data = {
-                "entity_id": led_entity,
-                "rgb_color": [0, 100, 255],
-                "brightness_pct": 76,
-            }
-            self.hass.async_create_task(
-                self.hass.services.async_call("light", "turn_on", service_data, blocking=False)
-            )
-        elif mode == DEHUM_MODE_AUTO:
-            service_data = {
-                "entity_id": led_entity,
-                "rgb_color": [255, 255, 133],
-                "brightness_pct": 76,
-            }
-            self.hass.async_create_task(
-                self.hass.services.async_call("light", "turn_on", service_data, blocking=False)
-            )
-        else:
+        room_name = room.get("name")
+        state_entry = self._dehumidifier_state.setdefault(
+            room_name, {"mode": mode, "unsub_timer": None}
+        )
+
+        if state_entry.get("led_alarm_active"):
+            return
+
+        color = self._mode_to_led_color(mode)
+        self._async_apply_led_color(room, color)
+        state_entry["led_color"] = color
+
+    def _async_apply_led_color(self, room: dict, color: str) -> None:
+        """Issue the actual light service call for a resolved LED colour."""
+        led_entity = room.get(CONF_DEHUMIDIFIER_LED)
+        if not led_entity:
+            return
+
+        if color == "off":
             self.hass.async_create_task(
                 self.hass.services.async_call(
                     "light", "turn_off", {"entity_id": led_entity}, blocking=False
                 )
             )
+            return
+
+        service_data = {"entity_id": led_entity, **self._LED_COLORS[color]}
+        self.hass.async_create_task(
+            self.hass.services.async_call("light", "turn_on", service_data, blocking=False)
+        )
+
+    def _async_start_led_alarm_blink(self, room: dict) -> None:
+        """Start a self-rescheduling red/off blink for a room's LED while in alarm.
+
+        Uses a recursive async_call_later chain rather than a fixed-interval
+        helper so it naturally stops rescheduling once cancelled via
+        _async_stop_led_alarm_blink (no separate 'still active' check needed
+        inside the callback -- cancelling the unsub prevents the next call).
+        """
+        room_name = room.get("name")
+        led_entity = room.get(CONF_DEHUMIDIFIER_LED)
+        if not led_entity:
+            return
+
+        # Cancel any pre-existing blink timer for this room first (safety)
+        self._async_stop_led_alarm_blink(room_name)
+
+        blink_on = {"value": True}  # start lit
+        self._async_apply_led_color(room, "red")
+
+        @ha_callback
+        def _toggle(_now) -> None:
+            blink_on["value"] = not blink_on["value"]
+            self._async_apply_led_color(room, "red" if blink_on["value"] else "off")
+            self._led_blink_unsubs[room_name] = async_call_later(
+                self.hass, DEHUM_LED_BLINK_INTERVAL, _toggle
+            )
+
+        self._led_blink_unsubs[room_name] = async_call_later(
+            self.hass, DEHUM_LED_BLINK_INTERVAL, _toggle
+        )
+
+    def _async_stop_led_alarm_blink(self, room_name: str) -> None:
+        """Cancel a room's blink timer, if any."""
+        unsub = self._led_blink_unsubs.pop(room_name, None)
+        if unsub:
+            unsub()

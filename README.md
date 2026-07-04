@@ -2,7 +2,7 @@
 
 **Multi-rum indeklima-overvågning til Home Assistant** — temperatur, fugtighed, CO₂, VOC, formaldehyd og lufttryk, med skimmelrisiko, affugter-anbefaling og et dansk brugerflade.
 
-![Version](https://img.shields.io/badge/version-2.6.1-blue)
+![Version](https://img.shields.io/badge/version-2.9.0-blue)
 ![Quality Scale](https://img.shields.io/badge/quality_scale-gold-gold)
 ![HACS](https://img.shields.io/badge/HACS-custom-orange)
 
@@ -12,7 +12,7 @@
 
 Indeklima er en custom Home Assistant-integration bygget til at overvåge indeklimaet i flere rum samtidig — og til at hjælpe med at holde det sundt. Integrationen indsamler data fra jeres eksisterende sensorer (temperatur, fugtighed, CO₂, VOC, formaldehyd, lufttryk), beregner en samlet severity-score pr. rum og globalt, og giver konkrete anbefalinger om udluftning og affugtning.
 
-Fra version 2.6.0 kan Indeklima også **styre en fysisk affugter direkte** — tænd/sluk via knap eller automatisk baseret på fugtighed og skimmelrisiko, med LED-feedback og konfigurerbar stilletid.
+Fra version 2.6.0 kan Indeklima også **styre en fysisk affugter direkte** — tænd/sluk via knap eller automatisk baseret på fugtighed og skimmelrisiko, med LED-feedback og konfigurerbar stilletid. Fra version 2.7.0 skifter affugter-LED'en til **rød alarm**, uanset manuel/auto-tilstand, når rummets samlede indeklima-status er kritisk. Fra version 2.8.0 **blinker** alarmen i stedet for at lyse konstant, holder fast i alarmen et par cyklusser efter bedring (undgår flimmer), tærsklen kan overstyres pr. rum, og der gemmes et "kritisk siden"-tidsstempel på hvert rums status-sensor.
 
 ## Funktioner
 
@@ -20,7 +20,7 @@ Fra version 2.6.0 kan Indeklima også **styre en fysisk affugter direkte** — t
 - **Severity-score (0-100)** pr. rum og globalt, baseret på fugtighed, CO₂, VOC og formaldehyd
 - **Skimmelrisiko-beregning** (`low` / `moderate` / `high` / `critical`) — bruger dedikeret mold-sensor hvis tilgængelig, ellers rummets fugtsensor
 - **Affugter-anbefaling** pr. rum og globalt, baseret på skimmelrisiko, fugtighedstendens og udluftningsstatus
-- **Indbygget affugter-styring** (v2.6.0+): fysisk knap-toggle, automatisk tænd/sluk, LED-feedback (manuel/automatisk/fra), auto-sluk-timer, konfigurerbar stilletid (globalt + pr. rum)
+- **Indbygget affugter-styring** (v2.6.0+): fysisk knap-toggle, automatisk tænd/sluk, LED-feedback (manuel/automatisk/fra/**blinkende rød alarm ved kritisk indeklima**, v2.7.0-2.8.0), auto-sluk-timer, konfigurerbar stilletid (globalt + pr. rum), **pr.-rum alarm-tærskel og "kritisk siden"-tidsstempel** (v2.8.0+)
 - **Udluftningsanbefaling** baseret på indeklima og udendørs vejrdata
 - **Luftcirkulationsstatus** ud fra åbne interne døre
 - **Trends** (stigende/faldende/stabil) for fugtighed, CO₂ og severity over et 30-minutters rullende vindue

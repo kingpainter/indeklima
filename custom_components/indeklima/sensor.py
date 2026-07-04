@@ -355,7 +355,11 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
         # Add last_notified timestamp for cooldown logic
         if self._last_notified:
             attrs["last_notified"] = self._last_notified.isoformat()
-        
+
+        # Add critical-status start timestamp (present only while status is critical)
+        if "kritisk_siden" in room_data:
+            attrs["kritisk_siden"] = room_data["kritisk_siden"]
+
         return attrs
     
     def set_last_notified(self, timestamp: datetime | None = None) -> None:

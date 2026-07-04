@@ -35,11 +35,17 @@ from custom_components.indeklima.const import (
     CONF_WINDOW_IS_OUTDOOR,
     CONF_DEHUMIDIFIER,
 )
+from custom_components.indeklima.const import (
+    CONF_ROOM_LED_CRITICAL_SEVERITY,
+    DEHUM_LED_BLINK_INTERVAL,
+    DEHUM_LED_RECOVERY_CYCLES,
+)
 from .conftest import make_state, mock_hass, mock_entry
 
 
 def _make_coord(hass, entry, rooms=None, weather_entity=None,
-                mold_risk_humidity=70, mold_risk_temp_min=5, mold_risk_temp_max=35):
+                mold_risk_humidity=70, mold_risk_temp_min=5, mold_risk_temp_max=35,
+                data=None):
     from custom_components.indeklima import IndeklimaDataCoordinator
     with patch(
         "custom_components.indeklima.DataUpdateCoordinator.__init__",
@@ -62,7 +68,10 @@ def _make_coord(hass, entry, rooms=None, weather_entity=None,
         coord.quiet_hours_end = 6
         coord._dehumidifier_state = {}
         coord._button_unsubs = []
+        coord._led_blink_unsubs = {}
+        coord._room_critical_since = {}
         coord.history = {"humidity": [], "co2": [], "severity": []}
+        coord.data = data
         return coord
 
 
@@ -891,3 +900,323 @@ class TestDehumidifierListeners:
         listener_unsub.assert_called_once()
         timer_unsub.assert_called_once()
         assert coord._button_unsubs == []
+
+
+# ── LED critical-alert override (severity-status == critical → red) ─────────
+
+class TestDehumidifierLedCriticalAlert:
+    def _critical_room_cfg(self):
+        return {
+            "name": "Bad",
+            CONF_HUMIDITY_SENSORS: ["sensor.hum"],
+            CONF_CO2_SENSORS: ["sensor.co2"],
+            CONF_DEHUMIDIFIER: "switch.affugter",
+            CONF_DEHUMIDIFIER_LED: "light.bad_led",
+        }
+
+    def _get_state_fn(self, humidity, co2):
+        def get_state(entity_id):
+            if entity_id == "sensor.hum":
+                return make_state(str(humidity))
+            if entity_id == "sensor.co2":
+                return make_state(str(co2))
+            return None
+        return get_state
+
+    def test_led_turns_red_when_room_status_critical(self, mock_hass, mock_entry):
+        # humidity excess 30*3=90 (capped 30) + co2 excess capped 30 = severity 60 -> critical
+        mock_hass.states.get.side_effect = self._get_state_fn(humidity=90.0, co2=5000)
+        room_cfg = self._critical_room_cfg()
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.async_create_task = MagicMock()
+        data = {"open_windows": [], "open_internal_doors": []}
+
+        with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.raise_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.dt_util") as mock_dt:
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
+            result = coord._process_room(room_cfg, data)
+
+        assert result["status"] == STATUS_CRITICAL
+        assert coord._dehumidifier_state["Bad"]["led_color"] == "red"
+
+    def test_led_stays_red_even_when_mode_is_auto(self, mock_hass, mock_entry):
+        """RED alarm overrides the auto/manual colour, per design decision."""
+        mock_hass.states.get.side_effect = self._get_state_fn(humidity=90.0, co2=5000)
+        room_cfg = self._critical_room_cfg()
+        coord = _make_coord(mock_hass, mock_entry)
+        coord._dehumidifier_state["Bad"] = {"mode": DEHUM_MODE_AUTO, "unsub_timer": None}
+        mock_hass.async_create_task = MagicMock()
+        data = {"open_windows": [], "open_internal_doors": []}
+
+        with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.raise_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.dt_util") as mock_dt:
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
+            result = coord._process_room(room_cfg, data)
+
+        assert result["status"] == STATUS_CRITICAL
+        assert coord._dehumidifier_state["Bad"]["led_color"] == "red"
+        # Underlying control mode is untouched -- only the LED colour is overridden
+        assert coord._dehumidifier_state["Bad"]["mode"] == DEHUM_MODE_AUTO
+
+    def test_led_reverts_to_manual_color_after_recovery(self, mock_hass, mock_entry):
+        room_cfg = self._critical_room_cfg()
+        coord = _make_coord(mock_hass, mock_entry)
+        coord._dehumidifier_state["Bad"] = {
+            "mode": DEHUM_MODE_MANUAL, "unsub_timer": None, "led_color": "red",
+        }
+        mock_hass.async_create_task = MagicMock()
+        mock_hass.states.get.side_effect = self._get_state_fn(humidity=45.0, co2=500)
+        data = {"open_windows": [], "open_internal_doors": []}
+
+        with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.raise_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.dt_util") as mock_dt:
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
+            result = coord._process_room(room_cfg, data)
+
+        assert result["status"] != STATUS_CRITICAL
+        assert coord._dehumidifier_state["Bad"]["led_color"] == "blue"
+
+    def test_led_reverts_to_off_after_recovery_when_not_running(self, mock_hass, mock_entry):
+        room_cfg = self._critical_room_cfg()
+        coord = _make_coord(mock_hass, mock_entry)
+        coord._dehumidifier_state["Bad"] = {
+            "mode": DEHUM_MODE_OFF, "unsub_timer": None, "led_color": "red",
+        }
+        mock_hass.async_create_task = MagicMock()
+        mock_hass.states.get.side_effect = self._get_state_fn(humidity=45.0, co2=500)
+        data = {"open_windows": [], "open_internal_doors": []}
+
+        with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.raise_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.dt_util") as mock_dt:
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
+            coord._process_room(room_cfg, data)
+
+        assert coord._dehumidifier_state["Bad"]["led_color"] == "off"
+
+    def test_no_redundant_service_call_when_color_unchanged(self, mock_hass, mock_entry):
+        """LED service should not be re-triggered every 30s cycle if the colour hasn't changed."""
+        room_cfg = self._critical_room_cfg()
+        coord = _make_coord(mock_hass, mock_entry)
+        coord._dehumidifier_state["Bad"] = {
+            "mode": DEHUM_MODE_OFF, "unsub_timer": None, "led_color": "off",
+        }
+        mock_hass.async_create_task = MagicMock()
+        mock_hass.states.get.side_effect = self._get_state_fn(humidity=45.0, co2=500)
+        data = {"open_windows": [], "open_internal_doors": []}
+
+        with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.raise_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.dt_util") as mock_dt:
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
+            coord._process_room(room_cfg, data)
+
+        mock_hass.async_create_task.assert_not_called()
+
+    def test_no_led_block_when_no_led_configured(self, mock_hass, mock_entry):
+        """Rooms without a configured LED entity must never populate 'led_color' in
+        _dehumidifier_state — the LED-refresh block should be skipped entirely."""
+        room_cfg = {
+            "name": "Bad",
+            CONF_HUMIDITY_SENSORS: ["sensor.hum"],
+            CONF_CO2_SENSORS: ["sensor.co2"],
+            CONF_DEHUMIDIFIER: "switch.affugter",
+            # no CONF_DEHUMIDIFIER_LED
+        }
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.async_create_task = MagicMock()
+        mock_hass.states.get.side_effect = self._get_state_fn(humidity=90.0, co2=5000)
+        data = {"open_windows": [], "open_internal_doors": []}
+
+        with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.raise_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.dt_util") as mock_dt:
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
+            coord._process_room(room_cfg, data)
+
+        assert "led_color" not in coord._dehumidifier_state.get("Bad", {})
+
+
+# ── LED alarm state machine: blink, hysteresis, per-room threshold, kritisk_siden ──
+
+class TestLedCriticalAlarmMachine:
+    def _room_cfg(self, led=True, threshold=None):
+        cfg = {
+            "name": "Bad",
+            CONF_HUMIDITY_SENSORS: ["sensor.hum"],
+            CONF_CO2_SENSORS: ["sensor.co2"],
+            CONF_DEHUMIDIFIER: "switch.affugter",
+        }
+        if led:
+            cfg[CONF_DEHUMIDIFIER_LED] = "light.bad_led"
+        if threshold is not None:
+            cfg[CONF_ROOM_LED_CRITICAL_SEVERITY] = threshold
+        return cfg
+
+    def _get_state_fn(self, humidity, co2):
+        def get_state(entity_id):
+            if entity_id == "sensor.hum":
+                return make_state(str(humidity))
+            if entity_id == "sensor.co2":
+                return make_state(str(co2))
+            return None
+        return get_state
+
+    def test_entering_critical_starts_blink_alarm(self, mock_hass, mock_entry):
+        # humidity excess 30*3=90 (capped 30) + co2 excess capped 30 = severity 60 -> critical
+        mock_hass.states.get.side_effect = self._get_state_fn(90.0, 5000)
+        room_cfg = self._room_cfg()
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.async_create_task = MagicMock()
+        mock_hass.services.async_call = MagicMock()
+        data = {"open_windows": [], "open_internal_doors": []}
+
+        with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.raise_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.dt_util") as mock_dt, \
+             patch("custom_components.indeklima.async_call_later") as mock_call_later:
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
+            mock_dt.utcnow.return_value = datetime(2026, 7, 4, 12, 0, 0)
+            mock_call_later.return_value = MagicMock()
+            result = coord._process_room(room_cfg, data)
+
+        assert result["status"] == STATUS_CRITICAL
+        state = coord._dehumidifier_state["Bad"]
+        assert state["led_alarm_active"] is True
+        assert state["led_color"] == "red"
+        mock_hass.services.async_call.assert_any_call(
+            "light", "turn_on",
+            {"entity_id": "light.bad_led", "rgb_color": [255, 0, 0], "brightness_pct": 100},
+            blocking=False,
+        )
+        # A blink timer must have been scheduled at DEHUM_LED_BLINK_INTERVAL
+        assert mock_call_later.call_args.args[1] == DEHUM_LED_BLINK_INTERVAL
+
+    def test_alarm_persists_through_hysteresis_then_clears(self, mock_hass, mock_entry):
+        room_cfg = self._room_cfg()
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.async_create_task = MagicMock()
+        mock_hass.services.async_call = MagicMock()
+
+        with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.raise_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.dt_util") as mock_dt, \
+             patch("custom_components.indeklima.async_call_later") as mock_call_later:
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
+            mock_dt.utcnow.return_value = datetime(2026, 7, 4, 12, 0, 0)
+            mock_call_later.return_value = MagicMock()
+
+            # Cycle 1: critical -> alarm starts
+            mock_hass.states.get.side_effect = self._get_state_fn(90.0, 5000)
+            coord._process_room(room_cfg, {"open_windows": [], "open_internal_doors": []})
+            assert coord._dehumidifier_state["Bad"]["led_alarm_active"] is True
+
+            # Cycle 2: recovers, but hysteresis (DEHUM_LED_RECOVERY_CYCLES=2) keeps alarm active
+            mock_hass.states.get.side_effect = self._get_state_fn(45.0, 500)
+            coord._process_room(room_cfg, {"open_windows": [], "open_internal_doors": []})
+            assert coord._dehumidifier_state["Bad"]["led_alarm_active"] is True
+            assert coord._dehumidifier_state["Bad"]["recovery_count"] == 1
+
+            # Cycle 3: second consecutive good cycle -> alarm clears, reverts to mode colour
+            coord._process_room(room_cfg, {"open_windows": [], "open_internal_doors": []})
+            assert coord._dehumidifier_state["Bad"]["led_alarm_active"] is False
+            assert coord._dehumidifier_state["Bad"]["led_color"] == "off"
+
+    def test_per_room_threshold_override_triggers_earlier(self, mock_hass, mock_entry):
+        # humidity=70 -> excess (70-60)*3=30, co2=500 (fine) => severity=30 -> WARNING globally
+        mock_hass.states.get.side_effect = self._get_state_fn(70.0, 500)
+        room_cfg = self._room_cfg(threshold=30)
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.async_create_task = MagicMock()
+        mock_hass.services.async_call = MagicMock()
+        data = {"open_windows": [], "open_internal_doors": []}
+
+        with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.raise_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.dt_util") as mock_dt, \
+             patch("custom_components.indeklima.async_call_later") as mock_call_later:
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
+            mock_dt.utcnow.return_value = datetime(2026, 7, 4, 12, 0, 0)
+            mock_call_later.return_value = MagicMock()
+            result = coord._process_room(room_cfg, data)
+
+        assert result["status"] == STATUS_WARNING  # official classification unaffected
+        assert coord._dehumidifier_state["Bad"]["led_alarm_active"] is True  # LED-only override triggered
+
+    def test_default_threshold_does_not_trigger_below_60(self, mock_hass, mock_entry):
+        mock_hass.states.get.side_effect = self._get_state_fn(70.0, 500)
+        room_cfg = self._room_cfg()  # no override -> default threshold 60
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.async_create_task = MagicMock()
+        mock_hass.services.async_call = MagicMock()
+        data = {"open_windows": [], "open_internal_doors": []}
+
+        with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.raise_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.dt_util") as mock_dt, \
+             patch("custom_components.indeklima.async_call_later") as mock_call_later:
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
+            mock_dt.utcnow.return_value = datetime(2026, 7, 4, 12, 0, 0)
+            mock_call_later.return_value = MagicMock()
+            coord._process_room(room_cfg, data)
+
+        assert coord._dehumidifier_state["Bad"].get("led_alarm_active", False) is False
+
+    def test_kritisk_siden_set_and_stable_across_cycles(self, mock_hass, mock_entry):
+        """kritisk_siden works independently of LED configuration."""
+        room_cfg = self._room_cfg(led=False)
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.async_create_task = MagicMock()
+
+        with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.raise_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.dt_util") as mock_dt, \
+             patch("custom_components.indeklima.async_call_later"):
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
+            mock_dt.utcnow.side_effect = [
+                datetime(2026, 7, 4, 12, 0, 0),
+                datetime(2026, 7, 4, 12, 0, 30),
+            ]
+
+            mock_hass.states.get.side_effect = self._get_state_fn(90.0, 5000)
+            result1 = coord._process_room(room_cfg, {"open_windows": [], "open_internal_doors": []})
+            result2 = coord._process_room(room_cfg, {"open_windows": [], "open_internal_doors": []})
+
+        assert result1["kritisk_siden"] == "2026-07-04T12:00:00"
+        # Stable across a second consecutive critical cycle -- not re-set to the 2nd utcnow() value
+        assert result2["kritisk_siden"] == "2026-07-04T12:00:00"
+
+    def test_kritisk_siden_cleared_immediately_on_recovery(self, mock_hass, mock_entry):
+        """Unlike the LED alarm, kritisk_siden has no hysteresis -- it clears the
+        instant the room's real status leaves critical."""
+        room_cfg = self._room_cfg(led=False)
+        coord = _make_coord(mock_hass, mock_entry)
+        mock_hass.async_create_task = MagicMock()
+
+        with patch("custom_components.indeklima.clear_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.raise_sensor_unavailable_issue"), \
+             patch("custom_components.indeklima.dt_util") as mock_dt, \
+             patch("custom_components.indeklima.async_call_later"):
+            mock_dt.now.return_value = MagicMock(month=6, hour=14)
+            mock_dt.utcnow.return_value = datetime(2026, 7, 4, 12, 0, 0)
+
+            mock_hass.states.get.side_effect = self._get_state_fn(90.0, 5000)
+            coord._process_room(room_cfg, {"open_windows": [], "open_internal_doors": []})
+
+            mock_hass.states.get.side_effect = self._get_state_fn(45.0, 500)
+            result = coord._process_room(room_cfg, {"open_windows": [], "open_internal_doors": []})
+
+        assert "kritisk_siden" not in result
+
+    def test_unload_cancels_led_blink_timers(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry)
+        blink_unsub = MagicMock()
+        coord._led_blink_unsubs = {"Bad": blink_unsub}
+
+        coord.async_unload_dehumidifier_listeners()
+
+        blink_unsub.assert_called_once()
+        assert coord._led_blink_unsubs == {}

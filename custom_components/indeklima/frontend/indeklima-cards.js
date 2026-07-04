@@ -112,6 +112,21 @@ function moldIcon(m) {
   return "\u2705";
 }
 
+function dehumModeLabel(m) {
+  if (m === "manual") return "Manuel";
+  if (m === "auto")   return "Automatisk";
+  return "Fra";
+}
+
+function fmtTimeSince(iso) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch (e) { return ""; }
+}
+
 function baseCSS() {
   return `
     --bg:   var(--card-background-color, #1a2535);
@@ -225,6 +240,8 @@ class IndeklimaRoomCard extends HTMLElement {
           ${status !== "good" ? "animation:blink 2s infinite;" : ""}
         }
         @keyframes blink { 0%,100%{opacity:1}50%{opacity:.55} }
+        .crit-since { font-size:10px; color:#ef4444; margin:-6px 0 10px; font-weight:600; }
+        .chip.alarm { color:#ef4444; background:#ef444422; animation:blink 1.2s infinite; }
         .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; }
         .metric { background:var(--bg2); border-radius:10px; padding:9px 6px; text-align:center; }
         .m-icon { font-size:16px; margin-bottom:3px; }
@@ -259,6 +276,7 @@ class IndeklimaRoomCard extends HTMLElement {
             <div class="room-name">${esc(title)}</div>
             <div class="status-pill">${r ? statusLabel(status) : "..."}</div>
           </div>
+          ${r && status === "critical" && r.kritisk_siden ? `<div class="crit-since">\u26A0\uFE0F Kritisk siden ${fmtTimeSince(r.kritisk_siden)}</div>` : ""}
           ${!r ? '<div class="loading">Henter data...</div>' : `
             <div class="metrics">${metrics}</div>
             <div class="sev-row">
@@ -266,8 +284,9 @@ class IndeklimaRoomCard extends HTMLElement {
               <div class="sev-bar"><div class="sev-fill"></div></div>
               <span class="sev-val">${sev}/100</span>
             </div>
-            ${(r.outdoor_windows_open > 0 || r.internal_doors_open > 0 || r.air_circulation_bonus) ? `
+            ${(r.outdoor_windows_open > 0 || r.internal_doors_open > 0 || r.air_circulation_bonus || r.led_alarm_active) ? `
             <div class="footer">
+              ${r.led_alarm_active ? `<span class="chip alarm">\uD83D\uDD34 LED alarm aktiv</span>` : ""}
               ${r.outdoor_windows_open > 0 ? `<span class="chip open">\uD83E\uDE9F ${r.outdoor_windows_open} vindue${r.outdoor_windows_open>1?"r":""}</span>` : ""}
               ${r.internal_doors_open  > 0 ? `<span class="chip open">\uD83D\uDEAA ${r.internal_doors_open} d\u00f8r${r.internal_doors_open>1?"e":""}</span>` : ""}
               ${r.air_circulation_bonus    ? `<span class="chip open">\uD83D\uDCA8 Bonus aktiv</span>` : ""}
@@ -283,7 +302,7 @@ class IndeklimaRoomCard extends HTMLElement {
               <div class="rc-sc-cell" style="border-bottom-color:${dehumColor(r.dehumidifier_recommendation||'no')}">
                 <div class="rc-sc-ico">${dehumIcon(r.dehumidifier_recommendation||'no') || '\uD83D\uDCA7'}</div>
                 <div class="rc-sc-val" style="color:${dehumColor(r.dehumidifier_recommendation||'no')}">${r.dehumidifier_recommendation==='yes'?'T\u00e6nd':r.dehumidifier_recommendation==='optional'?'Overv\u00e6j':'OK'}</div>
-                <div class="rc-sc-lbl">Affugter</div>
+                <div class="rc-sc-lbl">Affugter${r.dehumidifier_mode && r.dehumidifier_mode !== 'off' ? ` \u00b7 ${dehumModeLabel(r.dehumidifier_mode)}` : ''}</div>
               </div>` : ""}
             </div>
           `}
@@ -1084,6 +1103,14 @@ class IndeklimaRoomDetailCard extends HTMLElement {
         .bdot { width:7px; height:7px; border-radius:50%; background:${color}; animation:bdot 2s infinite; }
         @keyframes bdot { 0%,100%{opacity:1}50%{opacity:.4} }
         @keyframes bdot-pulse { 0%,100%{box-shadow:0 0 0 0 ${color}40}50%{box-shadow:0 0 0 6px ${color}00} }
+        .crit-since-row { font-size:11px; color:#ef4444; font-weight:600; margin:-4px 0 12px; display:flex; align-items:center; gap:5px; }
+        @keyframes blink { 0%,100%{opacity:1}50%{opacity:.55} }
+        .alarm-banner {
+          display:flex; align-items:center; gap:8px;
+          background:#ef444422; color:#ef4444; border-radius:10px;
+          padding:8px 12px; font-size:12px; font-weight:700;
+          margin-bottom:12px; animation:blink 1.2s infinite;
+        }
 
         /* ── Severity bar ── */
         .sev-wrap { margin-bottom:14px; }
@@ -1230,6 +1257,9 @@ class IndeklimaRoomDetailCard extends HTMLElement {
               </div>
             </div>
 
+            ${r.led_alarm_active ? `<div class="alarm-banner">\uD83D\uDD34 LED alarm aktiv i dette rum</div>` : ""}
+            ${status === "critical" && r.kritisk_siden ? `<div class="crit-since-row">\u26A0\uFE0F Kritisk siden ${fmtTimeSince(r.kritisk_siden)}</div>` : ""}
+
             <!-- Severity bar -->
             <div class="sev-wrap">
               <div class="sev-label-row">
@@ -1302,7 +1332,7 @@ class IndeklimaRoomDetailCard extends HTMLElement {
                   <span class="ds-icon">${dehumIcon(r.dehumidifier_recommendation||'no') || '\uD83D\uDCA7'}</span>
                   <span class="ds-title" style="color:${dehumColor(r.dehumidifier_recommendation||'no')}">${dehumLabel(r.dehumidifier_recommendation||'no')}</span>
                 </div>
-                <div class="ds-sub">Affugter</div>
+                <div class="ds-sub">Affugter${r.dehumidifier_mode && r.dehumidifier_mode !== 'off' ? ` \u00b7 ${dehumModeLabel(r.dehumidifier_mode)}` : ''}</div>
                 <div class="ds-detail">${r.dehumidifier_recommendation === 'yes' ? 'Fugt- eller skimmelrisiko er forh\u00f8jet \u2014 affugter anbefales.' : r.dehumidifier_recommendation === 'optional' ? 'Fugtniveauet er let forh\u00f8jet \u2014 overvej at t\u00e6nde.' : 'Fugtindhold er p\u00e5 et sikkert niveau.'}</div>
               </div>` : ""}
 
