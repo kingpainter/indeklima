@@ -1220,3 +1220,59 @@ class TestLedCriticalAlarmMachine:
 
         blink_unsub.assert_called_once()
         assert coord._led_blink_unsubs == {}
+
+
+# ── _calculate_ventilation_recommendation ─────────────────────────────────────
+
+class TestCalculateVentilationRecommendation:
+    """Regression coverage for the 2026-07-10 bug: outdoor_temp/outdoor_humidity
+    were never populated when open_windows caused an early return, even though
+    the weather entity had valid data (panel showed "Vejrdata ikke tilg\u00e6ngeligt
+    endnu" incorrectly in that case)."""
+
+    def _weather_state(self, temperature=27.5, humidity=32, state="sunny"):
+        weather = MagicMock()
+        weather.state = state
+        weather.attributes = {"temperature": temperature, "humidity": humidity}
+        return weather
+
+    def test_outdoor_temp_populated_with_open_windows(self, mock_hass, mock_entry):
+        """Bug: previously outdoor_temp/outdoor_humidity stayed None whenever
+        open_windows was non-empty, because the weather fetch happened after
+        the early return for that branch."""
+        coord = _make_coord(mock_hass, mock_entry, weather_entity="weather.hjem")
+        mock_hass.states.get.side_effect = lambda eid: (
+            self._weather_state() if eid == "weather.hjem" else None
+        )
+
+        data = {"rooms": {}, "open_windows": ["Stue"], "open_internal_doors": []}
+        result = coord._calculate_ventilation_recommendation(data)
+
+        assert result["outdoor_temp"] == 27.5
+        assert result["outdoor_humidity"] == 32
+        assert result["status"] == "optional"
+
+    def test_outdoor_temp_populated_with_no_issues(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry, weather_entity="weather.hjem")
+        mock_hass.states.get.side_effect = lambda eid: (
+            self._weather_state() if eid == "weather.hjem" else None
+        )
+
+        data = {"rooms": {}, "open_windows": [], "open_internal_doors": []}
+        result = coord._calculate_ventilation_recommendation(data)
+
+        assert result["outdoor_temp"] == 27.5
+        assert result["outdoor_humidity"] == 32
+        assert result["status"] == "no"
+
+    def test_outdoor_temp_none_when_weather_unavailable(self, mock_hass, mock_entry):
+        coord = _make_coord(mock_hass, mock_entry, weather_entity="weather.hjem")
+        mock_hass.states.get.side_effect = lambda eid: (
+            self._weather_state(state="unavailable") if eid == "weather.hjem" else None
+        )
+
+        data = {"rooms": {}, "open_windows": ["Stue"], "open_internal_doors": []}
+        result = coord._calculate_ventilation_recommendation(data)
+
+        assert result["outdoor_temp"] is None
+        assert result["outdoor_humidity"] is None

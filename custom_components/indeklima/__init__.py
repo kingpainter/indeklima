@@ -528,6 +528,16 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             "outdoor_humidity": None,
         }
 
+        # Always fetch weather data first so outdoor conditions are shown in
+        # the panel regardless of which branch below we return from. Previously
+        # this was only fetched further down, so the open-windows early-return
+        # skipped it entirely and the panel showed "Vejrdata ikke tilgaengeligt
+        # endnu" even when the weather entity had valid data (bug found 2026-07-10).
+        weather = self._get_weather_data()
+        if weather:
+            recommendation["outdoor_temp"] = weather.get("temperature")
+            recommendation["outdoor_humidity"] = weather.get("humidity")
+
         # Check if any outdoor windows are open
         if data.get("open_windows"):
             recommendation["status"] = VENTILATION_OPTIONAL
@@ -555,13 +565,6 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             if room_issues:
                 issues.extend(room_issues)
                 problem_rooms.append(room_name)
-
-        # Always fetch weather data so outdoor conditions are shown in panel
-        # regardless of whether there are indoor issues or not
-        weather = self._get_weather_data()
-        if weather:
-            recommendation["outdoor_temp"] = weather.get("temperature")
-            recommendation["outdoor_humidity"] = weather.get("humidity")
 
         if not issues:
             recommendation["status"] = VENTILATION_NO
