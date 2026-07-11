@@ -1,85 +1,86 @@
 # Indeklima
 
-**Multi-rum indeklima-overvågning til Home Assistant** — temperatur, fugtighed, CO₂, VOC, formaldehyd og lufttryk, med skimmelrisiko, affugter-anbefaling og et dansk brugerflade.
+**Multi-room indoor climate monitoring for Home Assistant** — temperature, humidity, CO₂, VOC, formaldehyde and barometric pressure, with mold risk assessment, dehumidifier recommendations, and a polished custom frontend.
 
-![Version](https://img.shields.io/badge/version-2.9.0-blue)
+![Version](https://img.shields.io/badge/version-2.9.1-blue)
 ![Quality Scale](https://img.shields.io/badge/quality_scale-gold-gold)
 ![HACS](https://img.shields.io/badge/HACS-custom-orange)
 
 ---
 
-## Om projektet
+## About the project
 
-Indeklima er en custom Home Assistant-integration bygget til at overvåge indeklimaet i flere rum samtidig — og til at hjælpe med at holde det sundt. Integrationen indsamler data fra jeres eksisterende sensorer (temperatur, fugtighed, CO₂, VOC, formaldehyd, lufttryk), beregner en samlet severity-score pr. rum og globalt, og giver konkrete anbefalinger om udluftning og affugtning.
+Indeklima is a custom Home Assistant integration built to monitor indoor climate across multiple rooms at once — and to help keep it healthy. The integration collects data from your existing sensors (temperature, humidity, CO₂, VOC, formaldehyde, pressure), calculates an overall severity score per room and globally, and gives concrete recommendations for ventilation and dehumidification.
 
-Fra version 2.6.0 kan Indeklima også **styre en fysisk affugter direkte** — tænd/sluk via knap eller automatisk baseret på fugtighed og skimmelrisiko, med LED-feedback og konfigurerbar stilletid. Fra version 2.7.0 skifter affugter-LED'en til **rød alarm**, uanset manuel/auto-tilstand, når rummets samlede indeklima-status er kritisk. Fra version 2.8.0 **blinker** alarmen i stedet for at lyse konstant, holder fast i alarmen et par cyklusser efter bedring (undgår flimmer), tærsklen kan overstyres pr. rum, og der gemmes et "kritisk siden"-tidsstempel på hvert rums status-sensor.
+Since version 2.6.0, Indeklima can also **control a physical dehumidifier directly** — turning it on/off via a button or automatically based on humidity and mold risk, with LED feedback and configurable quiet hours. Since version 2.7.0, the dehumidifier LED switches to **red alarm**, regardless of manual/auto mode, whenever the room's overall indoor climate status is critical. Since version 2.8.0, the alarm **blinks** instead of staying solid, holds for a couple of cycles after recovery (to avoid flicker), the threshold can be overridden per room, and a "critical since" timestamp is stored on each room's status sensor. Since version 2.9.0, dehumidifier mode, the "critical since" timestamp, and LED alarm status are all mirrored in the panel and Lovelace cards. Version 2.9.1 fixed a bug where outdoor weather data was silently skipped whenever any window in the house was open.
 
-## Funktioner
+## Features
 
-- **Multi-rum overvågning** — konfigurér lige så mange rum I vil, hver med sine egne sensorer
-- **Severity-score (0-100)** pr. rum og globalt, baseret på fugtighed, CO₂, VOC og formaldehyd
-- **Skimmelrisiko-beregning** (`low` / `moderate` / `high` / `critical`) — bruger dedikeret mold-sensor hvis tilgængelig, ellers rummets fugtsensor
-- **Affugter-anbefaling** pr. rum og globalt, baseret på skimmelrisiko, fugtighedstendens og udluftningsstatus
-- **Indbygget affugter-styring** (v2.6.0+): fysisk knap-toggle, automatisk tænd/sluk, LED-feedback (manuel/automatisk/fra/**blinkende rød alarm ved kritisk indeklima**, v2.7.0-2.8.0), auto-sluk-timer, konfigurerbar stilletid (globalt + pr. rum), **pr.-rum alarm-tærskel og "kritisk siden"-tidsstempel** (v2.8.0+)
-- **Udluftningsanbefaling** baseret på indeklima og udendørs vejrdata
-- **Luftcirkulationsstatus** ud fra åbne interne døre
-- **Trends** (stigende/faldende/stabil) for fugtighed, CO₂ og severity over et 30-minutters rullende vindue
-- **Vindue-/dørdetektion** med skelnen mellem udendørs og interne åbninger
-- **Dansk brugerflade** — engelsk kode og logs, dansk UI og notifikationer
-- **Custom Lovelace-panel** med sidebar, rum-oversigt, sparklines og interaktive kort
-- **Gold Tier HA Quality Scale** — diagnostics, repair flow, system health, fuld testdækning
+- **Multi-room monitoring** — configure as many rooms as you like, each with its own sensors
+- **Severity score (0–100)** per room and globally, based on humidity, CO₂, VOC and formaldehyde
+- **Mold risk calculation** (`low` / `moderate` / `high` / `critical`) — uses a dedicated mold sensor if available, otherwise falls back to the room's humidity sensor
+- **Dehumidifier recommendation** per room and globally, based on mold risk, humidity trend and ventilation status
+- **Built-in dehumidifier control** (v2.6.0+): physical button toggle, automatic on/off, LED feedback (manual/automatic/off/**blinking red alarm when indoor climate is critical**, v2.7.0–2.8.0), auto-off timer, configurable quiet hours (global + per room), **per-room alarm threshold and "critical since" timestamp** (v2.8.0+), with dehumidifier mode, critical-since timestamp, and LED alarm state all mirrored in the UI (v2.9.0+)
+- **Ventilation recommendation** based on indoor climate and outdoor weather data
+- **Air circulation status** based on open internal doors
+- **Trends** (rising/falling/stable) for humidity, CO₂ and severity over a 30-minute rolling window
+- **Window/door detection** distinguishing between outdoor and internal openings
+- **Danish-first UI** — English code and logs, Danish UI and notifications (translatable via `translations/`)
+- **Custom Lovelace panel** with sidebar, room overview, sparklines and interactive cards
+- **Gold Tier HA Quality Scale** — diagnostics, repair flow, system health, full test coverage
 
 ## Installation
 
-### Via HACS (anbefalet)
+### Via HACS (recommended)
 
-1. Tilføj dette repository som et custom repository i HACS (kategori: Integration)
-2. Installér "Indeklima" fra HACS
-3. Genstart Home Assistant
-4. Gå til **Indstillinger → Enheder & tjenester → Tilføj integration** og søg efter "Indeklima"
+1. Add this repository as a custom repository in HACS (category: Integration)
+2. Install "Indeklima" from HACS
+3. Restart Home Assistant
+4. Go to **Settings → Devices & services → Add integration** and search for "Indeklima"
 
-### Manuel installation
+### Manual installation
 
-1. Kopiér `custom_components/indeklima` til jeres `config/custom_components/`-mappe
-2. Genstart Home Assistant
-3. Tilføj integrationen som beskrevet ovenfor
+1. Copy `custom_components/indeklima` to your `config/custom_components/` folder
+2. Restart Home Assistant
+3. Add the integration as described above
 
-## Konfiguration
+## Configuration
 
-Al konfiguration foregår via UI'et — ingen YAML nødvendig.
+All configuration is done via the UI — no YAML required.
 
-### Opsætning af et rum
+### Setting up a room
 
-For hvert rum kan I vælge:
+For each room you can select:
 
-- Fugtigheds-, temperatur-, CO₂-, VOC-, formaldehyd- og tryksensorer (flere af samme type understøttes — gennemsnittet bruges)
-- En dedikeret mold-sensor (valgfri — falder ellers tilbage til rummets fugtsensor)
-- Vindues-/dørsensorer, markeret som udendørs eller interne
-- En affugter (`switch` eller `humidifier`-entitet)
-- En affugter-LED (`light`-entitet) til visuel manual/auto/fra-feedback
-- En affugter-knap (vilkårlig entitet — understøtter både rigtige knap-entiteter og click-count-sensorer)
-- Affugterens auto-sluk-varighed (standard 45 minutter)
-- Stilletid-override for netop dette rum
+- Humidity, temperature, CO₂, VOC, formaldehyde and pressure sensors (multiple sensors of the same type are supported — their average is used)
+- A dedicated mold sensor (optional — otherwise falls back to the room's humidity sensor)
+- Window/door sensors, marked as outdoor or internal
+- A dehumidifier (`switch` or `humidifier` entity)
+- A dehumidifier LED (`light` entity) for visual manual/auto/off feedback
+- A dehumidifier button (any entity — supports both real button entities and click-count sensors)
+- The dehumidifier's auto-off duration (default 45 minutes)
+- A quiet-hours override for that specific room
 
-### Globale indstillinger (Indstillinger → Indeklima → Konfigurér)
+### Global settings (Settings → Indeklima → Configure)
 
-- **Grænseværdier**: maks. fugtighed sommer/vinter, maks. CO₂, VOC og formaldehyd
-- **Vejr-integration**: valgfri `weather`-entitet til udluftningsanbefalinger
-- **Stilletid**: globalt tidsvindue hvor affugtere ikke tænder automatisk (medmindre skimmelrisikoen er høj/kritisk)
+- **Thresholds**: max humidity summer/winter, max CO₂, VOC and formaldehyde
+- **Weather integration**: optional `weather` entity for ventilation recommendations
+- **Quiet hours**: global time window in which dehumidifiers won't turn on automatically (unless mold risk is high/critical)
 
-## Entiteter
+## Entities
 
-**Hub-niveau** (ca. 19 sensorer): gennemsnit for hver målt størrelse, samlet severity-score og status, antal åbne vinduer, luftcirkulation, trends, udluftnings- og affugteranbefaling, skimmelrisiko.
+**Hub level** (~19 sensors): averages for each measured quantity, overall severity score and status, open window count, air circulation, trends, ventilation and dehumidifier recommendations, mold risk.
 
-**Pr. rum**: status, temperatur, fugtighed, CO₂, lufttryk (hvis konfigureret), skimmelrisiko og affugteranbefaling (med `tilstand`-attribut der viser manual/auto/fra).
+**Per room**: status, temperature, humidity, CO₂, pressure (if configured), mold risk and dehumidifier recommendation (with a `mode` attribute showing manual/auto/off).
 
-## Dokumentation
+## Documentation
 
-- [`CHANGELOG_v{version}.md`](.) — per-version ændringslog
-- [`HA_COMPLIANCE.md`](HA_COMPLIANCE.md) — detaljeret gennemgang af Quality Scale-krav
-- [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) — fejlfinding
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — bidrag til projektet
+- [`CHANGELOG.md`](CHANGELOG.md) — summary changelog across all versions
+- [`CHANGELOG_v{version}.md`](.) — detailed per-version changelog
+- [`HA_COMPLIANCE.md`](HA_COMPLIANCE.md) — detailed review of Quality Scale requirements
+- [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) — troubleshooting guide
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — contributing to the project
 
-## Licens
+## License
 
-Se [`LICENSE`](LICENSE).
+See [`LICENSE`](LICENSE).
