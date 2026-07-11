@@ -627,6 +627,32 @@ class IndeklimaPanel extends HTMLElement {
         50%      { opacity: 0.6; }
       }
 
+      /* - LED alarm mirroring: soft fade instead of a hard on/off blink - */
+      /* (the physical LED itself blinks; this is a calmer UI echo of that state) */
+      .led-alarm-icon {
+        animation: led-alarm-fade 2.4s ease-in-out infinite;
+      }
+      @keyframes led-alarm-fade {
+        0%,100% { opacity: 1; }
+        50%      { opacity: 0.45; }
+      }
+      .led-alarm-banner {
+        animation: led-alarm-glow 2.4s ease-in-out infinite;
+      }
+      @keyframes led-alarm-glow {
+        0%,100% { box-shadow: 0 0 0 rgba(239,68,68,0); }
+        50%      { box-shadow: 0 0 14px rgba(239,68,68,0.35); }
+      }
+
+      /* - "Critical since" indicator: subtle persistent glow, not an alert flash - */
+      .kritisk-siden-badge {
+        animation: kritisk-siden-pulse 3s ease-in-out infinite;
+      }
+      @keyframes kritisk-siden-pulse {
+        0%,100% { box-shadow: 0 0 0 rgba(239,68,68,0); }
+        50%      { box-shadow: 0 0 8px rgba(239,68,68,0.25); }
+      }
+
       /* - Ventilation card - */
       .vent-card {
         background: var(--bg2);
@@ -1078,7 +1104,7 @@ class IndeklimaPanel extends HTMLElement {
           style="border-left-color:${color}; background:${bg}, var(--bg2);"
           data-room="${r.name}">
           <div class="room-card-header">
-            <div class="room-name">${r.name}${r.led_alarm_active ? ` <span title="LED alarm aktiv" style="color:#ef4444;">\uD83D\uDD34</span>` : ""}</div>
+            <div class="room-name">${r.name}${r.led_alarm_active ? ` <span class="led-alarm-icon" title="LED alarm aktiv" style="color:#ef4444;">\uD83D\uDD34</span>` : ""}</div>
             <div style="display:flex;align-items:center;gap:6px;">
               <span style="font-size:10px;color:${color};font-family:'DM Mono',monospace;font-weight:700;">${Math.round(severityPct)}</span>
               <div class="room-status-pill" style="background:${color}22; color:${color};">
@@ -1169,8 +1195,8 @@ class IndeklimaPanel extends HTMLElement {
           <button class="room-detail-close" id="close-detail">-</button>
         </div>
         <div class="room-detail-body">
-          ${r.led_alarm_active ? `<div style="display:flex;align-items:center;gap:8px;background:#ef444422;color:#ef4444;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;margin-bottom:10px;">\uD83D\uDD34 LED alarm aktiv i dette rum</div>` : ""}
-          ${r.status === "critical" && r.kritisk_siden ? `<div style="font-size:11px;color:#ef4444;font-weight:600;margin-bottom:10px;">\u26A0\uFE0F Kritisk siden ${this._fmtTimeSince(r.kritisk_siden)}</div>` : ""}
+          ${r.led_alarm_active ? `<div class="led-alarm-banner" style="display:flex;align-items:center;gap:8px;background:#ef444422;color:#ef4444;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;margin-bottom:10px;">\uD83D\uDD34 LED alarm aktiv i dette rum</div>` : ""}
+          ${r.status === "critical" && r.kritisk_siden ? `<div class="kritisk-siden-badge" style="display:inline-block;font-size:11px;color:#ef4444;font-weight:600;margin-bottom:10px;background:#ef444414;border-radius:8px;padding:4px 10px;">\u26A0\uFE0F Kritisk siden ${this._fmtTimeSince(r.kritisk_siden)}</div>` : ""}
           <div class="room-detail-metrics">
             ${r.temperature_sensors_count > 0 ? this._rdmCard("\uD83D\uDCCA-", this._fmt(r.temperature, "\u00b0C", 1), "Temperatur", r.temperature_sensors_count) : ""}
             ${r.humidity_sensors_count > 0    ? this._rdmCard("\uD83D\uDCCA-", this._fmt(r.humidity, "%", 0), "Fugtighed", r.humidity_sensors_count) : ""}

@@ -240,8 +240,14 @@ class IndeklimaRoomCard extends HTMLElement {
           ${status !== "good" ? "animation:blink 2s infinite;" : ""}
         }
         @keyframes blink { 0%,100%{opacity:1}50%{opacity:.55} }
-        .crit-since { font-size:10px; color:#ef4444; margin:-6px 0 10px; font-weight:600; }
-        .chip.alarm { color:#ef4444; background:#ef444422; animation:blink 1.2s infinite; }
+        @keyframes led-fade { 0%,100%{opacity:1} 50%{opacity:.45} }
+        @keyframes crit-glow { 0%,100%{box-shadow:0 0 0 rgba(239,68,68,0)} 50%{box-shadow:0 0 8px rgba(239,68,68,.3)} }
+        .crit-since {
+          font-size:10px; color:#ef4444; margin:-6px 0 10px; font-weight:600;
+          display:inline-block; background:#ef444414; border-radius:8px; padding:2px 8px;
+          animation: crit-glow 3s ease-in-out infinite;
+        }
+        .chip.alarm { color:#ef4444; background:#ef444422; animation: led-fade 2.4s ease-in-out infinite; }
         .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; }
         .metric { background:var(--bg2); border-radius:10px; padding:9px 6px; text-align:center; }
         .m-icon { font-size:16px; margin-bottom:3px; }
@@ -1103,13 +1109,20 @@ class IndeklimaRoomDetailCard extends HTMLElement {
         .bdot { width:7px; height:7px; border-radius:50%; background:${color}; animation:bdot 2s infinite; }
         @keyframes bdot { 0%,100%{opacity:1}50%{opacity:.4} }
         @keyframes bdot-pulse { 0%,100%{box-shadow:0 0 0 0 ${color}40}50%{box-shadow:0 0 0 6px ${color}00} }
-        .crit-since-row { font-size:11px; color:#ef4444; font-weight:600; margin:-4px 0 12px; display:flex; align-items:center; gap:5px; }
+        .crit-since-row {
+          font-size:11px; color:#ef4444; font-weight:600; margin:-4px 0 12px;
+          display:inline-flex; align-items:center; gap:5px;
+          background:#ef444414; border-radius:8px; padding:4px 10px;
+          animation: crit-glow 3s ease-in-out infinite;
+        }
         @keyframes blink { 0%,100%{opacity:1}50%{opacity:.55} }
+        @keyframes led-fade { 0%,100%{opacity:1} 50%{opacity:.45} }
+        @keyframes crit-glow { 0%,100%{box-shadow:0 0 0 rgba(239,68,68,0)} 50%{box-shadow:0 0 8px rgba(239,68,68,.3)} }
         .alarm-banner {
           display:flex; align-items:center; gap:8px;
           background:#ef444422; color:#ef4444; border-radius:10px;
           padding:8px 12px; font-size:12px; font-weight:700;
-          margin-bottom:12px; animation:blink 1.2s infinite;
+          margin-bottom:12px; animation: led-fade 2.4s ease-in-out infinite;
         }
 
         /* ── Severity bar ── */

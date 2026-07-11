@@ -2,7 +2,7 @@
 
 **Multi-room indoor climate monitoring for Home Assistant** — temperature, humidity, CO₂, VOC, formaldehyde and barometric pressure, with mold risk assessment, dehumidifier recommendations, and a polished custom frontend.
 
-![Version](https://img.shields.io/badge/version-2.9.1-blue)
+![Version](https://img.shields.io/badge/version-2.9.2-blue)
 ![Quality Scale](https://img.shields.io/badge/quality_scale-gold-gold)
 ![HACS](https://img.shields.io/badge/HACS-custom-orange)
 

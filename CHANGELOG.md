@@ -7,6 +7,30 @@ Detailed per-version notes are available in `CHANGELOG_v{major}_{minor}_{patch}.
 
 ---
 
+## [2.9.2] — 2026-07-11
+
+### Added
+- `tests/test_config_flow.py` (new) — direct test coverage for the config flow
+  and options flow, previously excluded from coverage and only manually
+  verified. Focus on the per-room override fields added in v2.8.0
+  (`CONF_ROOM_LED_CRITICAL_SEVERITY`, quiet-hours override) and the full room
+  add/edit/delete round trip.
+- `tests/test_websocket.py` — two new test classes: direct regression tests
+  for the `dehumidifier_mode`/`kritisk_siden`/`led_alarm_active` fields that
+  were missing before v2.9.0, plus a future-proofing test that diffs the real
+  coordinator's `_process_room()` output against both websocket payloads, so
+  a newly added field that isn't forwarded fails CI automatically.
+
+### Changed (UI)
+- Softened the LED-alarm mirroring in the panel and Lovelace cards from a
+  hard 1.2s blink to a calmer 2.4s fade.
+- Added a subtle pulsing glow to the "critical since" badge in the panel and
+  both cards.
+
+See [`CHANGELOG_v2_9_2.md`](CHANGELOG_v2_9_2.md) for full technical detail.
+
+---
+
 ## [2.9.1] — 2026-07-10
 
 ### Fixed
