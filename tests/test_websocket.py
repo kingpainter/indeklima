@@ -334,6 +334,9 @@ class TestWebsocketCoversRealCoordinatorFields:
             coord.formaldehyde_max = 0.15
             coord.mold_risk_temp_min = 5
             coord.mold_risk_temp_max = 35
+            coord.mold_risk_humidity = 70
+            coord.quiet_hours_start = 23
+            coord.quiet_hours_end = 6
             coord.weather_entity = None
             coord.history = {"humidity": [], "co2": [], "severity": []}
             coord._dehumidifier_state = {}
