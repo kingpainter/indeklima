@@ -189,7 +189,7 @@ class IndeklimaGlobalSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self) -> float | str | None:
         """Return the state of the sensor."""
-        if not self.coordinator.data:
+        if self.coordinator.data is None:
             return None
         
         if self._sensor_type == "severity":
@@ -221,7 +221,7 @@ class IndeklimaGlobalSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         """Return additional attributes."""
-        if not self.coordinator.data:
+        if self.coordinator.data is None:
             return {}
         if self._sensor_type == "open_windows":
             rooms = self.coordinator.data.get("open_windows", [])
@@ -285,7 +285,7 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self) -> str | None:
         """Return the state of the sensor."""
-        if not self.coordinator.data:
+        if self.coordinator.data is None:
             return None
         
         room_data = self.coordinator.data.get("rooms", {}).get(self._room_name, {})
@@ -304,7 +304,7 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         """Return room-specific attributes."""
-        if not self.coordinator.data:
+        if self.coordinator.data is None:
             return {}
         
         room_data = self.coordinator.data.get("rooms", {}).get(self._room_name, {})
@@ -409,7 +409,7 @@ class IndeklimaRoomMetricSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self) -> float | None:
         """Return the state of the sensor."""
-        if not self.coordinator.data:
+        if self.coordinator.data is None:
             return None
         
         room_data = self.coordinator.data.get("rooms", {}).get(self._room_name, {})
@@ -434,7 +434,7 @@ class IndeklimaRoomMetricSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         """Return additional attributes showing individual sensor values."""
-        if not self.coordinator.data:
+        if self.coordinator.data is None:
             return {}
         
         room_data = self.coordinator.data.get("rooms", {}).get(self._room_name, {})

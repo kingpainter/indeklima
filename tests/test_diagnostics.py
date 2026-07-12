@@ -9,7 +9,7 @@ from custom_components.indeklima.diagnostics import (
     async_get_device_diagnostics,
     _get_coordinator,
 )
-from custom_components.indeklima.const import DOMAIN
+from custom_components.indeklima.const import DOMAIN, __version__
 from .conftest import mock_hass, mock_entry, make_state, ENTRY_DATA, ENTRY_OPTIONS
 
 
@@ -91,7 +91,11 @@ class TestAsyncGetConfigEntryDiagnostics:
         result = await async_get_config_entry_diagnostics(hass, mock_entry)
 
         assert "integration_version" in result
-        assert result["integration_version"] == "2.5.2"
+        # Compare against the real const.__version__ rather than a hardcoded
+        # string, so this test doesn't go stale on every version bump -- it
+        # verifies diagnostics correctly surfaces whatever the current
+        # version is, not that the version equals a specific pinned number.
+        assert result["integration_version"] == __version__
 
     @pytest.mark.asyncio
     async def test_returns_sensor_availability(self, mock_hass, mock_entry):

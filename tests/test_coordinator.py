@@ -684,7 +684,7 @@ class TestQuietHours:
             CONF_ROOM_QUIET_HOURS_END: 15,
         }
         with patch("custom_components.indeklima.dt_util") as mock_dt:
-            mock_dt.now.return_value = MagicMock(hour=13)
+            mock_dt.now.return_value = MagicMock(hour=13, month=7)
             result = coord._calculate_dehumidifier_recommendation(room_data, room)
         assert result == DEHUMIDIFIER_NO
 

@@ -33,7 +33,9 @@ class TestVersion:
         assert all(p.isdigit() for p in parts)
 
     def test_version_value(self):
-        assert __version__ == "2.5.2"
+        # NOTE: bump this alongside const.py's __version__ / manifest.json on
+        # every release -- this simply pins the expected current version.
+        assert __version__ == "2.9.3"
 
 
 class TestConstants:

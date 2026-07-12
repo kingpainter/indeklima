@@ -7,6 +7,27 @@ Detailed per-version notes are available in `CHANGELOG_v{major}_{minor}_{patch}.
 
 ---
 
+## [2.9.3] — 2026-07-11
+
+### Fixed
+- Real production bug in `sensor.py`: 6 sensor properties used
+  `if not self.coordinator.data:` as a "no data yet" guard, which also
+  (incorrectly) matched a valid-but-empty `{}` data dict, skipping the
+  sensors' own default-value fallbacks. Changed to `is None` checks.
+- Fixed a pre-existing test bug in `test_coordinator.py` (`dt_util.now()`
+  mock missing `month=`, causing a `TypeError` in `_get_season()`).
+- Fixed stale hardcoded version-string assertions in `test_const.py` and
+  `test_diagnostics.py` left over from v2.9.2's version bump; the
+  diagnostics one now compares against `const.__version__` so it won't go
+  stale again.
+- Fixed a bug in the new `TestWebsocketCoversRealCoordinatorFields` test
+  helper (introduced in v2.9.2) that was missing `mold_risk_temp_min`/`max`
+  on the manually-constructed coordinator instance.
+
+See [`CHANGELOG_v2_9_3.md`](CHANGELOG_v2_9_3.md) for full technical detail.
+
+---
+
 ## [2.9.2] — 2026-07-11
 
 ### Added
