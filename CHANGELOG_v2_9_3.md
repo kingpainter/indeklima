@@ -9,9 +9,13 @@ The v2.9.2 CI run surfaced 6 failing tests. Triaged into three categories:
 ### 1. Bug in the new v2.9.2 tests (test-only, no production impact)
 - `TestWebsocketCoversRealCoordinatorFields` in `tests/test_websocket.py`
   called the real `_process_room()` without setting `mold_risk_temp_min`/
-  `mold_risk_temp_max` on the manually-constructed coordinator instance,
-  which `_calculate_mold_risk()` reads. Added both attributes (matching
-  `DEFAULT_MOLD_RISK_TEMP_MIN`/`MAX` from `const.py`) to the test helper.
+  `mold_risk_temp_max` **and `mold_risk_humidity`** on the manually-constructed
+  coordinator instance, which `_calculate_mold_risk()` reads. Added all three
+  attributes (matching `DEFAULT_MOLD_RISK_TEMP_MIN`/`MAX`/`DEFAULT_MOLD_RISK_HUMIDITY`
+  from `const.py`) to the test helper, plus `quiet_hours_start`/`quiet_hours_end`
+  defensively (not strictly required for this test's no-dehumidifier room, but
+  traced the full `_process_room()` call chain this time to avoid a third
+  round of one-attribute-at-a-time CI failures).
 
 ### 2. Stale hardcoded version strings (test-only, no production impact)
 - `tests/test_const.py::test_version_value` and
