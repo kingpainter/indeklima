@@ -1,5 +1,5 @@
 // Indeklima – Custom Lovelace Cards
-// Version: 2.5.8
+// Version: 2.9.4
 // Cards:
 //   custom:indeklima-room-card   – single room card (mobile/tablet)
 //   custom:indeklima-hub-card    – house overview, original mobile design (vertical)
@@ -814,12 +814,21 @@ class IndeklimaTabletCard extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <style>
-        :host { display:block; ${baseCSS()} font-family:var(--paper-font-body1_-_font-family,sans-serif); }
+        :host { display:block; height:100%; ${baseCSS()} font-family:var(--paper-font-body1_-_font-family,sans-serif); }
+        ha-card {
+          width:100%; height:100%; min-height:0;
+          display:flex; flex-direction:column; overflow:hidden;
+          background:var(--bg); border-radius:18px;
+          box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.15));
+        }
         .card {
-          background:var(--bg); border-radius:18px; padding:14px 16px;
-          color:var(--text); box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.15));
+          flex:1; min-height:0;
+          display:flex; flex-direction:column; overflow:hidden;
+          padding:14px 16px;
+          color:var(--text);
         }
         .card-title {
+          flex-shrink:0;
           font-size:11px; font-weight:700; text-transform:uppercase;
           letter-spacing:1px; color:var(--sub); margin-bottom:12px;
         }
@@ -832,7 +841,7 @@ class IndeklimaTabletCard extends HTMLElement {
         .loading { color:var(--sub); font-size:12px; }
 
         /* 3-column layout */
-        .cols { display:grid; grid-template-columns:175px 1fr 150px; gap:0 14px; align-items:start; }
+        .cols { flex:1; min-height:0; overflow-y:auto; display:grid; grid-template-columns:175px 1fr 150px; gap:0 14px; align-items:start; }
         .col { min-width:0; }
         .col-mid { border-left:1px solid var(--div); border-right:1px solid var(--div); padding:0 14px; }
 

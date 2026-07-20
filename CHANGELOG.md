@@ -7,6 +7,23 @@ Detailed per-version notes are available in `CHANGELOG_v{major}_{minor}_{patch}.
 
 ---
 
+## [2.9.4] — 2026-07-20
+
+### Fixed
+- `indeklima-tablet-card` did not correctly fill a Home Assistant
+  `type: panel` view (e.g. on a 7" Lenovo tablet, landscape). Applied the
+  same panel-fill CSS pattern already used in `secure_me_alarm_tab_card`:
+  `:host` now sets `height: 100%`; `ha-card` is now the flex/sizing
+  wrapper (`width/height: 100%; min-height: 0; display: flex;
+  flex-direction: column; overflow: hidden;`); `.card` and `.cols` are now
+  flex children that correctly fill the remaining space
+  (`flex: 1; min-height: 0;`), with `.cols` scrolling internally if
+  content exceeds the available height.
+
+See [`CHANGELOG_v2_9_4.md`](CHANGELOG_v2_9_4.md) for full technical detail.
+
+---
+
 ## [2.9.3] — 2026-07-11
 
 ### Fixed
