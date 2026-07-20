@@ -1,6 +1,6 @@
-# Indeklima
+# 🏠 Indeklima
 
-**Multi-room indoor climate monitoring for Home Assistant** — temperature, humidity, CO₂, VOC, formaldehyde and barometric pressure, with mold risk assessment, dehumidifier recommendations, and a polished custom frontend.
+**Multi-room indoor climate monitoring for Home Assistant** — temperature, humidity, CO₂, VOC, formaldehyde and barometric pressure, with mold risk assessment, dehumidifier control, LED alarm feedback, and a polished custom frontend.
 
 ![Version](https://img.shields.io/badge/version-2.9.3-blue)
 ![Quality Scale](https://img.shields.io/badge/quality_scale-gold-gold)
@@ -8,9 +8,13 @@
 
 ---
 
+If your bathroom wall starts sweating and your bedroom feels like a rainforest, Home Assistant will happily tell you the humidity is 78%. What it won't tell you is whether that's *dangerous* or just uncomfortable — or what to actually do about it.
+
+Indeklima does. It reads your existing sensors and turns raw numbers into something you can act on: mold risk warnings, room-by-room severity scores, ventilation recommendations, and — since v2.6.0 — direct dehumidifier control with LED alarm feedback.
+
 ## About the project
 
-Indeklima is a custom Home Assistant integration built to monitor indoor climate across multiple rooms at once — and to help keep it healthy. The integration collects data from your existing sensors (temperature, humidity, CO₂, VOC, formaldehyde, pressure), calculates an overall severity score per room and globally, and gives concrete recommendations for ventilation and dehumidification.
+Indeklima is a custom Home Assistant integration built to monitor indoor climate across multiple rooms at once, using sensors you already have — no special hardware required. It collects data from your existing sensors (temperature, humidity, CO₂, VOC, formaldehyde, pressure), calculates an overall severity score per room and globally, and gives concrete recommendations for ventilation and dehumidification.
 
 Since version 2.6.0, Indeklima can also **control a physical dehumidifier directly** — turning it on/off via a button or automatically based on humidity and mold risk, with LED feedback and configurable quiet hours. Since version 2.7.0, the dehumidifier LED switches to **red alarm**, regardless of manual/auto mode, whenever the room's overall indoor climate status is critical. Since version 2.8.0, the alarm **blinks** instead of staying solid, holds for a couple of cycles after recovery (to avoid flicker), the threshold can be overridden per room, and a "critical since" timestamp is stored on each room's status sensor. Since version 2.9.0, dehumidifier mode, the "critical since" timestamp, and LED alarm status are all mirrored in the panel and Lovelace cards. Version 2.9.1 fixed a bug where outdoor weather data was silently skipped whenever any window in the house was open.
 
@@ -73,6 +77,18 @@ For each room you can select:
 
 **Per room**: status, temperature, humidity, CO₂, pressure (if configured), mold risk and dehumidifier recommendation (with a `mode` attribute showing manual/auto/off).
 
+## Dashboard
+
+Indeklima adds a sidebar panel with two tabs — a full-house overview and a per-room detail view, including sparklines and interactive cards. If you prefer to build your own dashboard, standalone Lovelace cards are also available.
+
+## Language
+
+The integration is Danish-first: UI, notifications and translations are in Danish (`translations/da.json`), while all code, comments and logs are in English (`strings.json` is the primary source). If your Home Assistant is set to a different language, English labels are used as the fallback.
+
+## If something goes wrong
+
+If a sensor drops out or the coordinator fails to update, Indeklima surfaces it as a repair issue in HA's Repairs panel instead of failing silently. Check **Settings → System → Repairs**. For deeper troubleshooting steps, see the guide linked below.
+
 ## Documentation
 
 - [`CHANGELOG.md`](CHANGELOG.md) — summary changelog across all versions
@@ -81,6 +97,10 @@ For each room you can select:
 - [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) — troubleshooting guide
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contributing to the project
 
+## Contributing
+
+Bug reports and pull requests are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev setup, code standards, and fork/clone workflow.
+
 ## License
 
-See [`LICENSE`](LICENSE).
+MIT. See [`LICENSE`](LICENSE).
