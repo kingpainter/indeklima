@@ -1,5 +1,5 @@
 // Indeklima – Custom Lovelace Cards
-// Version: 2.9.4
+// Version: 2.9.7
 // Cards:
 //   custom:indeklima-room-card   – single room card (mobile/tablet)
 //   custom:indeklima-hub-card    – house overview, original mobile design (vertical)
@@ -699,10 +699,10 @@ class IndeklimaTabletCard extends HTMLElement {
     const vent   = d?.ventilation || {};
     const vColor = ventColor(vent.status);
 
-    // ── Col 1: Score + info ───────────────────────────────────────────────────
-    const col1 = !d ? '<div class="loading">Henter...</div>' : `
+    // ── Score block: ring + info (stays at top of col 1, does not swap) ───────
+    const scoreBlock = !d ? '<div class="loading">Henter...</div>' : `
       <div class="score-block">
-        ${severityRingHTML(sev, color, 100)}
+        ${severityRingHTML(sev, color, 108)}
         <div class="score-meta">
           <div class="score-badge" style="background:${color}1a;color:${color};">
             <span class="bdot" style="background:${color}"></span>${statusLabel(status)}
@@ -711,52 +711,47 @@ class IndeklimaTabletCard extends HTMLElement {
           <div class="score-sub">\uD83E\uDE9F ${d.open_windows_count} \u00e5bne vinduer</div>
         </div>
       </div>
+    `;
 
-      <div class="sec-lbl mt10">Gennemsnit</div>
-      <div class="avg-grid">
-        ${avgs.temperature != null ? `<div class="avg-cell"><div class="av">${fmtNum(avgs.temperature,"\u00b0C",1)}</div><div class="al">Temp</div></div>` : ""}
-        ${avgs.humidity    != null ? `<div class="avg-cell"><div class="av">${fmtNum(avgs.humidity,"%")}</div><div class="al">Fugt</div></div>` : ""}
-        ${avgs.co2         != null ? `<div class="avg-cell"><div class="av">${fmtNum(avgs.co2,"ppm")}</div><div class="al">CO2</div></div>` : ""}
-        ${avgs.pressure    != null ? `<div class="avg-cell"><div class="av">${fmtNum(avgs.pressure,"hPa")}</div><div class="al">Tryk</div></div>` : ""}
-      </div>
-
-      <div class="divider"></div>
-      <div class="sec-lbl">Udluftning</div>
-      <div class="vent-box" style="border-left-color:${vColor}">
-        <span class="vent-ico">${vent.status==="yes"?"&#127783;&#65039;":vent.status==="optional"?"&#129300;":"&#9203;"}</span>
-        <div>
-          <div class="vent-ttl" style="color:${vColor}">${ventLabel(vent.status)}</div>
-          <div class="vent-sub">${(vent.reason||[]).slice(0,2).join(", ")||"Indeklima er OK"}</div>
+    // ── Green block: Gennemsnit + Status ──────────────────────────────────────
+    const greenBlock = !d ? "" : `
+      <div class="green-top">
+        <div class="sec-lbl">Gennemsnit</div>
+        <div class="avg-grid">
+          ${avgs.temperature != null ? `<div class="avg-cell" style="border-bottom-color:#0ea5e9"><div class="av-ico">\uD83C\uDF21\uFE0F</div><div class="av">${fmtNum(avgs.temperature,"\u00b0C",1)}</div><div class="al">Temp</div></div>` : ""}
+          ${avgs.humidity    != null ? `<div class="avg-cell" style="border-bottom-color:${color}"><div class="av-ico">\uD83D\uDCA7</div><div class="av">${fmtNum(avgs.humidity,"%")}</div><div class="al">Fugt</div></div>` : ""}
+          ${avgs.co2         != null ? `<div class="avg-cell" style="border-bottom-color:${color}"><div class="av-ico">\uD83C\uDF2B\uFE0F</div><div class="av">${fmtNum(avgs.co2,"ppm")}</div><div class="al">CO2</div></div>` : ""}
+          ${avgs.pressure    != null ? `<div class="avg-cell" style="border-bottom-color:#8b5cf6"><div class="av-ico">\uD83E\uDDED</div><div class="av">${fmtNum(avgs.pressure,"hPa")}</div><div class="al">Tryk</div></div>` : ""}
         </div>
       </div>
 
-      <div class="divider"></div>
-      <div class="sec-lbl">Luftcirkulation</div>
-      <div class="circ-row">
-        <span class="circ-ico">${d.air_circulation==="good"?"&#128168;":d.air_circulation==="moderate"?"&#127744;":"&#128682;"}</span>
-        <span class="circ-lbl" style="color:${circColor(d.air_circulation)}">${circLabel(d.air_circulation)}</span>
-      </div>
-
-      <div class="divider"></div>
-      <div class="sec-lbl">Skimmelrisiko</div>
-      <div class="mold-tab-row" style="border-left-color:${moldColor(d.mold_risk||'low')}">
-        <span class="mold-tab-ico">${moldIcon(d.mold_risk)}</span>
-        <div>
-          <div class="mold-tab-ttl" style="color:${moldColor(d.mold_risk||'low')}">${moldLabel(d.mold_risk)}</div>
-          <div class="mold-tab-sub">Husgennemsnit</div>
+      <div class="green-bottom">
+        <div class="divider"></div>
+        <div class="sec-lbl">Status</div>
+        <div class="stat-grid">
+          <div class="stat-cell" style="border-bottom-color:${vColor}">
+            <div class="stat-ico">${vent.status==="yes"?"&#127783;&#65039;":vent.status==="optional"?"&#129300;":"&#9203;"}</div>
+            <div class="stat-val" style="color:${vColor}">${ventLabel(vent.status)}</div>
+            <div class="stat-lbl">Udluftning</div>
+          </div>
+          <div class="stat-cell" style="border-bottom-color:${moldColor(d.mold_risk||'low')}">
+            <div class="stat-ico">${moldIcon(d.mold_risk)}</div>
+            <div class="stat-val" style="color:${moldColor(d.mold_risk||'low')}">${d.mold_risk==="low"?"Lav":d.mold_risk==="moderate"?"Moderat":d.mold_risk==="high"?"H\u00f8j":"Kritisk"}</div>
+            <div class="stat-lbl">Skimmel</div>
+          </div>
+          <div class="stat-cell" style="border-bottom-color:${circColor(d.air_circulation)}">
+            <div class="stat-ico">${d.air_circulation==="good"?"&#128168;":d.air_circulation==="moderate"?"&#127744;":"&#128682;"}</div>
+            <div class="stat-val" style="color:${circColor(d.air_circulation)}">${d.air_circulation==="good"?"God":d.air_circulation==="moderate"?"Moderat":"D\u00e5rlig"}</div>
+            <div class="stat-lbl">Cirkulation</div>
+          </div>
+          ${rooms.some(r => r.has_dehumidifier) ? `
+          <div class="stat-cell" style="border-bottom-color:${dehumColor(d.dehumidifier_recommendation||'no')}">
+            <div class="stat-ico">${dehumIcon(d.dehumidifier_recommendation||'no') || '\uD83D\uDCA7'}</div>
+            <div class="stat-val" style="color:${dehumColor(d.dehumidifier_recommendation||'no')}">${d.dehumidifier_recommendation==='yes'?'T\u00e6nd':d.dehumidifier_recommendation==='optional'?'Overv\u00e6j':'OK'}</div>
+            <div class="stat-lbl">Affugter</div>
+          </div>` : ""}
         </div>
       </div>
-
-      ${rooms.some(r => r.has_dehumidifier) ? `
-      <div class="divider"></div>
-      <div class="sec-lbl">Affugter</div>
-      <div class="mold-tab-row" style="border-left-color:${dehumColor(d.dehumidifier_recommendation||'no')}">
-        <span class="mold-tab-ico">${dehumIcon(d.dehumidifier_recommendation||'no') || '\uD83D\uDCA7'}</span>
-        <div>
-          <div class="mold-tab-ttl" style="color:${dehumColor(d.dehumidifier_recommendation||'no')}">${dehumLabel(d.dehumidifier_recommendation||'no')}</div>
-          <div class="mold-tab-sub">Baseret p\u00e5 fugtighed og skimmelrisiko</div>
-        </div>
-      </div>` : ""}
     `;
 
     // ── Col 2: Room rows ──────────────────────────────────────────────────────
@@ -787,9 +782,9 @@ class IndeklimaTabletCard extends HTMLElement {
       <div class="rooms-list">${roomRows || '<div class="loading">Ingen rum konfigureret</div>'}</div>
     `;
 
-    // ── Col 3: Trends + windows ───────────────────────────────────────────────
-    const col3 = !d ? "" : `
-      <div class="sec-lbl">Tendenser (15 min)</div>
+    // ── Red block: Trends + windows ───────────────────────────────────────────
+    const redBlock = !d ? "" : `
+      <div class="sec-lbl mt10">Tendenser (15 min)</div>
       <div class="trends-col">
         ${[["&#128167;","Fugtighed",trends.humidity],["&#127787;&#65039;","CO\u2082",trends.co2],["&#128202;","Score",trends.severity]]
           .map(([ico, lbl, tr]) => `
@@ -817,6 +812,7 @@ class IndeklimaTabletCard extends HTMLElement {
         :host { display:block; height:100%; ${baseCSS()} font-family:var(--paper-font-body1_-_font-family,sans-serif); }
         ha-card {
           width:100%; height:100%; min-height:0;
+          max-height:100vh;
           display:flex; flex-direction:column; overflow:hidden;
           background:var(--bg); border-radius:18px;
           box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.15));
@@ -832,21 +828,23 @@ class IndeklimaTabletCard extends HTMLElement {
           font-size:11px; font-weight:700; text-transform:uppercase;
           letter-spacing:1px; color:var(--sub); margin-bottom:12px;
         }
-        .divider { height:1px; background:var(--div); margin:8px 0; }
+        .divider { height:1px; background:var(--div); margin:14px 0; }
         .sec-lbl {
-          font-size:10px; font-weight:600; text-transform:uppercase;
-          letter-spacing:1px; color:var(--sub); margin-bottom:6px;
+          font-size:11px; font-weight:600; text-transform:uppercase;
+          letter-spacing:1px; color:var(--sub); margin-bottom:8px;
         }
-        .mt10 { margin-top:10px; }
+        .mt10 { margin-top:14px; }
         .loading { color:var(--sub); font-size:12px; }
 
         /* 3-column layout */
-        .cols { flex:1; min-height:0; overflow-y:auto; display:grid; grid-template-columns:175px 1fr 150px; gap:0 14px; align-items:start; }
-        .col { min-width:0; }
+        .cols { flex:1; min-height:0; display:grid; grid-template-columns:175px 1fr 175px; gap:0 14px; align-items:stretch; overflow:hidden; }
+        .col { min-width:0; min-height:0; overflow:visible; }
+        .col-right { display:flex; flex-direction:column; }
+        .green-bottom { margin-top:auto; }
         .col-mid { border-left:1px solid var(--div); border-right:1px solid var(--div); padding:0 14px; }
 
         /* Col 1 */
-        .score-block { display:flex; align-items:center; gap:10px; margin-bottom:4px; }
+        .score-block { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
         .ring-wrap { position:relative; flex-shrink:0; }
         .ring-center {
           position:absolute; inset:0;
@@ -863,42 +861,33 @@ class IndeklimaTabletCard extends HTMLElement {
         @keyframes bdot { 0%,100%{opacity:1}50%{opacity:.4} }
         .score-sub { font-size:11px; color:var(--sub); }
 
-        .avg-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
-        .avg-cell { background:var(--bg2); border-radius:8px; padding:5px 4px; text-align:center; }
-        .av { font-size:12px; font-weight:700; }
-        .al { font-size:8px; color:var(--sub); margin-top:1px; text-transform:uppercase; }
+        .avg-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        .avg-cell { background:var(--bg2); border-radius:10px; padding:14px 6px; text-align:center; border-bottom:3px solid transparent; }
+        .av-ico { font-size:20px; line-height:1.1; margin-bottom:4px; }
+        .av { font-size:14px; font-weight:700; }
+        .al { font-size:9px; color:var(--sub); margin-top:2px; text-transform:uppercase; }
 
-        .vent-box {
-          display:flex; align-items:center; gap:8px;
-          background:var(--bg2); border-radius:10px;
-          padding:8px 10px; border-left:3px solid;
+        .stat-grid {
+          display:grid; grid-template-columns:1fr 1fr; gap:10px;
         }
-        .vent-ico { font-size:18px; flex-shrink:0; }
-        .vent-ttl { font-size:12px; font-weight:700; }
-        .vent-sub { font-size:10px; color:var(--sub); margin-top:1px; }
-
-        .circ-row { display:flex; align-items:center; gap:6px; }
-        .circ-ico { font-size:16px; }
-        .circ-lbl { font-size:12px; font-weight:600; }
-
-        .mold-tab-row {
-          display:flex; align-items:center; gap:8px;
+        .stat-cell {
           background:var(--bg2); border-radius:10px;
-          padding:8px 10px; border-left:3px solid;
+          padding:14px 8px; text-align:center;
+          border-bottom:3px solid transparent;
         }
-        .mold-tab-ico { font-size:18px; flex-shrink:0; }
-        .mold-tab-ttl { font-size:12px; font-weight:700; }
-        .mold-tab-sub { font-size:10px; color:var(--sub); margin-top:1px; }
+        .stat-ico { font-size:22px; line-height:1.1; }
+        .stat-val { font-size:12px; font-weight:700; line-height:1.2; margin-top:4px; }
+        .stat-lbl { font-size:9px; color:var(--sub); text-transform:uppercase; letter-spacing:.4px; margin-top:2px; }
 
         /* Col 2 */
-        .rooms-list { display:flex; flex-direction:column; gap:10px; }
+        .rooms-list { display:flex; flex-direction:column; gap:7px; }
         .room-row {
           display:flex; align-items:center; gap:8px;
           background:var(--bg2); border-radius:12px;
-          padding:13px 10px; border-left:4px solid transparent;
+          padding:10px 10px; border-left:4px solid transparent;
         }
         .rr-left { flex-shrink:0; min-width:120px; }
-        .rr-name { font-size:13px; font-weight:700; margin-bottom:4px; }
+        .rr-name { font-size:13px; font-weight:700; margin-bottom:3px; }
         .rr-pill {
           font-size:9px; font-weight:700; padding:2px 7px; border-radius:20px;
           text-transform:uppercase; letter-spacing:.4px; display:inline-block;
@@ -907,7 +896,7 @@ class IndeklimaTabletCard extends HTMLElement {
         @keyframes blink { 0%,100%{opacity:1}50%{opacity:.55} }
 
         .rr-metrics { display:flex; gap:5px; flex:1; }
-        .rrm { background:var(--bg); border-radius:8px; padding:8px 8px; text-align:center; flex:1; }
+        .rrm { background:var(--bg); border-radius:8px; padding:6px 8px; text-align:center; flex:1; }
         .rrm-v { font-size:13px; font-weight:700; line-height:1.1; }
         .rrm-l { font-size:8px; color:var(--sub); margin-top:1px; text-transform:uppercase; }
 
@@ -945,9 +934,9 @@ class IndeklimaTabletCard extends HTMLElement {
         <div class="card">
           <div class="card-title">${esc(title)}</div>
           <div class="cols">
-            <div class="col">${col1}</div>
+            <div class="col">${scoreBlock}${redBlock}</div>
             <div class="col col-mid">${col2}</div>
-            <div class="col">${col3}</div>
+            <div class="col col-right">${greenBlock}</div>
           </div>
         </div>
       </ha-card>`;
