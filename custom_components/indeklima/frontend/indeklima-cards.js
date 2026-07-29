@@ -1,5 +1,5 @@
 // Indeklima – Custom Lovelace Cards
-// Version: 2.9.7
+// Version: 2.9.8
 // Cards:
 //   custom:indeklima-room-card   – single room card (mobile/tablet)
 //   custom:indeklima-hub-card    – house overview, original mobile design (vertical)

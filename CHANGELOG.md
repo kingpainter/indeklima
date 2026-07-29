@@ -7,6 +7,38 @@ Detailed per-version notes are available in `CHANGELOG_v{major}_{minor}_{patch}.
 
 ---
 
+## [2.9.8] — 2026-07-29
+
+### Changed
+- `indeklima-tablet-card` (3-column tablet/panel layout) reworked based on
+  live screenshot feedback:
+  - Swapped the "Gennemsnit + Status" content block with the
+    "Tendenser + Vinduer/døre" content block between the left and right
+    sidebar columns, while keeping the severity ring/score header fixed
+    at the top of the left column.
+  - Left and right sidebar columns are now equal width (175px each),
+    taking the extra space from the flexible middle (room list) column.
+  - The "Status" section (Udluftning/Skimmel/Cirkulation/Affugter) is now
+    pushed to the bottom of its column via `margin-top: auto`, so it
+    bottom-aligns with the room list in the middle column.
+  - "Gennemsnit" avg-cells (Temp/Fugt/CO₂/Tryk) restyled to visually match
+    the "Status" stat-cells: added icons, increased padding, and a
+    colored bottom border per metric.
+  - Removed scroll capability (`overflow-y: auto` → `overflow: visible`)
+    on the column containers, since layout now fits without scrolling.
+
+### Fixed
+- HACS had reinstalled the stale v2.9.4 tablet-card layout on the live HA
+  server, overwriting manually-placed newer frontend changes. Root cause:
+  no GitHub release/tag had been published since v2.9.4, so HACS kept
+  reverting to that release regardless of what was in the repo's working
+  tree. This release exists specifically so HACS has a newer tagged
+  version to install.
+
+See [`CHANGELOG_v2_9_8.md`](CHANGELOG_v2_9_8.md) for full technical detail.
+
+---
+
 ## [2.9.4] — 2026-07-20
 
 ### Fixed
