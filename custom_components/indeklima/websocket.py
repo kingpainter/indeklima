@@ -1,5 +1,5 @@
 # File Name: websocket.py
-# Version: 2.5.1
+# Version: 2.9.8
 # Description: WebSocket API for the Indeklima panel.
 #              Exposes coordinator data to the frontend panel via HA WebSocket API.
 # Last Updated: June 2026
