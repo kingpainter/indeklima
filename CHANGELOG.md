@@ -7,6 +7,49 @@ Detailed per-version notes are available in `CHANGELOG_v{major}_{minor}_{patch}.
 
 ---
 
+## [2.9.9] — 2026-08-09
+
+### Fixed (critical)
+- `ws_get_climate_data`'s `averages` payload in `websocket.py` was hardcoded
+  to only forward `humidity`/`temperature`/`co2`/`pressure`, silently
+  dropping `voc` and `formaldehyde` even though the coordinator already
+  computed both correctly. The frontend could never show VOC/formaldehyde
+  averages regardless of card-side correctness — the bridge itself was
+  missing the fields.
+
+### Changed
+- `indeklima-tablet-card` (`IndeklimaTabletCard`):
+  - Added VOC and formaldehyde cells to the "Gennemsnit" avg-grid (6 cells
+    total, 2 columns × 3 rows), conditionally shown like the existing cells.
+  - Rebalanced the Gennemsnit/Status vertical split from 50/50 to a 4:3
+    flex ratio so per-cell height matches between the two sections despite
+    Gennemsnit having one more row than Status.
+  - Left column (score block) restacked vertically: ring on top, badge
+    below, room/window info in its own styled card below that — instead of
+    a horizontal row. Ring diameter changed from a fixed px value to
+    `width:100%` + `aspect-ratio:1/1` so it auto-scales with the column
+    width going forward.
+  - Middle column (room list): `.rooms-list` and each `.room-row` are now
+    `flex:1`, so rows always fill the full available height regardless of
+    room count.
+  - `grid-template-columns` changed from a hardcoded `175px 1fr 175px` to
+    `minmax(0,200px) 1fr minmax(0,200px)` — the fixed px value could never
+    shrink below itself on a narrower viewport, which was the root cause of
+    intermittent right-edge clipping on the new 11" Samsung Galaxy Tab A11+
+    tablet. The 200px cap (up from 175px) also gives the avg/stat cells a
+    bit more room, taken from the middle column.
+
+### Root-caused (documented, not code changes)
+- `panel.py`'s `async_register_panel()` only recomputes the Lovelace
+  resource's cache-busting `?v=&m=` query string once, at integration
+  startup — not on every file save. A correctly updated JS file on disk
+  stays invisible to the browser until the integration is reloaded
+  (Settings → Devices & Services → Indeklima → Reload) or HA is restarted.
+
+See [`CHANGELOG_v2_9_9.md`](CHANGELOG_v2_9_9.md) for full technical detail.
+
+---
+
 ## [2.9.8] — 2026-07-29
 
 ### Changed
