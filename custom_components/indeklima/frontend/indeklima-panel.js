@@ -1,5 +1,5 @@
 // Indeklima Panel
-// Version: 2.9.8
+// Version: 2.9.9
 // Description: Sidebar panel for the Indeklima Home Assistant integration.
 //              Shows live climate data for all rooms with severity indicators,
 //              trends, ventilation recommendation and air circulation status.

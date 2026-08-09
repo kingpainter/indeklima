@@ -35,7 +35,7 @@ class TestVersion:
     def test_version_value(self):
         # NOTE: bump this alongside const.py's __version__ / manifest.json on
         # every release -- this simply pins the expected current version.
-        assert __version__ == "2.9.8"
+        assert __version__ == "2.9.9"
 
 
 class TestConstants:

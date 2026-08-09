@@ -1,5 +1,5 @@
 # File Name: websocket.py
-# Version: 2.9.8
+# Version: 2.9.9
 # Description: WebSocket API for the Indeklima panel.
 #              Exposes coordinator data to the frontend panel via HA WebSocket API.
 # Last Updated: June 2026
@@ -92,6 +92,8 @@ def ws_get_climate_data(hass: HomeAssistant, connection, msg) -> None:
                 "humidity":    averages.get("humidity"),
                 "temperature": averages.get("temperature"),
                 "co2":         averages.get("co2"),
+                "voc":         averages.get("voc"),
+                "formaldehyde": averages.get("formaldehyde"),
                 "pressure":    averages.get("pressure"),
             },
             "mold_risk": data.get("mold_risk", "low"),

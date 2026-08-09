@@ -1,10 +1,10 @@
 // Indeklima – Custom Lovelace Cards
-// Version: 2.9.8
+// Version: 2.9.9
 // Cards:
 //   custom:indeklima-room-card   – single room card (mobile/tablet)
 //   custom:indeklima-hub-card    – house overview, original mobile design (vertical)
 //   custom:indeklima-tablet-card – house overview, landscape/tablet 3-column
-// Last Updated: June 2026
+// Last Updated: August 2026
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared helpers
@@ -703,12 +703,12 @@ class IndeklimaTabletCard extends HTMLElement {
     const scoreBlock = !d ? '<div class="loading">Henter...</div>' : `
       <div class="score-block">
         ${severityRingHTML(sev, color, 108)}
-        <div class="score-meta">
-          <div class="score-badge" style="background:${color}1a;color:${color};">
-            <span class="bdot" style="background:${color}"></span>${statusLabel(status)}
-          </div>
-          <div class="score-sub">${d.room_count} rum</div>
-          <div class="score-sub">\uD83E\uDE9F ${d.open_windows_count} \u00e5bne vinduer</div>
+        <div class="score-badge" style="background:${color}1a;color:${color};">
+          <span class="bdot" style="background:${color}"></span>${statusLabel(status)}
+        </div>
+        <div class="score-meta-card">
+          <div class="score-meta-row">\uD83C\uDFE0 ${d.room_count} rum</div>
+          <div class="score-meta-row">\uD83E\uDE9F ${d.open_windows_count} \u00e5bne vinduer</div>
         </div>
       </div>
     `;
@@ -721,6 +721,8 @@ class IndeklimaTabletCard extends HTMLElement {
           ${avgs.temperature != null ? `<div class="avg-cell" style="border-bottom-color:#0ea5e9"><div class="av-ico">\uD83C\uDF21\uFE0F</div><div class="av">${fmtNum(avgs.temperature,"\u00b0C",1)}</div><div class="al">Temp</div></div>` : ""}
           ${avgs.humidity    != null ? `<div class="avg-cell" style="border-bottom-color:${color}"><div class="av-ico">\uD83D\uDCA7</div><div class="av">${fmtNum(avgs.humidity,"%")}</div><div class="al">Fugt</div></div>` : ""}
           ${avgs.co2         != null ? `<div class="avg-cell" style="border-bottom-color:${color}"><div class="av-ico">\uD83C\uDF2B\uFE0F</div><div class="av">${fmtNum(avgs.co2,"ppm")}</div><div class="al">CO2</div></div>` : ""}
+          ${avgs.voc         != null ? `<div class="avg-cell" style="border-bottom-color:#a855f7"><div class="av-ico">\uD83E\uDDEA</div><div class="av">${fmtNum(avgs.voc,"mg/m\u00b3",1)}</div><div class="al">VOC</div></div>` : ""}
+          ${avgs.formaldehyde != null ? `<div class="avg-cell" style="border-bottom-color:#f43f5e"><div class="av-ico">\uD83E\uDDEB</div><div class="av">${fmtNum(avgs.formaldehyde,"mg/m\u00b3",2)}</div><div class="al">Formaldehyd</div></div>` : ""}
           ${avgs.pressure    != null ? `<div class="avg-cell" style="border-bottom-color:#8b5cf6"><div class="av-ico">\uD83E\uDDED</div><div class="av">${fmtNum(avgs.pressure,"hPa")}</div><div class="al">Tryk</div></div>` : ""}
         </div>
       </div>
@@ -784,27 +786,31 @@ class IndeklimaTabletCard extends HTMLElement {
 
     // ── Red block: Trends + windows ───────────────────────────────────────────
     const redBlock = !d ? "" : `
-      <div class="sec-lbl mt10">Tendenser (15 min)</div>
-      <div class="trends-col">
-        ${[["&#128167;","Fugtighed",trends.humidity],["&#127787;&#65039;","CO\u2082",trends.co2],["&#128202;","Score",trends.severity]]
-          .map(([ico, lbl, tr]) => `
-            <div class="trend-row">
-              <div class="trend-row-left">
-                <span class="trend-ico">${ico}</span>
-                <span class="trend-row-lbl">${lbl}</span>
-              </div>
-              <div class="trend-row-right">
-                <span class="trend-row-arrow" style="color:${trendColor(tr)}">${trendIcon(tr)}</span>
-                <span class="trend-row-txt" style="color:${trendColor(tr)}">${trendLabel(tr)}</span>
-              </div>
-            </div>`).join("")}
+      <div class="col1-fill">
+        <div class="col1-group">
+          <div class="sec-lbl">Tendenser (15 min)</div>
+          <div class="trends-col">
+            ${[["&#128167;","Fugtighed",trends.humidity],["&#127787;&#65039;","CO\u2082",trends.co2],["&#128202;","Score",trends.severity]]
+              .map(([ico, lbl, tr]) => `
+                <div class="trend-row">
+                  <div class="trend-row-left">
+                    <span class="trend-ico">${ico}</span>
+                    <span class="trend-row-lbl">${lbl}</span>
+                  </div>
+                  <div class="trend-row-right">
+                    <span class="trend-row-arrow" style="color:${trendColor(tr)}">${trendIcon(tr)}</span>
+                    <span class="trend-row-txt" style="color:${trendColor(tr)}">${trendLabel(tr)}</span>
+                  </div>
+                </div>`).join("")}
+          </div>
+        </div>
+        <div class="col1-group">
+          <div class="sec-lbl">Vinduer / d\u00f8re</div>
+          ${d.open_windows && d.open_windows.length
+            ? `<div class="win-list">${d.open_windows.map(w=>`<div class="win-chip">\uD83E\uDE9F ${esc(w)}</div>`).join("")}</div>`
+            : `<div class="no-win">Ingen \u00e5bne vinduer</div>`}
+        </div>
       </div>
-
-      <div class="divider"></div>
-      <div class="sec-lbl">Vinduer / d\u00f8re</div>
-      ${d.open_windows && d.open_windows.length
-        ? `<div class="win-list">${d.open_windows.map(w=>`<div class="win-chip">\uD83E\uDE9F ${esc(w)}</div>`).join("")}</div>`
-        : `<div class="no-win">Ingen \u00e5bne vinduer</div>`}
     `;
 
     this.shadowRoot.innerHTML = `
@@ -837,54 +843,77 @@ class IndeklimaTabletCard extends HTMLElement {
         .loading { color:var(--sub); font-size:12px; }
 
         /* 3-column layout */
-        .cols { flex:1; min-height:0; display:grid; grid-template-columns:175px 1fr 175px; gap:0 14px; align-items:stretch; overflow:hidden; }
+        .cols { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,200px) 1fr minmax(0,200px); gap:0 14px; align-items:stretch; overflow:hidden; }
         .col { min-width:0; min-height:0; overflow:visible; }
+        .col1 { display:flex; flex-direction:column; }
+        .col1-fill {
+          flex:1; min-height:0; display:flex; flex-direction:column;
+          justify-content:space-evenly; gap:calc(14px * var(--ik-scale-h, 1));
+        }
         .col-right { display:flex; flex-direction:column; }
-        .green-bottom { margin-top:auto; }
-        .col-mid { border-left:1px solid var(--div); border-right:1px solid var(--div); padding:0 14px; }
+        .green-top    { flex:4; min-height:0; display:flex; flex-direction:column; }
+        .green-bottom { flex:3; min-height:0; display:flex; flex-direction:column; }
+        .col-mid { border-left:1px solid var(--div); border-right:1px solid var(--div); padding:0 14px; display:flex; flex-direction:column; }
 
         /* Col 1 */
-        .score-block { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+        .score-block { display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:6px; flex-shrink:0; }
         .ring-wrap { position:relative; flex-shrink:0; }
         .ring-center {
           position:absolute; inset:0;
           display:flex; flex-direction:column; align-items:center; justify-content:center;
         }
+        .score-block .ring-wrap { width:100%; }
+        .score-block .ring-svg { width:100% !important; height:auto !important; aspect-ratio:1/1 !important; display:block; }
+        .score-block .ring-val { font-size:36px !important; }
         .ring-val  { font-weight:700; line-height:1; }
-        .ring-unit { font-size:10px; color:var(--sub); }
+        .ring-unit { font-size:12px; color:var(--sub); }
         .score-badge {
-          display:inline-flex; align-items:center; gap:4px;
-          padding:3px 8px; border-radius:20px;
-          font-size:11px; font-weight:700; margin-bottom:4px;
+          display:inline-flex; align-items:center; gap:5px;
+          padding:4px 10px; border-radius:20px;
+          font-size:13px; font-weight:700;
         }
-        .bdot { width:5px; height:5px; border-radius:50%; animation:bdot 2s infinite; }
+        .bdot { width:6px; height:6px; border-radius:50%; animation:bdot 2s infinite; }
         @keyframes bdot { 0%,100%{opacity:1}50%{opacity:.4} }
-        .score-sub { font-size:11px; color:var(--sub); }
+        .score-meta-card {
+          width:100%; box-sizing:border-box;
+          background:var(--bg2); border-radius:12px;
+          padding:10px 12px;
+          display:flex; flex-direction:column; gap:6px;
+        }
+        .score-meta-row {
+          display:flex; align-items:center; justify-content:center; gap:6px;
+          font-size:14px; font-weight:600; color:var(--text);
+        }
 
-        .avg-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-        .avg-cell { background:var(--bg2); border-radius:10px; padding:14px 6px; text-align:center; border-bottom:3px solid transparent; }
-        .av-ico { font-size:20px; line-height:1.1; margin-bottom:4px; }
-        .av { font-size:14px; font-weight:700; }
-        .al { font-size:9px; color:var(--sub); margin-top:2px; text-transform:uppercase; }
+        .avg-grid { flex:1; min-height:0; display:grid; grid-template-columns:1fr 1fr; grid-auto-rows:1fr; gap:10px; }
+        .avg-cell {
+          background:var(--bg2); border-radius:10px; padding:6px; text-align:center; border-bottom:3px solid transparent;
+          display:flex; flex-direction:column; align-items:center; justify-content:center;
+        }
+        .av-ico { font-size:22px; line-height:1.1; margin-bottom:5px; }
+        .av { font-size:16px; font-weight:700; }
+        .al { font-size:10px; color:var(--sub); margin-top:3px; text-transform:uppercase; }
 
         .stat-grid {
-          display:grid; grid-template-columns:1fr 1fr; gap:10px;
+          flex:1; min-height:0; display:grid; grid-template-columns:1fr 1fr; grid-auto-rows:1fr; gap:10px;
         }
         .stat-cell {
           background:var(--bg2); border-radius:10px;
-          padding:14px 8px; text-align:center;
+          padding:6px; text-align:center;
+          display:flex; flex-direction:column; align-items:center; justify-content:center;
           border-bottom:3px solid transparent;
         }
-        .stat-ico { font-size:22px; line-height:1.1; }
-        .stat-val { font-size:12px; font-weight:700; line-height:1.2; margin-top:4px; }
-        .stat-lbl { font-size:9px; color:var(--sub); text-transform:uppercase; letter-spacing:.4px; margin-top:2px; }
+        .stat-ico { font-size:24px; line-height:1.1; }
+        .stat-val { font-size:13px; font-weight:700; line-height:1.2; margin-top:5px; }
+        .stat-lbl { font-size:10px; color:var(--sub); text-transform:uppercase; letter-spacing:.4px; margin-top:3px; }
 
         /* Col 2 */
-        .rooms-list { display:flex; flex-direction:column; gap:7px; }
+        .rooms-list { flex:1; min-height:0; display:flex; flex-direction:column; gap:7px; }
         .room-row {
           display:flex; align-items:center; gap:8px;
           background:var(--bg2); border-radius:12px;
           padding:10px 10px; border-left:4px solid transparent;
+          flex:1; min-height:0;
         }
         .rr-left { flex-shrink:0; min-width:120px; }
         .rr-name { font-size:13px; font-weight:700; margin-bottom:3px; }
@@ -934,7 +963,7 @@ class IndeklimaTabletCard extends HTMLElement {
         <div class="card">
           <div class="card-title">${esc(title)}</div>
           <div class="cols">
-            <div class="col">${scoreBlock}${redBlock}</div>
+            <div class="col col1">${scoreBlock}${redBlock}</div>
             <div class="col col-mid">${col2}</div>
             <div class="col col-right">${greenBlock}</div>
           </div>
