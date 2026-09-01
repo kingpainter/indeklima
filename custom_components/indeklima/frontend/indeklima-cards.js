@@ -1066,13 +1066,13 @@ class IndeklimaRoomDetailCard extends HTMLElement {
 
     const metrics = r ? [
       r.temperature_sensors_count > 0
-        ? metricCell("\uD83C\uDF21\uFE0F", fmtNum(r.temperature, "\u00b0C", 1), "Temperatur", "#0ea5e9") : "",
+        ? metricCell("&#127777;&#65039;", fmtNum(r.temperature, "\u00b0C", 1), "Temperatur", "#0ea5e9") : "",
       r.humidity_sensors_count > 0
-        ? metricCell("\uD83D\uDCA7", fmtNum(r.humidity, "%"), "Fugtighed", color) : "",
+        ? metricCell("&#128167;", fmtNum(r.humidity, "%"), "Fugtighed", color) : "",
       r.co2_sensors_count > 0
-        ? metricCell("\uD83C\uDF2B\uFE0F", fmtNum(r.co2, "ppm"), "CO\u2082", color) : "",
+        ? metricCell("&#127787;&#65039;", fmtNum(r.co2, "ppm"), "CO\u2082", color) : "",
       r.pressure_sensors_count > 0
-        ? metricCell("\uD83E\uDDED", fmtNum(r.pressure, "hPa"), "Lufttryk", "#8b5cf6") : "",
+        ? metricCell("&#129517;", fmtNum(r.pressure, "hPa"), "Lufttryk", "#8b5cf6") : "",
     ].filter(Boolean).join("") : "";
 
     // ── Severity bar ──────────────────────────────────────────────────────────
