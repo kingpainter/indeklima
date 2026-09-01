@@ -63,6 +63,36 @@ Detailed per-version notes are available in `CHANGELOG_v{major}_{minor}_{patch}.
   literals from raw emoji escape sequences to HTML entities, matching the
   style already used by the other three Lovelace cards.
 
+### Fixed (backend cleanup — dead code & a real bug)
+- `sensor.py`: `IndeklimaRoomSensor.icon` compared the room's status
+  against `CIRCULATION_POOR` (`"poor"`) instead of `STATUS_CRITICAL`
+  (`"critical"`). Room status is only ever `good`/`warning`/`critical`, so
+  the comparison could never be true — the intended `mdi:alert-circle`
+  icon for a critical room was never shown. Fixed.
+- Removed `CONF_FAN` entirely (`const.py`, both config-flow schemas and
+  storage loops, `strings.json`, `translations/da.json`). The fan/ventilator
+  selector was collected and stored per room since the field was introduced,
+  but no fan-control logic has ever existed in the coordinator — it was
+  pure dead configuration.
+- Removed the notification-target track entirely: `CONF_NOTIFICATION_TARGETS`
+  (`const.py`, both config-flow schemas and storage loops, `strings.json`,
+  `translations/da.json`), plus `IndeklimaRoomSensor.set_last_notified()`,
+  the `_last_notified` instance attribute, and the `last_notified` entry in
+  `extra_state_attributes` (`sensor.py`). None of this was ever read by the
+  coordinator — the actual notification mechanism is a separate,
+  independently-configured HA blueprint
+  (`blueprints/automations/room_notification_v2.3.1.yaml`) with its own
+  `notify_service` input. `set_last_notified()` itself was never called
+  from anywhere in the integration; the only external caller
+  (`python_scripts/indeklima_set_last_notified.py`) bypassed it entirely via
+  a raw `hass.states.set()` call, which the coordinator's next 30-second
+  poll would silently overwrite anyway — the cooldown mechanism the
+  blueprint depends on could not have worked reliably in practice.
+
+  ⚠️ The blueprint and python_script above are now orphaned by this cleanup
+  and were intentionally left untouched (they live outside the integration
+  package); consider archiving or removing them manually if unused.
+
 See [`CHANGELOG_v2_9_9.md`](CHANGELOG_v2_9_9.md) for full technical detail.
 
 ---

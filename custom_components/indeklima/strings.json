@@ -33,9 +33,7 @@
           "dehumidifier_on_duration": "Dehumidifier auto-off duration (minutes)",
           "quiet_hours_start": "Quiet hours start (override, optional)",
           "quiet_hours_end": "Quiet hours end (override, optional)",
-          "led_critical_severity": "LED critical-alarm severity threshold (override, optional, 1-100)",
-          "fan": "Fan/Ventilator",
-          "notification_targets": "Notifications"
+          "led_critical_severity": "LED critical-alarm severity threshold (override, optional, 1-100)"
         }
       },
       "window_config": {
@@ -110,9 +108,7 @@
           "dehumidifier_on_duration": "Dehumidifier auto-off duration (minutes)",
           "quiet_hours_start": "Quiet hours start (override, optional)",
           "quiet_hours_end": "Quiet hours end (override, optional)",
-          "led_critical_severity": "LED critical-alarm severity threshold (override, optional, 1-100)",
-          "fan": "Fan/Ventilator",
-          "notification_targets": "Notifications"
+          "led_critical_severity": "LED critical-alarm severity threshold (override, optional, 1-100)"
         }
       },
       "edit_room": {
@@ -133,9 +129,7 @@
           "dehumidifier_on_duration": "Dehumidifier auto-off duration (minutes)",
           "quiet_hours_start": "Quiet hours start (override, optional)",
           "quiet_hours_end": "Quiet hours end (override, optional)",
-          "led_critical_severity": "LED critical-alarm severity threshold (override, optional, 1-100)",
-          "fan": "Fan/Ventilator",
-          "notification_targets": "Notifications"
+          "led_critical_severity": "LED critical-alarm severity threshold (override, optional, 1-100)"
         }
       },
       "weather_config": {

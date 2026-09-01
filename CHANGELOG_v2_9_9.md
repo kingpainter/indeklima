@@ -82,3 +82,31 @@ Samtidig var et par danske bogstaver (Å, ø, é) i nærliggende kommentarer og 
 **Lærte regler:**
 - Ved en fuld kodegennemgang er det værd at grep'e efter mistænkeligt ensartede/gentagne strenge (som det samme emoji + bindestreg optrædende dusinvis af steder med forskellig tiltaenkt betydning) — det er et stærkt signal om en fejlslået bulk-operation, ikke tilsigtet design.
 - Korruption af denne art rammer sjældent kun emoji-escapes; tjek altid for beslægtet skade på almindelige multi-byte tegn (her: danske Å/ø/é) i samme fil, da de kan være ramt af samme underliggende fejl.
+
+---
+
+## Endnu en opfølgende session (samme dag) — Dødt kode-oprydning og en rigtig bug i backend
+
+**Kontekst:** Efter deep dive-rapporten spurgte Flemming om der kunne ryddes op i dødt/ubrugt kode, og om backend kunne gøres mere robust eller hurtigere til at loade. Gennemgangen fandt tre reelle problemer — to ubrugte config-felter og én rigtig logik-bug — som blev ryddet op i samme session, efter Flemmings godkendelse.
+
+**1. Rigtig bug: forkert ikon-sammenligning (`sensor.py`)**
+`IndeklimaRoomSensor.icon` sammenlignede rummets status mod `CIRCULATION_POOR` (værdien `"poor"`) i stedet for `STATUS_CRITICAL` (`"critical"`). Rum-status er kun nogensinde `good`/`warning`/`critical` — så sammenligningen kunne aldrig blive sand, og det tiltænkte `mdi:alert-circle`-ikon for et kritisk rum blev derfor aldrig vist i praksis; det faldt altid igennem til enten advarsels-ikonet eller det grønne flueben. Rettet til `STATUS_CRITICAL`, som allerede var importeret i filen.
+
+**2. Dødt kode: `CONF_FAN` (ventilator-felt)**
+En ventilator-entity-vælger kunne konfigureres per rum både i det oprindelige opsætnings-flow og i options-flowet (tilføj/redigér rum), og blev gemt i rum-konfigurationen — men blev **aldrig importeret eller læst** i `__init__.py`. Der har aldrig eksisteret nogen ventilator-styringslogik i koordinatoren. Feltet var 100% dekorativt siden det blev tilføjet. Fjernet helt: konstanten i `const.py`, importen og alle schema-/lagrings-forekomster i `config_flow.py` (4 steder: `ConfigFlow._get_room_schema` + lagringssløjfe, `OptionsFlow._get_room_schema` + lagringssløjfe, samt lagringssløjferne i både `async_step_add_room` og `async_step_edit_room`), og oversættelses-nøglerne i `strings.json`/`translations/da.json`.
+
+**3. Dødt/ufuldstændigt kode: notifikations-sporet (`CONF_NOTIFICATION_TARGETS` + `set_last_notified`)**
+Samme mønster som ventilator-feltet: en notify-entity-vælger blev gemt per rum, men læst aldrig af koordinatoren. Undersøgelse af de tilhørende filer viste hvorfor: den faktiske notifikationsmekanisme i projektet er en helt separat, manuelt opsat blueprint (`blueprints/automations/room_notification_v2.3.1.yaml`) med sit eget `notify_service`-felt, uafhængig af integrationens gemte `notification_targets`-config.
+
+Derudover viste det sig at `IndeklimaRoomSensor.set_last_notified()` (som skulle sætte et `last_notified`-tidsstempel brugt af blueprintens cooldown-logik) **aldrig blev kaldt** fra nogen Python-kode i integrationen. Den eneste eksterne bruger af "last_notified" er `python_scripts/indeklima_set_last_notified.py`, som slet ikke kalder metoden — den poker i stedet direkte i `hass.states.set()` for at overskrive entity-attributter manuelt. Problemet: koordinatoren kører hvert 30. sekund og kalder `async_write_ha_state()` på alle entiteter, hvilket læser attributterne fra entity-objektets egne (aldrig opdaterede) Python-felter — så den rå `hass.states.set()`-værdi fra python-scriptet ville blive overskrevet igen inden for 30 sekunder. Cooldown-mekanismen i blueprintet kan derfor aldrig have virket pålideligt i praksis.
+
+**Beslutning:** Ryddet helt væk frem for forsøgt fikset, da det ville være en ny feature (ikke oprydning) at bygge en fungerende notifikations-cooldown-mekanisme fra bunden. Fjernet: `CONF_NOTIFICATION_TARGETS`-konstanten, alle schema-/lagrings-forekomster i `config_flow.py` (samme 4 steder som ventilator-feltet), oversættelses-nøglerne, samt `set_last_notified()`-metoden, `_last_notified`-instansattributten og `last_notified`-blokken i `extra_state_attributes` fra `sensor.py`. De nu ubrugte imports `datetime` og `dt_util` blev også fjernet fra `sensor.py`.
+
+**Bevidst urørt:** `blueprints/automations/room_notification_v2.3.1.yaml` og `python_scripts/indeklima_set_last_notified.py` ligger uden for selve integrationspakken (`custom_components/indeklima/`) og bliver ikke rørt eller slettet — de er nu forældede/ikke-funktionelle efter denne oprydning, og Flemming bør selv arkivere eller fjerne dem manuelt hvis de ikke bruges til andet.
+
+**Verificering:** Alle ændrede `.py`-filer parset med `ast.parse()` (ren syntakstjek uden at skrive bytecode), begge `.json`-filer valideret med `json.load()`. `tests/test_config_flow.py`, `test_sensor.py` og `test_const.py` blev grep'et før ændringen for referencer til de fjernede navne — ingen fundet, så CI burde være upåvirket.
+
+**Lærte regler:**
+- Et config-felt der bliver *gemt* i en config_flow-selector er ikke bevis for at det bliver *brugt* — grep alle backend-filers `.const`-imports for at bekræfte at et felt rent faktisk læses ud af koordinatoren, ikke kun skrevet ind af UI'et.
+- Nogle gange er den rigtige "fix" for en tilsyneladende halvfærdig feature at fjerne den helt i stedet for at færdiggøre den — særligt når den (a) aldrig har været koblet til noget, og (b) den mekanisme den skulle understøtte allerede findes et andet sted (her: blueprintets eget `notify_service`-felt).
+- Ved fjernelse af en entity-metode: tjek altid om metoden faktisk kaldes fra nøjagtig ét sted, flere steder, eller slet ingen steder, før man antager den er en aktiv del af systemet — en metode kan være defineret og se "fuldt integreret" ud uden nogensinde at blive kaldt.

@@ -33,9 +33,7 @@
           "dehumidifier_on_duration": "Affugter auto-sluk varighed (minutter)",
           "quiet_hours_start": "Stilletid start (overstyring, valgfri)",
           "quiet_hours_end": "Stilletid slut (overstyring, valgfri)",
-          "led_critical_severity": "LED rød-alarm-tærskel (overstyring, valgfri, 1-100)",
-          "fan": "Ventilator",
-          "notification_targets": "Notifikationer"
+          "led_critical_severity": "LED rød-alarm-tærskel (overstyring, valgfri, 1-100)"
         }
       },
       "window_config": {
@@ -110,9 +108,7 @@
           "dehumidifier_on_duration": "Affugter auto-sluk varighed (minutter)",
           "quiet_hours_start": "Stilletid start (overstyring, valgfri)",
           "quiet_hours_end": "Stilletid slut (overstyring, valgfri)",
-          "led_critical_severity": "LED rød-alarm-tærskel (overstyring, valgfri, 1-100)",
-          "fan": "Ventilator",
-          "notification_targets": "Notifikationer"
+          "led_critical_severity": "LED rød-alarm-tærskel (overstyring, valgfri, 1-100)"
         }
       },
       "edit_room": {
@@ -133,9 +129,7 @@
           "dehumidifier_on_duration": "Affugter auto-sluk varighed (minutter)",
           "quiet_hours_start": "Stilletid start (overstyring, valgfri)",
           "quiet_hours_end": "Stilletid slut (overstyring, valgfri)",
-          "led_critical_severity": "LED rød-alarm-tærskel (overstyring, valgfri, 1-100)",
-          "fan": "Ventilator",
-          "notification_targets": "Notifikationer"
+          "led_critical_severity": "LED rød-alarm-tærskel (overstyring, valgfri, 1-100)"
         }
       },
       "weather_config": {

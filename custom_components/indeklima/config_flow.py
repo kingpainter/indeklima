@@ -41,9 +41,7 @@ from .const import (
     CONF_ROOM_QUIET_HOURS_END,
     DEFAULT_QUIET_HOURS_START,
     DEFAULT_QUIET_HOURS_END,
-    CONF_FAN,
     CONF_WEATHER_ENTITY,
-    CONF_NOTIFICATION_TARGETS,
     CONF_HUMIDITY_SUMMER_MAX,
     CONF_HUMIDITY_WINTER_MAX,
     CONF_CO2_MAX,
@@ -149,14 +147,13 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS,
                        CONF_CO2_SENSORS, CONF_VOC_SENSORS, 
                        CONF_FORMALDEHYDE_SENSORS, CONF_PRESSURE_SENSORS,
-                       CONF_MOLD_SENSORS,
-                       CONF_NOTIFICATION_TARGETS]:
+                       CONF_MOLD_SENSORS]:
                 val = user_input.get(key)
                 if val:
                     self._temp_room_config[key] = val if isinstance(val, list) else [val]
             
             # Store devices - ONLY if valid
-            for key in [CONF_DEHUMIDIFIER, CONF_FAN, CONF_DEHUMIDIFIER_LED, CONF_DEHUMIDIFIER_BUTTON]:
+            for key in [CONF_DEHUMIDIFIER, CONF_DEHUMIDIFIER_LED, CONF_DEHUMIDIFIER_BUTTON]:
                 val = user_input.get(key)
                 if val and isinstance(val, str) and "." in val:
                     self._temp_room_config[key] = val
@@ -256,9 +253,6 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_WINDOW_SENSORS, default=window_sensors_default): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["binary_sensor"], multiple=True)
             ),
-            vol.Optional(CONF_NOTIFICATION_TARGETS, default=defaults.get(CONF_NOTIFICATION_TARGETS, [])): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["notify"], multiple=True)
-            ),
         }
         
         # Add device selectors - NO default if value doesn't exist
@@ -319,15 +313,6 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description={"suggested_value": defaults.get(CONF_ROOM_LED_CRITICAL_SEVERITY)},
         )] = vol.All(vol.Coerce(int), vol.Range(min=1, max=100))
 
-        if CONF_FAN in defaults and defaults[CONF_FAN]:
-            schema_dict[vol.Optional(CONF_FAN, default=defaults[CONF_FAN])] = selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["fan", "switch"])
-            )
-        else:
-            schema_dict[vol.Optional(CONF_FAN)] = selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["fan", "switch"])
-            )
-        
         return vol.Schema(schema_dict)
 
     @staticmethod
@@ -472,12 +457,12 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             self._temp_room_config = {"name": user_input["name"]}
             
-            for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS, CONF_CO2_SENSORS, CONF_VOC_SENSORS, CONF_FORMALDEHYDE_SENSORS, CONF_PRESSURE_SENSORS, CONF_MOLD_SENSORS, CONF_NOTIFICATION_TARGETS]:
+            for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS, CONF_CO2_SENSORS, CONF_VOC_SENSORS, CONF_FORMALDEHYDE_SENSORS, CONF_PRESSURE_SENSORS, CONF_MOLD_SENSORS]:
                 val = user_input.get(key)
                 if val:
                     self._temp_room_config[key] = val if isinstance(val, list) else [val]
             
-            for key in [CONF_DEHUMIDIFIER, CONF_FAN, CONF_DEHUMIDIFIER_LED, CONF_DEHUMIDIFIER_BUTTON]:
+            for key in [CONF_DEHUMIDIFIER, CONF_DEHUMIDIFIER_LED, CONF_DEHUMIDIFIER_BUTTON]:
                 val = user_input.get(key)
                 if val and isinstance(val, str) and "." in val:
                     self._temp_room_config[key] = val
@@ -522,12 +507,12 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             self._temp_room_config = {"name": user_input["name"]}
             
-            for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS, CONF_CO2_SENSORS, CONF_VOC_SENSORS, CONF_FORMALDEHYDE_SENSORS, CONF_PRESSURE_SENSORS, CONF_MOLD_SENSORS, CONF_NOTIFICATION_TARGETS]:
+            for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS, CONF_CO2_SENSORS, CONF_VOC_SENSORS, CONF_FORMALDEHYDE_SENSORS, CONF_PRESSURE_SENSORS, CONF_MOLD_SENSORS]:
                 val = user_input.get(key)
                 if val:
                     self._temp_room_config[key] = val if isinstance(val, list) else [val]
             
-            for key in [CONF_DEHUMIDIFIER, CONF_FAN, CONF_DEHUMIDIFIER_LED, CONF_DEHUMIDIFIER_BUTTON]:
+            for key in [CONF_DEHUMIDIFIER, CONF_DEHUMIDIFIER_LED, CONF_DEHUMIDIFIER_BUTTON]:
                 val = user_input.get(key)
                 if val and isinstance(val, str) and "." in val:
                     self._temp_room_config[key] = val
@@ -626,9 +611,6 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
             vol.Optional(CONF_WINDOW_SENSORS, default=window_sensors_default): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["binary_sensor"], multiple=True)
             ),
-            vol.Optional(CONF_NOTIFICATION_TARGETS, default=defaults.get(CONF_NOTIFICATION_TARGETS, [])): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["notify"], multiple=True)
-            ),
         }
         
         # Device selectors - NO default if value doesn't exist
@@ -684,15 +666,6 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
             description={"suggested_value": defaults.get(CONF_ROOM_LED_CRITICAL_SEVERITY)},
         )] = vol.All(vol.Coerce(int), vol.Range(min=1, max=100))
 
-        if CONF_FAN in defaults and defaults[CONF_FAN]:
-            schema_dict[vol.Optional(CONF_FAN, default=defaults[CONF_FAN])] = selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["fan", "switch"])
-            )
-        else:
-            schema_dict[vol.Optional(CONF_FAN)] = selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["fan", "switch"])
-            )
-        
         return vol.Schema(schema_dict)
 
     def _get_window_schema(self, window_entities: list[str], existing_config: dict[str, bool] | None = None) -> vol.Schema:

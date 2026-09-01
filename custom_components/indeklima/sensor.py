@@ -5,7 +5,6 @@ Version: 2.9.9
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
@@ -13,7 +12,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.util import dt as dt_util
 
 from . import IndeklimaDataCoordinator
 from .const import (
@@ -271,7 +269,6 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
         self._room_id = room_id
         self._sensor_type = sensor_type
         self._entry = entry
-        self._last_notified: datetime | None = None
         
         # Entity naming per HA guidelines
         self._attr_unique_id = f"{entry.entry_id}_room_{room_id}_status"
@@ -295,7 +292,7 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
     def icon(self) -> str:
         """Return the icon based on status."""
         status = self.native_value
-        if status == CIRCULATION_POOR:
+        if status == STATUS_CRITICAL:
             return "mdi:alert-circle"
         elif status == STATUS_WARNING:
             return "mdi:alert"
@@ -352,20 +349,11 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
             if room_data["internal_doors_open"] > 0:
                 attrs["luftcirkulation_bonus"] = True
         
-        # Add last_notified timestamp for cooldown logic
-        if self._last_notified:
-            attrs["last_notified"] = self._last_notified.isoformat()
-
         # Add critical-status start timestamp (present only while status is critical)
         if "kritisk_siden" in room_data:
             attrs["kritisk_siden"] = room_data["kritisk_siden"]
 
         return attrs
-    
-    def set_last_notified(self, timestamp: datetime | None = None) -> None:
-        """Set the last notified timestamp."""
-        self._last_notified = timestamp or dt_util.utcnow()
-        self.async_write_ha_state()
 
 
 class IndeklimaRoomMetricSensor(CoordinatorEntity, SensorEntity):
