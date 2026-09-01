@@ -46,6 +46,23 @@ Detailed per-version notes are available in `CHANGELOG_v{major}_{minor}_{patch}.
   stays invisible to the browser until the integration is reloaded
   (Settings → Devices & Services → Indeklima → Reload) or HA is restarted.
 
+### Fixed (follow-up cleanup)
+- `indeklima-panel.js`: a large number of icons across the overview and
+  room views had been overwritten with the same placeholder string
+  (a bar-chart emoji followed by a stray hyphen) during an earlier edit —
+  affecting the temperature/humidity/CO₂/window icons, the refresh button,
+  both tab labels, and the room-detail close button. "CO₂" had also lost
+  its subscript ("CO-"). Restored the correct icon for each context and
+  fixed a handful of Danish characters (Å, ø, é) that had likewise been
+  overwritten with a hyphen in nearby comments and UI strings.
+- `indeklima-panel.js`: removed a stale `overview | rooms | ventilation |
+  mold` code comment left over from an earlier design (only the `overview`
+  and `rooms` tabs exist today), and replaced the hardcoded `"2.5.2"`
+  version-fallback string in the header with a neutral `"—"`.
+- `indeklima-cards.js` (`IndeklimaRoomDetailCard`): switched its icon
+  literals from raw emoji escape sequences to HTML entities, matching the
+  style already used by the other three Lovelace cards.
+
 See [`CHANGELOG_v2_9_9.md`](CHANGELOG_v2_9_9.md) for full technical detail.
 
 ---
