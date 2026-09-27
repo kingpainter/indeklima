@@ -167,6 +167,7 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS,
                        CONF_CO2_SENSORS, CONF_VOC_SENSORS, 
                        CONF_FORMALDEHYDE_SENSORS, CONF_PRESSURE_SENSORS,
+                       CONF_PM1_0_SENSORS, CONF_PM2_5_SENSORS, CONF_PM10_0_SENSORS,
                        CONF_MOLD_SENSORS]:
                 val = user_input.get(key)
                 if val:
@@ -506,7 +507,7 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             self._temp_room_config = {"name": user_input["name"]}
             
-            for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS, CONF_CO2_SENSORS, CONF_VOC_SENSORS, CONF_FORMALDEHYDE_SENSORS, CONF_PRESSURE_SENSORS, CONF_MOLD_SENSORS]:
+            for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS, CONF_CO2_SENSORS, CONF_VOC_SENSORS, CONF_FORMALDEHYDE_SENSORS, CONF_PRESSURE_SENSORS, CONF_PM1_0_SENSORS, CONF_PM2_5_SENSORS, CONF_PM10_0_SENSORS, CONF_MOLD_SENSORS]:
                 val = user_input.get(key)
                 if val:
                     self._temp_room_config[key] = val if isinstance(val, list) else [val]
@@ -556,7 +557,7 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             self._temp_room_config = {"name": user_input["name"]}
             
-            for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS, CONF_CO2_SENSORS, CONF_VOC_SENSORS, CONF_FORMALDEHYDE_SENSORS, CONF_PRESSURE_SENSORS, CONF_MOLD_SENSORS]:
+            for key in [CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS, CONF_CO2_SENSORS, CONF_VOC_SENSORS, CONF_FORMALDEHYDE_SENSORS, CONF_PRESSURE_SENSORS, CONF_PM1_0_SENSORS, CONF_PM2_5_SENSORS, CONF_PM10_0_SENSORS, CONF_MOLD_SENSORS]:
                 val = user_input.get(key)
                 if val:
                     self._temp_room_config[key] = val if isinstance(val, list) else [val]
