@@ -6,7 +6,7 @@ from typing import Final
 import re
 import unicodedata
 
-__version__ = "2.9.10"
+__version__ = "2.10.0"
 
 DOMAIN: Final = "indeklima"
 
