@@ -942,7 +942,7 @@ class IndeklimaTabletCard extends HTMLElement {
         .mt10 { margin-top:14px; }
         .loading { color:var(--sub); font-size:12px; }
 
-        .cols { flex:1; min-height:0; display:grid; grid-template-columns:150px 1fr 175px; gap:0 14px; align-items:stretch; overflow:hidden; }
+        .cols { flex:1; min-height:0; display:grid; grid-template-columns:1fr 3fr 1fr; gap:0 14px; align-items:stretch; overflow:hidden; }
         .col { min-width:0; min-height:0; overflow:auto; }
         .col-mid { border-left:1px solid var(--div); border-right:1px solid var(--div); padding:0 14px; }
 
@@ -1033,9 +1033,9 @@ class IndeklimaTabletCard extends HTMLElement {
         <div class="card">
           <div class="card-title">${esc(title)}</div>
           <div class="cols">
-            <div class="col">${col3}</div>
-            <div class="col col-mid">${col2}</div>
             <div class="col">${col1}</div>
+            <div class="col col-mid">${col2}</div>
+            <div class="col">${col3}</div>
           </div>
         </div>
       </ha-card>`;
