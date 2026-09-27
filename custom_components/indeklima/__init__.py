@@ -28,12 +28,22 @@ from .const import (
     CONF_VOC_SENSORS,
     CONF_FORMALDEHYDE_SENSORS,
     CONF_PRESSURE_SENSORS,
+    CONF_PM1_0_SENSORS,
+    CONF_PM2_5_SENSORS,
+    CONF_PM10_0_SENSORS,
+    CONF_PM2_5_MAX,
+    CONF_PM10_0_MAX,
+    DEFAULT_PM2_5_MAX,
+    DEFAULT_PM10_0_MAX,
     CONF_MOLD_SENSORS,
     CONF_DEHUMIDIFIER,
     CONF_DEHUMIDIFIER_LED,
     CONF_DEHUMIDIFIER_BUTTON,
     CONF_DEHUMIDIFIER_ON_DURATION,
     DEFAULT_DEHUMIDIFIER_ON_DURATION,
+    CONF_PM_FILTER_DEVICE,
+    CONF_PM_FILTER_ON_DURATION,
+    DEFAULT_PM_FILTER_ON_DURATION,
     CONF_ROOM_LED_CRITICAL_SEVERITY,
     DEFAULT_LED_CRITICAL_SEVERITY,
     DEHUM_LED_BLINK_INTERVAL,
@@ -47,6 +57,10 @@ from .const import (
     DEHUM_MODE_MANUAL,
     DEHUM_MODE_AUTO,
     DEHUM_MODE_OFF,
+    AIR_QUALITY_GOOD,
+    AIR_QUALITY_MODERATE,
+    AIR_QUALITY_POOR,
+    AIR_QUALITY_UNHEALTHY,
     CONF_WINDOW_SENSORS,
     CONF_WINDOW_ENTITY,
     CONF_WINDOW_IS_OUTDOOR,
@@ -219,6 +233,13 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         self.formaldehyde_max = entry.options.get(
             CONF_FORMALDEHYDE_MAX, DEFAULT_FORMALDEHYDE_MAX
         )
+        # PM thresholds (WHO guidelines) - both static and seasonal
+        self.pm2_5_max = entry.options.get(CONF_PM2_5_MAX, DEFAULT_PM2_5_MAX)
+        self.pm10_0_max = entry.options.get(CONF_PM10_0_MAX, DEFAULT_PM10_0_MAX)
+        self.pm2_5_max_summer = entry.options.get(CONF_PM2_5_MAX_SUMMER, DEFAULT_PM2_5_MAX_SUMMER)
+        self.pm2_5_max_winter = entry.options.get(CONF_PM2_5_MAX_WINTER, DEFAULT_PM2_5_MAX_WINTER)
+        self.pm10_0_max_summer = entry.options.get(CONF_PM10_0_MAX_SUMMER, DEFAULT_PM10_0_MAX_SUMMER)
+        self.pm10_0_max_winter = entry.options.get(CONF_PM10_0_MAX_WINTER, DEFAULT_PM10_0_MAX_WINTER)
 
         # Mold risk thresholds
         self.mold_risk_humidity = entry.options.get(
@@ -245,6 +266,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
         # Dehumidifier control state per room: {room_name: {"mode": ..., "unsub_timer": ...}}
         self._dehumidifier_state: dict[str, dict] = {}
+        self._pm_filter_state: dict[str, dict] = {}
         self._button_unsubs: list = []
 
         # LED critical-alarm blink timers per room: {room_name: unsub_callable}
@@ -259,6 +281,8 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             "humidity": [],
             "co2": [],
             "severity": [],
+            "pm2_5": [],
+            "pm10_0": [],
         }
 
         super().__init__(
@@ -334,6 +358,62 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             return MOLD_RISK_MODERATE
         return MOLD_RISK_LOW
 
+
+    def _get_season(self) -> str:
+        """Get current season (summer or winter) based on month.
+        
+        Summer: May-September (months 5-9)
+        Winter: October-April (months 10-12, 1-4)
+        """
+        month = dt_util.now().month
+        return "summer" if 5 <= month <= 9 else "winter"
+
+    def _get_pm2_5_max(self) -> float:
+        """Get current PM2.5 threshold based on season."""
+        season = self._get_season()
+        return self.pm2_5_max_summer if season == "summer" else self.pm2_5_max_winter
+
+    def _get_pm10_0_max(self) -> float:
+        """Get current PM10.0 threshold based on season."""
+        season = self._get_season()
+        return self.pm10_0_max_summer if season == "summer" else self.pm10_0_max_winter
+
+    def _calculate_air_quality(self, room_data: dict) -> str:
+        """Determine air quality status using deterministic priority (humidity-intelligence pattern).
+
+        Priority order (worst wins):
+        1. PM10 breach × 1.5 → UNHEALTHY (coarse + fine = severe respiratory impact)
+        2. PM2.5 breach × 1.2 → POOR (significant respiratory issue)
+        3. PM10 breach → POOR (elevated but not critical)
+        4. PM2.5 breach → MODERATE (elevated, monitor)
+        5. PM1.0 heuristic → MODERATE
+        6. All normal → GOOD
+
+        Returns one of: AIR_QUALITY_GOOD / MODERATE / POOR / UNHEALTHY
+        """
+        pm10 = room_data.get("pm10_0")
+        pm2_5 = room_data.get("pm2_5")
+        pm1_0 = room_data.get("pm1_0")
+
+        # Deterministic priority checks (worst wins)
+        if pm10 is not None and pm10 > self._get_pm10_0_max() * 1.5:
+            return AIR_QUALITY_UNHEALTHY
+
+        if pm2_5 is not None and pm2_5 > self._get_pm2_5_max() * 1.2:
+            return AIR_QUALITY_POOR
+
+        if pm10 is not None and pm10 > self._get_pm10_0_max():
+            return AIR_QUALITY_POOR
+
+        if pm2_5 is not None and pm2_5 > self._get_pm2_5_max():
+            return AIR_QUALITY_MODERATE
+
+        if pm1_0 is not None and pm1_0 > self._get_pm2_5_max() * 0.7:  # Heuristic
+            return AIR_QUALITY_MODERATE
+
+        return AIR_QUALITY_GOOD
+
+
     def _calculate_severity(self, room_data: dict) -> float:
         """Calculate severity score for a room (0-100, lower is better)."""
         severity = 0.0
@@ -366,6 +446,21 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             if formaldehyde > self.formaldehyde_max:
                 excess = formaldehyde - self.formaldehyde_max
                 severity += min(20, excess * 50)
+
+
+        # PM2.5 severity (0-15 points) — impacts respiratory health
+        if "pm2_5" in room_data:
+            pm2_5 = room_data["pm2_5"]
+            if pm2_5 > self.pm2_5_max:
+                excess = pm2_5 - self.pm2_5_max
+                severity += min(15, excess * 0.5)
+
+        # PM10 severity (0-10 points) — secondary to PM2.5
+        if "pm10_0" in room_data:
+            pm10 = room_data["pm10_0"]
+            if pm10 > self.pm10_0_max:
+                excess = pm10 - self.pm10_0_max
+                severity += min(10, excess * 0.2)
 
         # Note: Pressure does NOT affect severity scoring.
         # It is informational only (barometric pressure is not an indoor
@@ -626,6 +721,13 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
     _MOLD_FROM_SCORE: list[str] = ["low", "moderate", "high", "critical"]
     _DEHUM_SCORE: dict[str, int] = {"no": 0, "optional": 1, "yes": 2}
     _DEHUM_FROM_SCORE: list[str] = ["no", "optional", "yes"]
+    _AIR_QUALITY_SCORE: dict[str, int] = {
+        "good": 0,
+        "moderate": 1,
+        "poor": 2,
+        "unhealthy": 3,
+    }
+    _AIR_QUALITY_FROM_SCORE: list[str] = ["good", "moderate", "poor", "unhealthy"]
 
     async def _async_do_update(self) -> dict[str, Any]:
         """Internal update implementation."""
@@ -647,6 +749,9 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         all_voc: list[float] = []
         all_formaldehyde: list[float] = []
         all_pressure: list[float] = []
+        all_pm1_0: list[float] = []
+        all_pm2_5: list[float] = []
+        all_pm10_0: list[float] = []
         all_severity: list[float] = []
         all_mold_risk_scores: list[int] = []
 
@@ -679,6 +784,12 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
                 all_formaldehyde.append(room_data["formaldehyde"])
             if "pressure" in room_data:
                 all_pressure.append(room_data["pressure"])
+            if "pm1_0" in room_data:
+                all_pm1_0.append(room_data["pm1_0"])
+            if "pm2_5" in room_data:
+                all_pm2_5.append(room_data["pm2_5"])
+            if "pm10_0" in room_data:
+                all_pm10_0.append(room_data["pm10_0"])
             all_mold_risk_scores.append(
                 self._MOLD_SCORE.get(room_data.get("mold_risk", MOLD_RISK_LOW), 0)
             )
@@ -703,6 +814,12 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             data["averages"]["formaldehyde"] = _avg(all_formaldehyde)
         if all_pressure:
             data["averages"]["pressure"] = _avg(all_pressure)
+        if all_pm1_0:
+            data["averages"]["pm1_0"] = _avg(all_pm1_0)
+        if all_pm2_5:
+            data["averages"]["pm2_5"] = _avg(all_pm2_5)
+        if all_pm10_0:
+            data["averages"]["pm10_0"] = _avg(all_pm10_0)
 
         # Calculate global severity
         if all_severity:
@@ -723,6 +840,15 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             data["mold_risk"] = self._MOLD_FROM_SCORE[max(all_mold_risk_scores)]
         else:
             data["mold_risk"] = MOLD_RISK_LOW
+
+        # Calculate global air quality (worst-room: unhealthy > poor > moderate > good)
+        air_quality_scores = [
+            self._AIR_QUALITY_SCORE.get(r.get("air_quality", AIR_QUALITY_GOOD), 0)
+            for r in data["rooms"].values()
+        ]
+        data["air_quality"] = (
+            self._AIR_QUALITY_FROM_SCORE[max(air_quality_scores)] if air_quality_scores else AIR_QUALITY_GOOD
+        )
 
         # Calculate global dehumidifier recommendation (worst-room: yes > optional > no)
         dehum_scores = [
@@ -768,6 +894,9 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             (CONF_VOC_SENSORS, "voc"),
             (CONF_FORMALDEHYDE_SENSORS, "formaldehyde"),
             (CONF_PRESSURE_SENSORS, "pressure"),
+            (CONF_PM1_0_SENSORS, "pm1_0"),
+            (CONF_PM2_5_SENSORS, "pm2_5"),
+            (CONF_PM10_0_SENSORS, "pm10_0"),
         ):
             if sensors := room.get(conf_key):
                 values = self._get_sensor_values(sensors, room_name)
@@ -786,6 +915,9 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         room_data["mold_risk"] = self._calculate_mold_risk(
             mold_humidity, room_data.get("temperature")
         )
+
+        # ── Air quality assessment ────────────────────────────────────────────
+        room_data["air_quality"] = self._calculate_air_quality(room_data)
 
         # ── Window / door sensors ─────────────────────────────────────────────
         room_outdoor_open = 0
@@ -843,6 +975,11 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         room_data["dehumidifier_mode"] = self._dehumidifier_state.get(
             room_name, {}
         ).get("mode", DEHUM_MODE_OFF)
+
+        # ── PM filter auto-control (actual switch on/off) ───────────────────────
+        has_pm_filter = bool(room.get(CONF_PM_FILTER_DEVICE))
+        if has_pm_filter:
+            self._maybe_auto_control_pm_filter(room, room_data)
 
         # ── LED critical-alert refresh (every cycle, independent of mode changes) ──
         # A blinking RED alarm always overrides the manual/auto colour. Hysteresis
@@ -1023,6 +1160,99 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         "yellow": {"rgb_color": [255, 255, 133], "brightness_pct": 76},
         "red": {"rgb_color": [255, 0, 0], "brightness_pct": 100},
     }
+
+
+
+    def _maybe_auto_control_pm_filter(self, room: dict, room_data: dict) -> None:
+        """Auto-control PM filter based on PM thresholds (deterministic priority engine).
+        
+        Starts filter if PM2.5 or PM10.0 exceeds current seasonal threshold.
+        Stops filter after configured duration.
+        """
+        room_name = room.get("name")
+        pm_filter_device = room.get(CONF_PM_FILTER_DEVICE)
+        if not pm_filter_device:
+            return
+
+        pm2_5 = room_data.get("pm2_5")
+        pm10_0 = room_data.get("pm10_0")
+        
+        # Determine if PM is critical using deterministic priority
+        # (same logic as air quality calculation)
+        pm_critical = False
+        if pm10_0 is not None and pm10_0 > self._get_pm10_0_max():
+            pm_critical = True
+        elif pm2_5 is not None and pm2_5 > self._get_pm2_5_max():
+            pm_critical = True
+
+        current = self._pm_filter_state.get(room_name, {"active": False})
+        
+        if pm_critical and not current.get("active"):
+            self.hass.async_create_task(self._async_start_pm_filter(room))
+        elif not pm_critical and current.get("active"):
+            # Filter is running but PM is no longer critical
+            # Keep running until timer expires
+            pass
+
+    async def _async_start_pm_filter(self, room: dict) -> None:
+        """Start the PM filter and schedule auto-off."""
+        room_name = room.get("name")
+        pm_filter_device = room.get(CONF_PM_FILTER_DEVICE)
+        if not pm_filter_device:
+            return
+
+        existing = self._pm_filter_state.get(room_name, {})
+        if existing.get("active"):
+            return  # Already running
+
+        # Cancel any existing timer first
+        unsub = existing.get("unsub_timer")
+        if unsub:
+            unsub()
+
+        # Turn on PM filter via light service (same as LED control)
+        self.hass.async_create_task(
+            self.hass.services.async_call(
+                "switch", "turn_on", {"entity_id": pm_filter_device}, blocking=False
+            )
+        )
+
+        # Schedule auto-off
+        on_duration_minutes = room.get(
+            CONF_PM_FILTER_ON_DURATION, DEFAULT_PM_FILTER_ON_DURATION
+        )
+        on_duration_seconds = on_duration_minutes * 60
+
+        async def _auto_stop(_now):
+            await self._async_stop_pm_filter(room)
+
+        unsub_timer = async_call_later(self.hass, on_duration_seconds, _auto_stop)
+
+        self._pm_filter_state[room_name] = {"active": True, "unsub_timer": unsub_timer}
+
+    async def _async_stop_pm_filter(self, room: dict) -> None:
+        """Stop the PM filter."""
+        room_name = room.get("name")
+        pm_filter_device = room.get(CONF_PM_FILTER_DEVICE)
+        if not pm_filter_device:
+            return
+
+        existing = self._pm_filter_state.get(room_name, {})
+
+        # Cancel any existing timer first
+        unsub = existing.get("unsub_timer")
+        if unsub:
+            unsub()
+
+        # Turn off PM filter
+        self.hass.async_create_task(
+            self.hass.services.async_call(
+                "switch", "turn_off", {"entity_id": pm_filter_device}, blocking=False
+            )
+        )
+
+        self._pm_filter_state[room_name] = {"active": False, "unsub_timer": None}
+
 
     def _mode_to_led_color(self, mode: str) -> str:
         """Map a dehumidifier control mode to its base LED colour (before alarm override)."""

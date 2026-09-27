@@ -40,7 +40,13 @@ def _make_coord(hass, entry, rooms=None, weather_entity=None):
         coord.voc_max = 3.0
         coord.formaldehyde_max = 0.15
         coord.weather_entity = weather_entity
-        coord.history = {"humidity": [], "co2": [], "severity": []}
+        coord.history = {"humidity": [], "co2": [], "severity": [], "pm2_5": [], "pm10_0": []}
+        coord._dehumidifier_state = {}
+        coord._pm_filter_state = {}
+        coord._button_unsubs = []
+        coord._led_blink_unsubs = {}
+        coord._room_critical_since = {}
+        coord.data = {"rooms": {}, "open_windows": [], "open_internal_doors": [], "outdoor_windows_open": 0}
         return coord
 
 

@@ -24,6 +24,11 @@ from .const import (
     CONF_VOC_SENSORS,
     CONF_FORMALDEHYDE_SENSORS,
     CONF_PRESSURE_SENSORS,
+    CONF_PM1_0_SENSORS,
+    CONF_PM2_5_SENSORS,
+    CONF_PM10_0_SENSORS,
+    CONF_PM2_5_MAX,
+    CONF_PM10_0_MAX,
     CONF_MOLD_SENSORS,
     CONF_WINDOW_SENSORS,
     CONF_WINDOW_ENTITY,
@@ -33,6 +38,9 @@ from .const import (
     CONF_DEHUMIDIFIER_BUTTON,
     CONF_DEHUMIDIFIER_ON_DURATION,
     DEFAULT_DEHUMIDIFIER_ON_DURATION,
+    CONF_PM_FILTER_DEVICE,
+    CONF_PM_FILTER_ON_DURATION,
+    DEFAULT_PM_FILTER_ON_DURATION,
     CONF_ROOM_LED_CRITICAL_SEVERITY,
     DEFAULT_LED_CRITICAL_SEVERITY,
     CONF_QUIET_HOURS_START,
@@ -52,6 +60,16 @@ from .const import (
     DEFAULT_CO2_MAX,
     DEFAULT_VOC_MAX,
     DEFAULT_FORMALDEHYDE_MAX,
+    DEFAULT_PM2_5_MAX,
+    DEFAULT_PM10_0_MAX,
+    CONF_PM2_5_MAX_SUMMER,
+    CONF_PM2_5_MAX_WINTER,
+    CONF_PM10_0_MAX_SUMMER,
+    CONF_PM10_0_MAX_WINTER,
+    DEFAULT_PM2_5_MAX_SUMMER,
+    DEFAULT_PM2_5_MAX_WINTER,
+    DEFAULT_PM10_0_MAX_SUMMER,
+    DEFAULT_PM10_0_MAX_WINTER,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -111,6 +129,8 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             CONF_CO2_MAX: DEFAULT_CO2_MAX,
                             CONF_VOC_MAX: DEFAULT_VOC_MAX,
                             CONF_FORMALDEHYDE_MAX: DEFAULT_FORMALDEHYDE_MAX,
+                            CONF_PM2_5_MAX: DEFAULT_PM2_5_MAX,
+                            CONF_PM10_0_MAX: DEFAULT_PM10_0_MAX,
                             CONF_WEATHER_ENTITY: None,
                             CONF_QUIET_HOURS_START: DEFAULT_QUIET_HOURS_START,
                             CONF_QUIET_HOURS_END: DEFAULT_QUIET_HOURS_END,
@@ -159,7 +179,7 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self._temp_room_config[key] = val
 
             # Store dehumidifier duration / quiet hours override (numeric, optional)
-            for key in [CONF_DEHUMIDIFIER_ON_DURATION, CONF_ROOM_QUIET_HOURS_START, CONF_ROOM_QUIET_HOURS_END, CONF_ROOM_LED_CRITICAL_SEVERITY]:
+            for key in [CONF_DEHUMIDIFIER_ON_DURATION, CONF_PM_FILTER_ON_DURATION, CONF_ROOM_QUIET_HOURS_START, CONF_ROOM_QUIET_HOURS_END, CONF_ROOM_LED_CRITICAL_SEVERITY]:
                 val = user_input.get(key)
                 if val is not None:
                     self._temp_room_config[key] = val
@@ -247,6 +267,15 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_PRESSURE_SENSORS, default=defaults.get(CONF_PRESSURE_SENSORS, [])): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["sensor"], device_class="atmospheric_pressure", multiple=True)
             ),
+            vol.Optional(CONF_PM1_0_SENSORS, default=defaults.get(CONF_PM1_0_SENSORS, [])): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["sensor"], multiple=True)
+            ),
+            vol.Optional(CONF_PM2_5_SENSORS, default=defaults.get(CONF_PM2_5_SENSORS, [])): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["sensor"], multiple=True)
+            ),
+            vol.Optional(CONF_PM10_0_SENSORS, default=defaults.get(CONF_PM10_0_SENSORS, [])): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["sensor"], multiple=True)
+            ),
             vol.Optional(CONF_MOLD_SENSORS, default=defaults.get(CONF_MOLD_SENSORS, [])): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["sensor"], device_class="humidity", multiple=True)
             ),
@@ -290,6 +319,22 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema_dict[vol.Optional(
             CONF_DEHUMIDIFIER_ON_DURATION,
             default=defaults.get(CONF_DEHUMIDIFIER_ON_DURATION, DEFAULT_DEHUMIDIFIER_ON_DURATION),
+        )] = vol.All(vol.Coerce(int), vol.Range(min=5, max=240))
+
+        # PM filter entity (optional)
+        if CONF_PM_FILTER_DEVICE in defaults and defaults[CONF_PM_FILTER_DEVICE]:
+            schema_dict[vol.Optional(CONF_PM_FILTER_DEVICE, default=defaults[CONF_PM_FILTER_DEVICE])] = selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["switch"])
+            )
+        else:
+            schema_dict[vol.Optional(CONF_PM_FILTER_DEVICE)] = selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["switch"])
+            )
+
+        # PM filter auto-off duration (minutes)
+        schema_dict[vol.Optional(
+            CONF_PM_FILTER_ON_DURATION,
+            default=defaults.get(CONF_PM_FILTER_ON_DURATION, DEFAULT_PM_FILTER_ON_DURATION),
         )] = vol.All(vol.Coerce(int), vol.Range(min=5, max=240))
 
         # Per-room quiet hours override (optional - falls back to hub default if unset)
@@ -410,6 +455,10 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_CO2_MAX, default=self._config_entry.options.get(CONF_CO2_MAX, DEFAULT_CO2_MAX)): vol.All(vol.Coerce(int), vol.Range(min=800, max=2000)),
                 vol.Optional(CONF_VOC_MAX, default=self._config_entry.options.get(CONF_VOC_MAX, DEFAULT_VOC_MAX)): vol.All(vol.Coerce(float), vol.Range(min=1.0, max=10.0)),
                 vol.Optional(CONF_FORMALDEHYDE_MAX, default=self._config_entry.options.get(CONF_FORMALDEHYDE_MAX, DEFAULT_FORMALDEHYDE_MAX)): vol.All(vol.Coerce(float), vol.Range(min=0.05, max=0.5)),
+                vol.Optional(CONF_PM2_5_MAX_SUMMER, default=self._config_entry.options.get(CONF_PM2_5_MAX_SUMMER, DEFAULT_PM2_5_MAX_SUMMER)): vol.All(vol.Coerce(int), vol.Range(min=5, max=50)),
+                vol.Optional(CONF_PM2_5_MAX_WINTER, default=self._config_entry.options.get(CONF_PM2_5_MAX_WINTER, DEFAULT_PM2_5_MAX_WINTER)): vol.All(vol.Coerce(int), vol.Range(min=5, max=50)),
+                vol.Optional(CONF_PM10_0_MAX_SUMMER, default=self._config_entry.options.get(CONF_PM10_0_MAX_SUMMER, DEFAULT_PM10_0_MAX_SUMMER)): vol.All(vol.Coerce(int), vol.Range(min=20, max=100)),
+                vol.Optional(CONF_PM10_0_MAX_WINTER, default=self._config_entry.options.get(CONF_PM10_0_MAX_WINTER, DEFAULT_PM10_0_MAX_WINTER)): vol.All(vol.Coerce(int), vol.Range(min=20, max=100)),
             }),
         )
 
@@ -467,7 +516,7 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
                 if val and isinstance(val, str) and "." in val:
                     self._temp_room_config[key] = val
 
-            for key in [CONF_DEHUMIDIFIER_ON_DURATION, CONF_ROOM_QUIET_HOURS_START, CONF_ROOM_QUIET_HOURS_END, CONF_ROOM_LED_CRITICAL_SEVERITY]:
+            for key in [CONF_DEHUMIDIFIER_ON_DURATION, CONF_PM_FILTER_ON_DURATION, CONF_ROOM_QUIET_HOURS_START, CONF_ROOM_QUIET_HOURS_END, CONF_ROOM_LED_CRITICAL_SEVERITY]:
                 val = user_input.get(key)
                 if val is not None:
                     self._temp_room_config[key] = val
@@ -517,7 +566,7 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
                 if val and isinstance(val, str) and "." in val:
                     self._temp_room_config[key] = val
 
-            for key in [CONF_DEHUMIDIFIER_ON_DURATION, CONF_ROOM_QUIET_HOURS_START, CONF_ROOM_QUIET_HOURS_END, CONF_ROOM_LED_CRITICAL_SEVERITY]:
+            for key in [CONF_DEHUMIDIFIER_ON_DURATION, CONF_PM_FILTER_ON_DURATION, CONF_ROOM_QUIET_HOURS_START, CONF_ROOM_QUIET_HOURS_END, CONF_ROOM_LED_CRITICAL_SEVERITY]:
                 val = user_input.get(key)
                 if val is not None:
                     self._temp_room_config[key] = val
@@ -604,6 +653,15 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
             ),
             vol.Optional(CONF_PRESSURE_SENSORS, default=defaults.get(CONF_PRESSURE_SENSORS, [])): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["sensor"], device_class="atmospheric_pressure", multiple=True)
+            ),
+            vol.Optional(CONF_PM1_0_SENSORS, default=defaults.get(CONF_PM1_0_SENSORS, [])): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["sensor"], multiple=True)
+            ),
+            vol.Optional(CONF_PM2_5_SENSORS, default=defaults.get(CONF_PM2_5_SENSORS, [])): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["sensor"], multiple=True)
+            ),
+            vol.Optional(CONF_PM10_0_SENSORS, default=defaults.get(CONF_PM10_0_SENSORS, [])): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["sensor"], multiple=True)
             ),
             vol.Optional(CONF_MOLD_SENSORS, default=defaults.get(CONF_MOLD_SENSORS, [])): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["sensor"], device_class="humidity", multiple=True)

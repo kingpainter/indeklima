@@ -31,6 +31,8 @@
           "dehumidifier_led": "Dehumidifier LED (light entity)",
           "dehumidifier_button": "Dehumidifier button entity",
           "dehumidifier_on_duration": "Dehumidifier auto-off duration (minutes)",
+          "pm_filter_device": "PM Filter (switch entity)",
+          "pm_filter_on_duration": "PM filter auto-off duration (minutes)",
           "quiet_hours_start": "Quiet hours start (override, optional)",
           "quiet_hours_end": "Quiet hours end (override, optional)",
           "led_critical_severity": "LED critical-alarm severity threshold (override, optional, 1-100)"
@@ -80,7 +82,16 @@
           "humidity_winter_max": "Max humidity winter (%)",
           "co2_max": "Max CO2 (ppm)",
           "voc_max": "Max VOC (mg/m³)",
-          "formaldehyde_max": "Max formaldehyde (mg/m³)"
+          "formaldehyde_max": "Max formaldehyde (mg/m³)",
+          "pm1_0_sensors": "PM1.0 sensors",
+          "pm2_5_sensors": "PM2.5 sensors",
+          "pm10_0_sensors": "PM10.0 sensors",
+          "pm2_5_max": "Max PM2.5 (µg/m³)",
+          "pm10_0_max": "Max PM10.0 (µg/m³)",
+          "pm2_5_max_summer": "Max PM2.5 summer (µg/m³)",
+          "pm2_5_max_winter": "Max PM2.5 winter (µg/m³)",
+          "pm10_0_max_summer": "Max PM10.0 summer (µg/m³)",
+          "pm10_0_max_winter": "Max PM10.0 winter (µg/m³)"
         }
       },
       "room_list": {
@@ -106,6 +117,8 @@
           "dehumidifier_led": "Dehumidifier LED (light entity)",
           "dehumidifier_button": "Dehumidifier button entity",
           "dehumidifier_on_duration": "Dehumidifier auto-off duration (minutes)",
+          "pm_filter_device": "PM Filter (switch entity)",
+          "pm_filter_on_duration": "PM filter auto-off duration (minutes)",
           "quiet_hours_start": "Quiet hours start (override, optional)",
           "quiet_hours_end": "Quiet hours end (override, optional)",
           "led_critical_severity": "LED critical-alarm severity threshold (override, optional, 1-100)"
@@ -127,6 +140,8 @@
           "dehumidifier_led": "Dehumidifier LED (light entity)",
           "dehumidifier_button": "Dehumidifier button entity",
           "dehumidifier_on_duration": "Dehumidifier auto-off duration (minutes)",
+          "pm_filter_device": "PM Filter (switch entity)",
+          "pm_filter_on_duration": "PM filter auto-off duration (minutes)",
           "quiet_hours_start": "Quiet hours start (override, optional)",
           "quiet_hours_end": "Quiet hours end (override, optional)",
           "led_critical_severity": "LED critical-alarm severity threshold (override, optional, 1-100)"

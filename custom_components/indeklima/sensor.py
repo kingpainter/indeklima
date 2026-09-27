@@ -22,6 +22,10 @@ from .const import (
     CONF_TEMPERATURE_SENSORS,
     CONF_CO2_SENSORS,
     CONF_PRESSURE_SENSORS,
+    CONF_PM1_0_SENSORS,
+    CONF_PM2_5_SENSORS,
+    CONF_PM10_0_SENSORS,
+    AIR_QUALITY_GOOD,
     CONF_MOLD_SENSORS,
     STATUS_CRITICAL,
     STATUS_WARNING,
@@ -123,6 +127,53 @@ async def async_setup_entry(
                     "pressure",
                 )
             )
+        # Add PM1.0 sensor (if room has PM1.0 sensors)
+        if room.get(CONF_PM1_0_SENSORS):
+            entities.append(
+                IndeklimaRoomMetricSensor(
+                    coordinator,
+                    entry,
+                    room_name,
+                    room_id,
+                    "pm1_0",
+                )
+            )
+
+        # Add PM2.5 sensor (if room has PM2.5 sensors)
+        if room.get(CONF_PM2_5_SENSORS):
+            entities.append(
+                IndeklimaRoomMetricSensor(
+                    coordinator,
+                    entry,
+                    room_name,
+                    room_id,
+                    "pm2_5",
+                )
+            )
+
+        # Add PM10 sensor (if room has PM10 sensors)
+        if room.get(CONF_PM10_0_SENSORS):
+            entities.append(
+                IndeklimaRoomMetricSensor(
+                    coordinator,
+                    entry,
+                    room_name,
+                    room_id,
+                    "pm10_0",
+                )
+            )
+
+        # Add air quality sensor (always, if any PM sensor exists)
+        if any(room.get(f) for f in [CONF_PM1_0_SENSORS, CONF_PM2_5_SENSORS, CONF_PM10_0_SENSORS]):
+            entities.append(
+                IndeklimaRoomMetricSensor(
+                    coordinator,
+                    entry,
+                    room_name,
+                    room_id,
+                    "air_quality",
+                )
+            )
 
         # Add mold risk sensor (always — calculated from humidity + temp even
         # without a dedicated mold sensor)
@@ -203,6 +254,8 @@ class IndeklimaGlobalSensor(CoordinatorEntity, SensorEntity):
             return ventilation.get("status", VENTILATION_NO)
         elif self._sensor_type == "mold_risk_avg":
             return self.coordinator.data.get("mold_risk", MOLD_RISK_LOW)
+        elif self._sensor_type == "air_quality":
+            return self.coordinator.data.get("air_quality", AIR_QUALITY_GOOD)
         elif self._sensor_type == "dehumidifier_recommendation":
             return self.coordinator.data.get("dehumidifier_recommendation", DEHUMIDIFIER_NO)
         elif self._sensor_type.startswith("trend_"):
@@ -413,7 +466,7 @@ class IndeklimaRoomMetricSensor(CoordinatorEntity, SensorEntity):
             return round(value, 0)
         elif self._sensor_type == "pressure":
             return round(value, 1)
-        elif self._sensor_type in ("mold_risk", "dehumidifier_recommendation"):
+        elif self._sensor_type in ("mold_risk", "dehumidifier_recommendation", "air_quality"):
             # String states — return as-is
             return value
         else:

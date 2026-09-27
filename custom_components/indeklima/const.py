@@ -18,6 +18,9 @@ CONF_CO2_SENSORS: Final = "co2_sensors"
 CONF_VOC_SENSORS: Final = "voc_sensors"
 CONF_FORMALDEHYDE_SENSORS: Final = "formaldehyde_sensors"
 CONF_PRESSURE_SENSORS: Final = "pressure_sensors"
+CONF_PM1_0_SENSORS: Final = "pm1_0_sensors"
+CONF_PM2_5_SENSORS: Final = "pm2_5_sensors"
+CONF_PM10_0_SENSORS: Final = "pm10_0_sensors"
 CONF_MOLD_SENSORS: Final = "mold_sensors"
 CONF_WINDOW_SENSORS: Final = "window_sensors"
 CONF_WINDOW_ENTITY: Final = "entity_id"
@@ -34,6 +37,12 @@ CONF_FORMALDEHYDE_MAX: Final = "formaldehyde_max"
 CONF_MOLD_RISK_HUMIDITY: Final = "mold_risk_humidity"
 CONF_MOLD_RISK_TEMP_MIN: Final = "mold_risk_temp_min"
 CONF_MOLD_RISK_TEMP_MAX: Final = "mold_risk_temp_max"
+CONF_PM2_5_MAX: Final = "pm2_5_max"
+CONF_PM10_0_MAX: Final = "pm10_0_max"
+CONF_PM2_5_MAX_SUMMER: Final = "pm2_5_max_summer"
+CONF_PM2_5_MAX_WINTER: Final = "pm2_5_max_winter"
+CONF_PM10_0_MAX_SUMMER: Final = "pm10_0_max_summer"
+CONF_PM10_0_MAX_WINTER: Final = "pm10_0_max_winter"
 
 # Quiet hours (hub-level default, entry.options)
 CONF_QUIET_HOURS_START: Final = "quiet_hours_start"
@@ -51,18 +60,29 @@ CONF_DEHUMIDIFIER_ON_DURATION: Final = "dehumidifier_on_duration"
 # official severity/status classification used elsewhere (status sensor etc.)
 CONF_ROOM_LED_CRITICAL_SEVERITY: Final = "led_critical_severity"
 
+
+# PM filter auto-off duration (per room, stored on the room dict)
+CONF_PM_FILTER_DEVICE: Final = "pm_filter_device"
+CONF_PM_FILTER_ON_DURATION: Final = "pm_filter_on_duration"
 # ── Defaults ──────────────────────────────────────────────────────────────────
 DEFAULT_HUMIDITY_SUMMER_MAX: Final = 60   # %
 DEFAULT_HUMIDITY_WINTER_MAX: Final = 55   # %
 DEFAULT_CO2_MAX: Final = 1000             # ppm
 DEFAULT_VOC_MAX: Final = 3.0             # mg/m³
 DEFAULT_FORMALDEHYDE_MAX: Final = 0.15   # mg/m³
+DEFAULT_PM2_5_MAX: Final = 15    # µg/m³ (WHO 24-hour average)
+DEFAULT_PM10_0_MAX: Final = 45   # µg/m³ (WHO 24-hour average)
+DEFAULT_PM2_5_MAX_SUMMER: Final = 15   # µg/m³ (WHO summer)
+DEFAULT_PM2_5_MAX_WINTER: Final = 20   # µg/m³ (winter threshold, less strict)
+DEFAULT_PM10_0_MAX_SUMMER: Final = 45  # µg/m³ (WHO summer)
+DEFAULT_PM10_0_MAX_WINTER: Final = 50  # µg/m³ (winter threshold, less strict)
 DEFAULT_MOLD_RISK_HUMIDITY: Final = 70   # %
 DEFAULT_MOLD_RISK_TEMP_MIN: Final = 5    # °C
 DEFAULT_MOLD_RISK_TEMP_MAX: Final = 35   # °C
 DEFAULT_QUIET_HOURS_START: Final = 23    # 23:00, matches previous hardcoded behaviour
 DEFAULT_QUIET_HOURS_END: Final = 6       # 06:00, matches previous hardcoded behaviour
 DEFAULT_DEHUMIDIFIER_ON_DURATION: Final = 45  # minutes
+DEFAULT_PM_FILTER_ON_DURATION: Final = 30   # minutes
 
 # LED critical-alarm behaviour
 DEFAULT_LED_CRITICAL_SEVERITY: Final = 60  # matches the global STATUS_CRITICAL threshold by default
@@ -107,6 +127,12 @@ DEHUMIDIFIER_OPTIONAL: Final = "optional"
 DEHUM_MODE_MANUAL: Final = "manual"
 DEHUM_MODE_AUTO: Final = "auto"
 DEHUM_MODE_OFF: Final = "off"
+
+# Air quality status constants (deterministic priority engine)
+AIR_QUALITY_GOOD: Final = "good"
+AIR_QUALITY_MODERATE: Final = "moderate"
+AIR_QUALITY_POOR: Final = "poor"
+AIR_QUALITY_UNHEALTHY: Final = "unhealthy"
 
 # ── Sensor type definitions ───────────────────────────────────────────────────
 SENSOR_TYPES: Final[dict] = {
@@ -194,6 +220,26 @@ SENSOR_TYPES: Final[dict] = {
         "icon": "mdi:trending-up",
         "unit": None,
     },
+    "pm1_0_avg": {
+        "name": "Average PM1.0",
+        "icon": "mdi:air-filter",
+        "unit": "µg/m³",
+    },
+    "pm2_5_avg": {
+        "name": "Average PM2.5",
+        "icon": "mdi:air-filter",
+        "unit": "µg/m³",
+    },
+    "pm10_0_avg": {
+        "name": "Average PM10.0",
+        "icon": "mdi:air-filter",
+        "unit": "µg/m³",
+    },
+    "air_quality": {
+        "name": "Air Quality",
+        "icon": "mdi:air-filter",
+        "unit": None,
+    },
 }
 
 ROOM_SENSOR_TYPES: Final[dict] = {
@@ -229,6 +275,26 @@ ROOM_SENSOR_TYPES: Final[dict] = {
     "dehumidifier_recommendation": {
         "name": "Dehumidifier Recommendation",
         "icon": "mdi:air-humidifier",
+        "unit": None,
+    },
+    "pm1_0": {
+        "name": "PM1.0",
+        "icon": "mdi:air-filter",
+        "unit": "µg/m³",
+    },
+    "pm2_5": {
+        "name": "PM2.5",
+        "icon": "mdi:air-filter",
+        "unit": "µg/m³",
+    },
+    "pm10_0": {
+        "name": "PM10.0",
+        "icon": "mdi:air-filter",
+        "unit": "µg/m³",
+    },
+    "air_quality": {
+        "name": "Air Quality",
+        "icon": "mdi:air-filter",
         "unit": None,
     },
 }

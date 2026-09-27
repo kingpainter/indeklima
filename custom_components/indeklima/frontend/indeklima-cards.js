@@ -111,6 +111,26 @@ function moldColor(m) {
   return colorMap[m] ?? "#10b981";
 }
 
+function airQualityLabel(aq) {
+  const labels = {
+    "good":       "Godt",
+    "moderate":   "Moderat",
+    "poor":       "Dårligt",
+    "unhealthy":  "Usundt"
+  };
+  return labels[aq] ?? "Ukendt";
+}
+
+function airQualityColor(aq) {
+  const colorMap = {
+    "unhealthy": "#ef4444",
+    "poor":      "#f97316",
+    "moderate":  "#f59e0b",
+    "good":      "#10b981"
+  };
+  return colorMap[aq] ?? "#10b981";
+}
+
 function dehumLabel(v) {
   if (v === "yes")      return "Tænd affugter";
   if (v === "optional") return "Overvæg affugter";
@@ -803,6 +823,8 @@ class IndeklimaTabletCard extends HTMLElement {
         ${(avgs?.humidity ?? null) != null ? `<div class="avg-cell"><div class="av">${fmtNum(avgs.humidity,"%")}</div><div class="al">Fugt</div></div>` : ""}
         ${(avgs?.co2 ?? null) != null ? `<div class="avg-cell"><div class="av">${fmtNum(avgs.co2,"ppm")}</div><div class="al">CO2</div></div>` : ""}
         ${(avgs?.pressure ?? null) != null ? `<div class="avg-cell"><div class="av">${fmtNum(avgs.pressure,"hPa")}</div><div class="al">Tryk</div></div>` : ""}
+        ${(avgs?.pm2_5 ?? null) != null ? `<div class="avg-cell"><div class="av">${fmtNum(avgs.pm2_5,"µg/m³")}</div><div class="al">PM2.5</div></div>` : ""}
+        ${(avgs?.pm10_0 ?? null) != null ? `<div class="avg-cell"><div class="av">${fmtNum(avgs.pm10_0,"µg/m³")}</div><div class="al">PM10</div></div>` : ""}
       </div>
 
       <div class="divider"></div>
@@ -829,6 +851,11 @@ class IndeklimaTabletCard extends HTMLElement {
           <div class="stat-val" style="color:${dehumColor(d.dehumidifier_recommendation||'no')}">${d.dehumidifier_recommendation==='yes'?'Tænd':d.dehumidifier_recommendation==='optional'?'Overvej':'OK'}</div>
           <div class="stat-lbl">Affugter</div>
         </div>` : ""}
+        <div class="stat-cell" style="border-bottom-color:${airQualityColor(d.air_quality||'good')}">
+          <div class="stat-ico">${d.air_quality==="good"?"🌿":d.air_quality==="moderate"?"💨":d.air_quality==="poor"?"🚫":"☠️"}</div>
+          <div class="stat-val" style="color:${airQualityColor(d.air_quality||'good')}">${airQualityLabel(d.air_quality||'good')}</div>
+          <div class="stat-lbl">Luftkvalitet</div>
+        </div>
       </div>
     `;
 
@@ -841,11 +868,14 @@ class IndeklimaTabletCard extends HTMLElement {
             <div class="rr-name">${esc(r.name)}</div>
             <span class="rr-pill" style="background:${rc}22;color:${rc};${r.status!=="good"?"animation:blink 2s infinite;":""}">${statusLabel(r.status)}</span>
             <span class="rr-mold" style="font-size:11px;margin-left:4px;color:${moldColor(r.mold_risk||'low')}">${moldIcon(r.mold_risk)} ${moldLabel(r.mold_risk)}</span>
+            <span style="font-size:11px;margin-left:4px;color:${airQualityColor(r.air_quality||'good')}">${r.air_quality==="good"?"🌿":r.air_quality==="moderate"?"💨":r.air_quality==="poor"?"🚫":"☠️"} ${airQualityLabel(r.air_quality||'good')}</span>
           </div>
           <div class="rr-metrics">
             ${(r?.temperature_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.temperature,"°C",1)}</div><div class="rrm-l">Temp</div></div>` : ""}
             ${(r?.humidity_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.humidity,"%")}</div><div class="rrm-l">Fugt</div></div>` : ""}
             ${(r?.co2_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.co2,"ppm")}</div><div class="rrm-l">CO2</div></div>` : ""}
+            ${(r?.pm2_5_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.pm2_5,"µg/m³")}</div><div class="rrm-l">PM2.5</div></div>` : ""}
+            ${(r?.pm10_0_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.pm10_0,"µg/m³")}</div><div class="rrm-l">PM10</div></div>` : ""}
           </div>
           <div class="rr-sev">
             <div class="rr-sev-val" style="color:${rc}">${Math.round(sp)}</div>

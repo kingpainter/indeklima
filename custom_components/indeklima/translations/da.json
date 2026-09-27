@@ -31,6 +31,8 @@
           "dehumidifier_led": "Affugter LED (light-entitet)",
           "dehumidifier_button": "Affugter knap-entitet",
           "dehumidifier_on_duration": "Affugter auto-sluk varighed (minutter)",
+          "pm_filter_device": "PM Filter (switch entity)",
+          "pm_filter_on_duration": "PM-filter auto-sluk varighed (minutter)",
           "quiet_hours_start": "Stilletid start (overstyring, valgfri)",
           "quiet_hours_end": "Stilletid slut (overstyring, valgfri)",
           "led_critical_severity": "LED rød-alarm-tærskel (overstyring, valgfri, 1-100)"
@@ -80,7 +82,16 @@
           "humidity_winter_max": "Max fugtighed vinter (%)",
           "co2_max": "Max CO2 (ppm)",
           "voc_max": "Max VOC (mg/m³)",
-          "formaldehyde_max": "Max formaldehyd (mg/m³)"
+          "formaldehyde_max": "Max formaldehyd (mg/m³)",
+          "pm1_0_sensors": "PM1.0-sensorer",
+          "pm2_5_sensors": "PM2.5-sensorer",
+          "pm10_0_sensors": "PM10.0-sensorer",
+          "pm2_5_max": "Max PM2.5 (µg/m³)",
+          "pm10_0_max": "Max PM10.0 (µg/m³)",
+          "pm2_5_max_summer": "Max PM2.5 sommer (µg/m³)",
+          "pm2_5_max_winter": "Max PM2.5 vinter (µg/m³)",
+          "pm10_0_max_summer": "Max PM10.0 sommer (µg/m³)",
+          "pm10_0_max_winter": "Max PM10.0 vinter (µg/m³)"
         }
       },
       "room_list": {
@@ -106,6 +117,8 @@
           "dehumidifier_led": "Affugter LED (light-entitet)",
           "dehumidifier_button": "Affugter knap-entitet",
           "dehumidifier_on_duration": "Affugter auto-sluk varighed (minutter)",
+          "pm_filter_device": "PM Filter (switch entity)",
+          "pm_filter_on_duration": "PM-filter auto-sluk varighed (minutter)",
           "quiet_hours_start": "Stilletid start (overstyring, valgfri)",
           "quiet_hours_end": "Stilletid slut (overstyring, valgfri)",
           "led_critical_severity": "LED rød-alarm-tærskel (overstyring, valgfri, 1-100)"
@@ -127,6 +140,8 @@
           "dehumidifier_led": "Affugter LED (light-entitet)",
           "dehumidifier_button": "Affugter knap-entitet",
           "dehumidifier_on_duration": "Affugter auto-sluk varighed (minutter)",
+          "pm_filter_device": "PM Filter (switch entity)",
+          "pm_filter_on_duration": "PM-filter auto-sluk varighed (minutter)",
           "quiet_hours_start": "Stilletid start (overstyring, valgfri)",
           "quiet_hours_end": "Stilletid slut (overstyring, valgfri)",
           "led_critical_severity": "LED rød-alarm-tærskel (overstyring, valgfri, 1-100)"
