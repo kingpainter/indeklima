@@ -534,7 +534,8 @@ class IndeklimaHubCard extends HTMLElement {
         .loading { color:var(--sub); font-size:13px; padding:8px 0; }
 
         .top-row { display:flex; align-items:center; gap:16px; }
-        .ring-wrap { position:relative; flex-shrink:0; }
+        .ring-wrap { position:relative; flex-shrink:0; width:100%; aspect-ratio:1/1; max-width:100%; }
+        .ring-svg { width:100% !important; height:100% !important; }
         .ring-center {
           position:absolute; inset:0;
           display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -581,10 +582,11 @@ class IndeklimaHubCard extends HTMLElement {
         .avg-val { font-size:14px; font-weight:700; }
         .avg-lbl { font-size:9px; color:var(--sub); margin-top:2px; text-transform:uppercase; }
 
-        .rooms-list { display:flex; flex-direction:column; gap:6px; }
+        .rooms-list { display:flex; flex-direction:column; gap:6px; flex:1; min-height:0; }
         .room-card {
           background:var(--bg2); border-radius:12px; padding:10px 12px;
           border-left:4px solid transparent;
+          flex:1; min-height:0;
         }
         .rc-top  { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
         .rc-bottom { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px; }
@@ -807,24 +809,77 @@ class IndeklimaTabletCard extends HTMLElement {
 
     const col1 = !d ? '<div class="loading">Henter...</div>' : `
       <div class="score-block">
-        ${severityRingHTML(sev, color, 108)}
+        ${severityRingHTML(sev, color, 190)}
         <div class="score-meta">
           <div class="score-badge" style="background:${color}1a;color:${color};">
             <span class="bdot" style="background:${color}"></span>${statusLabel(status)}
           </div>
-          <div class="score-sub">${d.room_count} rum</div>
-          <div class="score-sub">🪟 ${d.open_windows_count} åbne vinduer</div>
+          <div class="score-subs">${d.room_count} rum · 🪟 ${d.open_windows_count} åbne</div>
         </div>
       </div>
 
-      <div class="sec-lbl mt10">Gennemsnit</div>
+      <div class="sec-lbl mt10">Tendenser (15 min)</div>
+      <div class="trends-col">
+        ${[["💧","Fugtighed",trends.humidity],["🌫️","CO₂",trends.co2],["📊","Score",trends.severity]]
+          .map(([ico, lbl, tr]) => `
+            <div class="trend-row">
+              <div class="trend-row-left">
+                <span class="trend-ico">${ico}</span>
+                <span class="trend-row-lbl">${lbl}</span>
+              </div>
+              <div class="trend-row-right">
+                <span class="trend-row-arrow" style="color:${trendColor(tr)}">${trendIcon(tr)}</span>
+                <span class="trend-row-txt" style="color:${trendColor(tr)}">${trendLabel(tr)}</span>
+              </div>
+            </div>`).join("")}
+      </div>
+
+      <div class="divider"></div>
+      <div class="sec-lbl">Vinduer / døre</div>
+      ${(d?.open_windows && d.open_windows.length)
+        ? `<div class="win-list">${d.open_windows.map(w=>`<div class="win-chip">🪟 ${esc(w)}</div>`).join("")}</div>`
+        : `<div class="no-win">Ingen åbne vinduer</div>`}
+    `;
+
+    const roomRows = rooms.map(r => {
+      const rc = statusColor(r.status);
+      const sp = Math.min(100, r.severity || 0);
+      return `
+        <div class="room-row" style="border-left-color:${rc};background-image:linear-gradient(90deg,${rc}0d 0%,transparent 40%);">
+          <div class="rr-left">
+            <div class="rr-name">${esc(r.name)}</div>
+            <span class="rr-pill" style="background:${rc}22;color:${rc};${r.status!=="good"?"animation:blink 2s infinite;":""}">${statusLabel(r.status)}</span>
+            <span class="rr-mold" style="font-size:11px;margin-left:4px;color:${moldColor(r.mold_risk||'low')}">${moldIcon(r.mold_risk)} ${moldLabel(r.mold_risk)}</span>
+            <span style="font-size:11px;margin-left:4px;color:${airQualityColor(r.air_quality||'good')}">${r.air_quality==="good"?"🌿":r.air_quality==="moderate"?"💨":r.air_quality==="poor"?"🚫":"☠️"} ${airQualityLabel(r.air_quality||'good')}</span>
+          </div>
+          <div class="rr-metrics">
+            ${(r?.temperature_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.temperature,"°C",1)}</div><div class="rrm-l">Temp</div></div>` : ""}
+            ${(r?.humidity_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.humidity,"%")}</div><div class="rrm-l">Fugt</div></div>` : ""}
+            ${(r?.co2_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.co2,"ppm")}</div><div class="rrm-l">CO2</div></div>` : ""}
+            ${(r?.pm2_5_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.pm2_5,"µg/m³")}</div><div class="rrm-l">PM2.5</div></div>` : ""}
+            ${(r?.pm10_0_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.pm10_0,"µg/m³")}</div><div class="rrm-l">PM10</div></div>` : ""}
+          </div>
+          <div class="rr-sev">
+            <div class="rr-sev-val" style="color:${rc}">${Math.round(sp)}</div>
+            <div class="rr-bar-bg"><div class="rr-bar" style="width:${sp}%;background:${rc}"></div></div>
+          </div>
+        </div>`;
+    }).join("");
+
+    const col2 = `
+      <div class="sec-lbl">${rooms.length} rum</div>
+      <div class="rooms-list">${roomRows || '<div class="loading">Ingen rum konfigureret</div>'}</div>
+    `;
+
+    const col3 = !d ? "" : `
+      <div class="sec-lbl">Gennemsnit</div>
       <div class="avg-grid">
-        ${(avgs?.temperature ?? null) != null ? `<div class="avg-cell"><div class="av">${fmtNum(avgs.temperature,"°C",1)}</div><div class="al">Temp</div></div>` : ""}
-        ${(avgs?.humidity ?? null) != null ? `<div class="avg-cell"><div class="av">${fmtNum(avgs.humidity,"%")}</div><div class="al">Fugt</div></div>` : ""}
-        ${(avgs?.co2 ?? null) != null ? `<div class="avg-cell"><div class="av">${fmtNum(avgs.co2,"ppm")}</div><div class="al">CO2</div></div>` : ""}
-        ${(avgs?.pressure ?? null) != null ? `<div class="avg-cell"><div class="av">${fmtNum(avgs.pressure,"hPa")}</div><div class="al">Tryk</div></div>` : ""}
-        ${(avgs?.pm2_5 ?? null) != null ? `<div class="avg-cell"><div class="av">${fmtNum(avgs.pm2_5,"µg/m³")}</div><div class="al">PM2.5</div></div>` : ""}
-        ${(avgs?.pm10_0 ?? null) != null ? `<div class="avg-cell"><div class="av">${fmtNum(avgs.pm10_0,"µg/m³")}</div><div class="al">PM10</div></div>` : ""}
+        ${(avgs?.temperature ?? null) != null ? `<div class="avg-cell" style="border-bottom-color:${statusColor(d.status)}"><div class="avg-ico">🌡️</div><div class="av">${fmtNum(avgs.temperature,"°C",1)}</div><div class="al">Temp</div></div>` : ""}
+        ${(avgs?.humidity ?? null) != null ? `<div class="avg-cell" style="border-bottom-color:${statusColor(d.status)}"><div class="avg-ico">💧</div><div class="av">${fmtNum(avgs.humidity,"%")}</div><div class="al">Fugt</div></div>` : ""}
+        ${(avgs?.co2 ?? null) != null ? `<div class="avg-cell" style="border-bottom-color:${statusColor(d.status)}"><div class="avg-ico">🌫️</div><div class="av">${fmtNum(avgs.co2,"ppm")}</div><div class="al">CO2</div></div>` : ""}
+        ${(avgs?.pressure ?? null) != null ? `<div class="avg-cell" style="border-bottom-color:${statusColor(d.status)}"><div class="avg-ico">📊</div><div class="av">${fmtNum(avgs.pressure,"hPa")}</div><div class="al">Tryk</div></div>` : ""}
+        ${(avgs?.pm2_5 ?? null) != null ? `<div class="avg-cell" style="border-bottom-color:${statusColor(d.status)}"><div class="avg-ico">💨</div><div class="av">${fmtNum(avgs.pm2_5,"µg/m³")}</div><div class="al">PM2.5</div></div>` : ""}
+        ${(avgs?.pm10_0 ?? null) != null ? `<div class="avg-cell" style="border-bottom-color:${statusColor(d.status)}"><div class="avg-ico">🌪️</div><div class="av">${fmtNum(avgs.pm10_0,"µg/m³")}</div><div class="al">PM10</div></div>` : ""}
       </div>
 
       <div class="divider"></div>
@@ -859,60 +914,6 @@ class IndeklimaTabletCard extends HTMLElement {
       </div>
     `;
 
-    const roomRows = rooms.map(r => {
-      const rc = statusColor(r.status);
-      const sp = Math.min(100, r.severity || 0);
-      return `
-        <div class="room-row" style="border-left-color:${rc};background-image:linear-gradient(90deg,${rc}0d 0%,transparent 40%);">
-          <div class="rr-left">
-            <div class="rr-name">${esc(r.name)}</div>
-            <span class="rr-pill" style="background:${rc}22;color:${rc};${r.status!=="good"?"animation:blink 2s infinite;":""}">${statusLabel(r.status)}</span>
-            <span class="rr-mold" style="font-size:11px;margin-left:4px;color:${moldColor(r.mold_risk||'low')}">${moldIcon(r.mold_risk)} ${moldLabel(r.mold_risk)}</span>
-            <span style="font-size:11px;margin-left:4px;color:${airQualityColor(r.air_quality||'good')}">${r.air_quality==="good"?"🌿":r.air_quality==="moderate"?"💨":r.air_quality==="poor"?"🚫":"☠️"} ${airQualityLabel(r.air_quality||'good')}</span>
-          </div>
-          <div class="rr-metrics">
-            ${(r?.temperature_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.temperature,"°C",1)}</div><div class="rrm-l">Temp</div></div>` : ""}
-            ${(r?.humidity_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.humidity,"%")}</div><div class="rrm-l">Fugt</div></div>` : ""}
-            ${(r?.co2_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.co2,"ppm")}</div><div class="rrm-l">CO2</div></div>` : ""}
-            ${(r?.pm2_5_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.pm2_5,"µg/m³")}</div><div class="rrm-l">PM2.5</div></div>` : ""}
-            ${(r?.pm10_0_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.pm10_0,"µg/m³")}</div><div class="rrm-l">PM10</div></div>` : ""}
-          </div>
-          <div class="rr-sev">
-            <div class="rr-sev-val" style="color:${rc}">${Math.round(sp)}</div>
-            <div class="rr-bar-bg"><div class="rr-bar" style="width:${sp}%;background:${rc}"></div></div>
-          </div>
-        </div>`;
-    }).join("");
-
-    const col2 = `
-      <div class="sec-lbl">${rooms.length} rum</div>
-      <div class="rooms-list">${roomRows || '<div class="loading">Ingen rum konfigureret</div>'}</div>
-    `;
-
-    const col3 = !d ? "" : `
-      <div class="sec-lbl">Tendenser (15 min)</div>
-      <div class="trends-col">
-        ${[["💧","Fugtighed",trends.humidity],["🌫️","CO₂",trends.co2],["📊","Score",trends.severity]]
-          .map(([ico, lbl, tr]) => `
-            <div class="trend-row">
-              <div class="trend-row-left">
-                <span class="trend-ico">${ico}</span>
-                <span class="trend-row-lbl">${lbl}</span>
-              </div>
-              <div class="trend-row-right">
-                <span class="trend-row-arrow" style="color:${trendColor(tr)}">${trendIcon(tr)}</span>
-                <span class="trend-row-txt" style="color:${trendColor(tr)}">${trendLabel(tr)}</span>
-              </div>
-            </div>`).join("")}
-      </div>
-
-      <div class="divider"></div>
-      <div class="sec-lbl">Vinduer / døre</div>
-      ${(d?.open_windows && d.open_windows.length)
-        ? `<div class="win-list">${d.open_windows.map(w=>`<div class="win-chip">🪟 ${esc(w)}</div>`).join("")}</div>`
-        : `<div class="no-win">Ingen åbne vinduer</div>`}
-    `;
-
     const html = `
       <style>
         :host { display:block; height:100%; ${baseCSS()} font-family:var(--paper-font-body1_-_font-family,sans-serif); }
@@ -944,10 +945,11 @@ class IndeklimaTabletCard extends HTMLElement {
 
         .cols { flex:1; min-height:0; display:grid; grid-template-columns:1fr 3fr 1fr; gap:0 14px; align-items:stretch; overflow:hidden; }
         .col { min-width:0; min-height:0; overflow:auto; }
-        .col-mid { border-left:1px solid var(--div); border-right:1px solid var(--div); padding:0 14px; }
+        .col-mid { border-left:1px solid var(--div); border-right:1px solid var(--div); padding:0 14px; display:flex; flex-direction:column; flex:1; min-height:0; }
 
-        .score-block { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
-        .ring-wrap { position:relative; flex-shrink:0; }
+        .score-block { display:flex; flex-direction:column; align-items:center; gap:12px; margin-bottom:8px; }
+        .ring-wrap { position:relative; flex-shrink:0; width:100%; aspect-ratio:1/1; max-width:100%; }
+        .ring-svg { width:100% !important; height:100% !important; }
         .ring-center {
           position:absolute; inset:0;
           display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -956,15 +958,23 @@ class IndeklimaTabletCard extends HTMLElement {
         .ring-unit { font-size:10px; color:var(--sub); }
         .score-badge {
           display:inline-flex; align-items:center; gap:4px;
-          padding:3px 8px; border-radius:20px;
-          font-size:11px; font-weight:700; margin-bottom:4px;
+          padding:5px 14px; border-radius:20px;
+          font-size:12px; font-weight:700;
         }
         .bdot { width:5px; height:5px; border-radius:50%; animation:bdot 2s infinite; }
         @keyframes bdot { 0%,100%{opacity:1}50%{opacity:.4} }
-        .score-sub { font-size:11px; color:var(--sub); }
+        .score-meta {
+          display:flex; flex-direction:column; align-items:center; gap:8px;
+          padding:6px 0; margin-top:4px;
+        }
+        .score-subs {
+          font-size:10px; color:var(--sub); line-height:1.5;
+          letter-spacing:0.2px;
+        }
 
         .avg-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-        .avg-cell { background:var(--bg2); border-radius:8px; padding:10px 6px; text-align:center; }
+        .avg-cell { background:var(--bg2); border-radius:8px; padding:10px 6px; text-align:center; border-bottom:3px solid transparent; }
+        .avg-ico { font-size:18px; line-height:1.1; }
         .av { font-size:14px; font-weight:700; }
         .al { font-size:9px; color:var(--sub); margin-top:2px; text-transform:uppercase; }
 
@@ -980,11 +990,12 @@ class IndeklimaTabletCard extends HTMLElement {
         .stat-val { font-size:12px; font-weight:700; line-height:1.2; margin-top:4px; }
         .stat-lbl { font-size:9px; color:var(--sub); text-transform:uppercase; letter-spacing:.4px; margin-top:2px; }
 
-        .rooms-list { display:flex; flex-direction:column; gap:7px; }
+        .rooms-list { display:flex; flex-direction:column; gap:7px; flex:1; min-height:0; }
         .room-row {
           display:flex; align-items:center; gap:8px;
           background:var(--bg2); border-radius:12px;
           padding:10px 10px; border-left:4px solid transparent;
+          flex:1; min-height:0;
         }
         .rr-left { flex-shrink:0; min-width:120px; }
         .rr-name { font-size:13px; font-weight:700; margin-bottom:3px; }
@@ -1209,7 +1220,8 @@ class IndeklimaRoomDetailCard extends HTMLElement {
         }
 
         .header { display:flex; align-items:center; gap:14px; margin-bottom:14px; }
-        .ring-wrap { position:relative; flex-shrink:0; }
+        .ring-wrap { position:relative; flex-shrink:0; width:100%; aspect-ratio:1/1; max-width:100%; }
+        .ring-svg { width:100% !important; height:100% !important; }
         .ring-center {
           position:absolute; inset:0;
           display:flex; flex-direction:column; align-items:center; justify-content:center;
