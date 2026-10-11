@@ -1097,15 +1097,20 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         Any state change on the configured button entity counts as a click —
         this supports both real button/event entities and click-count
         sensors that reset to null/unknown after each press.
+        
+        Uses internal mode tracking instead of switch state to avoid race
+        conditions where the switch state might already have changed due to
+        the button press before this handler runs.
         """
         switch_entity = room.get(CONF_DEHUMIDIFIER)
         if not switch_entity:
             return
 
-        state = self.hass.states.get(switch_entity)
-        is_on = bool(state and state.state == "on")
+        room_name = room.get("name")
+        current_mode = self._dehumidifier_state.get(room_name, {}).get("mode", DEHUM_MODE_OFF)
+        is_running = current_mode != DEHUM_MODE_OFF
 
-        if is_on:
+        if is_running:
             await self._async_stop_dehumidifier(room)
         else:
             await self._async_start_dehumidifier(room, DEHUM_MODE_MANUAL)
