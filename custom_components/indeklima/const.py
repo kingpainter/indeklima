@@ -2,7 +2,7 @@
 
 Version: 2.9.9
 """
-from typing import Final
+from typing import Any, Final
 import re
 import unicodedata
 
@@ -91,7 +91,6 @@ DEHUM_LED_RECOVERY_CYCLES: Final = 2       # consecutive non-critical update cyc
 
 SCAN_INTERVAL: Final = 30        # seconds
 TREND_WINDOW: Final = 1800       # seconds (30 min)
-NOTIFICATION_COOLDOWN: Final = 7200  # seconds (2 hours)
 CIRCULATION_BONUS: Final = 0.95  # 5% severity reduction
 
 # ── Status constants ──────────────────────────────────────────────────────────
@@ -135,7 +134,7 @@ AIR_QUALITY_POOR: Final = "poor"
 AIR_QUALITY_UNHEALTHY: Final = "unhealthy"
 
 # ── Sensor type definitions ───────────────────────────────────────────────────
-SENSOR_TYPES: Final[dict] = {
+SENSOR_TYPES: Final[dict[str, Any]] = {
     "humidity_avg": {
         "name": "Average Humidity",
         "icon": "mdi:water-percent",
@@ -242,7 +241,7 @@ SENSOR_TYPES: Final[dict] = {
     },
 }
 
-ROOM_SENSOR_TYPES: Final[dict] = {
+ROOM_SENSOR_TYPES: Final[dict[str, Any]] = {
     "temperature": {
         "name": "Temperature",
         "icon": "mdi:thermometer",

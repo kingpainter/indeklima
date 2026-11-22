@@ -364,7 +364,6 @@ class TestAsyncSetupEntry:
         assert result is True
         coordinator.async_config_entry_first_refresh.assert_awaited_once()
         assert mock_entry.runtime_data is coordinator
-        assert mock_hass.data[DOMAIN][mock_entry.entry_id] is coordinator
         # hub device + 2 room devices = 3 calls
         assert mock_device_registry.async_get_or_create.call_count == 3
         mock_ws.assert_called_once_with(mock_hass)
@@ -421,7 +420,6 @@ class TestAsyncUnloadEntry:
 
         coordinator = _mock_coordinator()
         mock_entry.runtime_data = coordinator
-        mock_hass.data[DOMAIN] = {mock_entry.entry_id: coordinator}
         mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
 
         with patch("custom_components.indeklima.async_unregister_panel") as mock_unreg_panel, \
@@ -432,7 +430,6 @@ class TestAsyncUnloadEntry:
         mock_unreg_panel.assert_called_once_with(mock_hass)
         mock_unreg_cards.assert_awaited_once_with(mock_hass)
         coordinator.async_unload_dehumidifier_listeners.assert_called_once()
-        assert mock_entry.entry_id not in mock_hass.data[DOMAIN]
 
     @pytest.mark.asyncio
     async def test_unload_handles_missing_runtime_data(self, mock_hass, mock_entry):
@@ -441,7 +438,6 @@ class TestAsyncUnloadEntry:
         from custom_components.indeklima.const import DOMAIN
 
         mock_entry.runtime_data = None
-        mock_hass.data[DOMAIN] = {mock_entry.entry_id: MagicMock()}
         mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
 
         with patch("custom_components.indeklima.async_unregister_panel"), \
@@ -457,7 +453,6 @@ class TestAsyncUnloadEntry:
 
         coordinator = _mock_coordinator()
         mock_entry.runtime_data = coordinator
-        mock_hass.data[DOMAIN] = {mock_entry.entry_id: coordinator}
         mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=False)
 
         with patch("custom_components.indeklima.async_unregister_panel"), \
@@ -465,7 +460,7 @@ class TestAsyncUnloadEntry:
             result = await async_unload_entry(mock_hass, mock_entry)
 
         assert result is False
-        assert mock_entry.entry_id in mock_hass.data[DOMAIN]
+        assert mock_entry.runtime_data is coordinator
 
 
 class TestAsyncReloadEntry:

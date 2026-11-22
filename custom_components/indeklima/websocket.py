@@ -7,12 +7,17 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.components import websocket_api
 
 from .const import DOMAIN, __version__
+from .runtime import async_get_active_coordinator
+
+if TYPE_CHECKING:
+    from . import IndeklimaDataCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,19 +29,52 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     _LOGGER.info("Indeklima WebSocket API registered (2 commands)")
 
 
-def _get_coordinator(hass: HomeAssistant):
-    """Find the active Indeklima coordinator."""
-    for value in hass.data.get(DOMAIN, {}).values():
-        if hasattr(value, "data") and hasattr(value, "rooms"):
-            return value
-    return None
+def _get_coordinator(hass: HomeAssistant) -> IndeklimaDataCoordinator | None:
+    """Return the active Indeklima coordinator, if any."""
+    return async_get_active_coordinator(hass)
+
+
+def _room_payload(room_name: str, room: dict[str, Any]) -> dict[str, Any]:
+    """Build the payload for one room; shared by both websocket commands."""
+    return {
+        "name": room_name,
+        "status": room.get("status", "good"),
+        "severity": round(room.get("severity", 0), 1),
+        "temperature": room.get("temperature"),
+        "humidity": room.get("humidity"),
+        "co2": room.get("co2"),
+        "pressure": room.get("pressure"),
+        "pm1_0": room.get("pm1_0"),
+        "pm2_5": room.get("pm2_5"),
+        "pm10_0": room.get("pm10_0"),
+        "air_quality": room.get("air_quality", "good"),
+        "mold_risk": room.get("mold_risk", "low"),
+        "mold_humidity": room.get("mold_humidity"),
+        "dehumidifier_recommendation": room.get("dehumidifier_recommendation", "no"),
+        "dehumidifier_mode": room.get("dehumidifier_mode", "off"),
+        "kritisk_siden": room.get("kritisk_siden"),
+        "led_alarm_active": room.get("led_alarm_active", False),
+        "has_dehumidifier": room.get("has_dehumidifier", False),
+        "air_circulation_bonus": room.get("air_circulation_bonus", False),
+        "last_notified": room.get("last_notified"),
+        "outdoor_windows_open": room.get("outdoor_windows_open", 0),
+        "internal_doors_open": room.get("internal_doors_open", 0),
+        "temperature_sensors_count": room.get("temperature_sensors_count", 0),
+        "humidity_sensors_count": room.get("humidity_sensors_count", 0),
+        "co2_sensors_count": room.get("co2_sensors_count", 0),
+        "pressure_sensors_count": room.get("pressure_sensors_count", 0),
+        "pm1_0_sensors_count": room.get("pm1_0_sensors_count", 0),
+        "pm2_5_sensors_count": room.get("pm2_5_sensors_count", 0),
+        "pm10_0_sensors_count": room.get("pm10_0_sensors_count", 0),
+        "mold_sensors_count": room.get("mold_sensors_count", 0),
+    }
 
 
 # ── Global climate data ────────────────────────────────────────────────────────
 
 @websocket_api.websocket_command({"type": f"{DOMAIN}/get_climate_data"})
 @callback
-def ws_get_climate_data(hass: HomeAssistant, connection, msg) -> None:
+def ws_get_climate_data(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Return full climate data: hub averages, severity, trends, ventilation, all rooms."""
     coordinator = _get_coordinator(hass)
     if not coordinator:
@@ -46,38 +84,7 @@ def ws_get_climate_data(hass: HomeAssistant, connection, msg) -> None:
         data = coordinator.data or {}
         rooms_raw = data.get("rooms", {})
 
-        # Build per-room summary list
-        rooms_out = []
-        for room_name, room_data in rooms_raw.items():
-            rooms_out.append({
-                "name":              room_name,
-                "status":            room_data.get("status", "good"),
-                "severity":          round(room_data.get("severity", 0), 1),
-                "temperature":       room_data.get("temperature"),
-                "humidity":          room_data.get("humidity"),
-                "co2":               room_data.get("co2"),
-                "pressure":          room_data.get("pressure"),
-                "pm1_0":             room_data.get("pm1_0"),
-                "pm2_5":             room_data.get("pm2_5"),
-                "pm10_0":            room_data.get("pm10_0"),
-                "air_quality":       room_data.get("air_quality", "good"),
-                "mold_risk":         room_data.get("mold_risk", "low"),
-                "dehumidifier_recommendation": room_data.get("dehumidifier_recommendation", "no"),
-                "dehumidifier_mode": room_data.get("dehumidifier_mode", "off"),
-                "kritisk_siden":     room_data.get("kritisk_siden"),
-                "led_alarm_active":  room_data.get("led_alarm_active", False),
-                "has_dehumidifier":   room_data.get("has_dehumidifier", False),
-                "outdoor_windows_open": room_data.get("outdoor_windows_open", 0),
-                "internal_doors_open":  room_data.get("internal_doors_open", 0),
-                "temperature_sensors_count": room_data.get("temperature_sensors_count", 0),
-                "humidity_sensors_count":    room_data.get("humidity_sensors_count", 0),
-                "co2_sensors_count":         room_data.get("co2_sensors_count", 0),
-                "pressure_sensors_count":    room_data.get("pressure_sensors_count", 0),
-                "pm1_0_sensors_count":       room_data.get("pm1_0_sensors_count", 0),
-                "pm2_5_sensors_count":       room_data.get("pm2_5_sensors_count", 0),
-                "pm10_0_sensors_count":      room_data.get("pm10_0_sensors_count", 0),
-                "mold_sensors_count":        room_data.get("mold_sensors_count", 0),
-            })
+        rooms_out = [_room_payload(name, room) for name, room in rooms_raw.items()]
 
         # Sort rooms: critical first, then warning, then good
         status_order = {"critical": 0, "warning": 1, "good": 2}
@@ -137,7 +144,7 @@ def ws_get_climate_data(hass: HomeAssistant, connection, msg) -> None:
     vol.Required("room_name"): str,
 })
 @callback
-def ws_get_room_data(hass: HomeAssistant, connection, msg) -> None:
+def ws_get_room_data(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Return detailed data for a specific room."""
     coordinator = _get_coordinator(hass)
     if not coordinator:
@@ -154,31 +161,7 @@ def ws_get_room_data(hass: HomeAssistant, connection, msg) -> None:
 
         room = rooms[room_name]
 
-        connection.send_result(msg["id"], {
-            "name":     room_name,
-            "status":   room.get("status", "good"),
-            "severity": round(room.get("severity", 0), 1),
-            "temperature":       room.get("temperature"),
-            "humidity":          room.get("humidity"),
-            "co2":               room.get("co2"),
-            "pressure":          room.get("pressure"),
-            "mold_risk":         room.get("mold_risk", "low"),
-            "dehumidifier_recommendation": room.get("dehumidifier_recommendation", "no"),
-            "dehumidifier_mode": room.get("dehumidifier_mode", "off"),
-            "kritisk_siden":     room.get("kritisk_siden"),
-            "led_alarm_active":  room.get("led_alarm_active", False),
-            "has_dehumidifier":   room.get("has_dehumidifier", False),
-            "mold_humidity":     room.get("mold_humidity"),
-            "mold_sensors_count": room.get("mold_sensors_count", 0),
-            "outdoor_windows_open": room.get("outdoor_windows_open", 0),
-            "internal_doors_open":  room.get("internal_doors_open", 0),
-            "air_circulation_bonus": room.get("air_circulation_bonus", False),
-            "last_notified":     room.get("last_notified"),
-            "temperature_sensors_count": room.get("temperature_sensors_count", 0),
-            "humidity_sensors_count":    room.get("humidity_sensors_count", 0),
-            "co2_sensors_count":         room.get("co2_sensors_count", 0),
-            "pressure_sensors_count":    room.get("pressure_sensors_count", 0),
-        })
+        connection.send_result(msg["id"], _room_payload(room_name, room))
     except Exception as err:
         _LOGGER.error("Error in ws_get_room_data: %s", err)
         connection.send_error(msg["id"], "unknown_error", str(err))

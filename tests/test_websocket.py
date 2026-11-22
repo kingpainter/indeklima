@@ -9,7 +9,6 @@ from custom_components.indeklima.websocket import (
     ws_get_room_data,
     _get_coordinator,
 )
-from custom_components.indeklima.const import DOMAIN
 
 
 def _make_coordinator(rooms_data=None, averages=None, trends=None, ventilation=None):
@@ -74,50 +73,57 @@ def _make_coordinator(rooms_data=None, averages=None, trends=None, ventilation=N
     return coord
 
 
+def _hass_with(coord):
+    """Return a hass mock whose loaded Indeklima entry exposes ``coord`` on runtime_data.
+
+    Pass ``None`` to simulate an integration without a loaded entry.
+    """
+    hass = MagicMock()
+    if coord is None:
+        hass.config_entries.async_loaded_entries.return_value = []
+    else:
+        entry = MagicMock()
+        entry.runtime_data = coord
+        hass.config_entries.async_loaded_entries.return_value = [entry]
+    return hass
+
+
 class TestGetCoordinator:
     def test_returns_coordinator_when_present(self):
-        hass = MagicMock()
         coord = _make_coordinator()
-        hass.data = {DOMAIN: {"entry_1": coord}}
+        hass = _hass_with(coord)
         result = _get_coordinator(hass)
         assert result is coord
 
-    def test_returns_none_when_domain_missing(self):
-        hass = MagicMock()
-        hass.data = {}
+    def test_returns_none_when_no_entries_loaded(self):
+        hass = _hass_with(None)
         result = _get_coordinator(hass)
         assert result is None
 
-    def test_returns_none_when_no_data_attr(self):
+    def test_returns_none_when_entry_has_no_runtime_data(self):
         hass = MagicMock()
-        hass.data = {DOMAIN: {"entry_1": MagicMock(spec=[])}}
+        hass.config_entries.async_loaded_entries.return_value = [MagicMock(spec=[])]
         result = _get_coordinator(hass)
         assert result is None
 
 
 class TestWsGetClimateData:
-    def _call(self, hass, coord=None):
+    def _call(self, hass):
         connection = MagicMock()
         msg = {"id": 1}
-        if coord:
-            hass.data = {DOMAIN: {"e1": coord}}
         ws_get_climate_data(hass, connection, msg)
         return connection
 
     def test_sends_result_with_severity(self):
-        hass = MagicMock()
         coord = _make_coordinator()
-        hass.data = {DOMAIN: {"e1": coord}}
-        conn = self._call(hass, coord)
+        conn = self._call(_hass_with(coord))
         conn.send_result.assert_called_once()
         result = conn.send_result.call_args[0][1]
         assert result["severity"] == 15.0
 
     def test_sends_result_with_rooms(self):
-        hass = MagicMock()
         coord = _make_coordinator()
-        hass.data = {DOMAIN: {"e1": coord}}
-        conn = self._call(hass, coord)
+        conn = self._call(_hass_with(coord))
         result = conn.send_result.call_args[0][1]
         assert result["room_count"] == 2
         room_names = [r["name"] for r in result["rooms"]]
@@ -125,7 +131,6 @@ class TestWsGetClimateData:
         assert "Soveværelse" in room_names
 
     def test_rooms_sorted_critical_first(self):
-        hass = MagicMock()
         rooms_data = {
             "Stue": {"status": "good", "severity": 5.0, "temperature": None, "humidity": None,
                      "co2": None, "pressure": None, "outdoor_windows_open": 0, "internal_doors_open": 0,
@@ -137,114 +142,92 @@ class TestWsGetClimateData:
                        "co2_sensors_count": 0, "pressure_sensors_count": 0},
         }
         coord = _make_coordinator(rooms_data=rooms_data)
-        hass.data = {DOMAIN: {"e1": coord}}
-        conn = self._call(hass, coord)
+        conn = self._call(_hass_with(coord))
         result = conn.send_result.call_args[0][1]
         assert result["rooms"][0]["name"] == "Køkken"
 
     def test_sends_error_when_no_coordinator(self):
-        hass = MagicMock()
-        hass.data = {}
-        conn = self._call(hass)
+        conn = self._call(_hass_with(None))
         conn.send_error.assert_called_once()
 
     def test_weather_configured_field(self):
-        hass = MagicMock()
         coord = _make_coordinator()
-        hass.data = {DOMAIN: {"e1": coord}}
-        conn = self._call(hass, coord)
+        conn = self._call(_hass_with(coord))
         result = conn.send_result.call_args[0][1]
         assert result["ventilation"]["weather_configured"] is True
 
     def test_weather_not_configured(self):
-        hass = MagicMock()
         coord = _make_coordinator()
         coord.weather_entity = None
-        hass.data = {DOMAIN: {"e1": coord}}
-        conn = self._call(hass, coord)
+        conn = self._call(_hass_with(coord))
         result = conn.send_result.call_args[0][1]
         assert result["ventilation"]["weather_configured"] is False
 
     def test_mold_risk_in_result(self):
-        hass = MagicMock()
         coord = _make_coordinator()
-        hass.data = {DOMAIN: {"e1": coord}}
-        conn = self._call(hass, coord)
+        conn = self._call(_hass_with(coord))
         result = conn.send_result.call_args[0][1]
         assert "mold_risk" in result
         assert result["mold_risk"] == "low"
 
     def test_dehumidifier_recommendation_in_result(self):
-        hass = MagicMock()
         coord = _make_coordinator()
-        hass.data = {DOMAIN: {"e1": coord}}
-        conn = self._call(hass, coord)
+        conn = self._call(_hass_with(coord))
         result = conn.send_result.call_args[0][1]
         assert "dehumidifier_recommendation" in result
         assert result["dehumidifier_recommendation"] == "no"
 
     def test_room_has_mold_risk_field(self):
-        hass = MagicMock()
         coord = _make_coordinator()
-        hass.data = {DOMAIN: {"e1": coord}}
-        conn = self._call(hass, coord)
+        conn = self._call(_hass_with(coord))
         result = conn.send_result.call_args[0][1]
         stue = next(r for r in result["rooms"] if r["name"] == "Stue")
         assert stue["mold_risk"] == "low"
 
     def test_room_has_dehumidifier_recommendation_field(self):
-        hass = MagicMock()
         coord = _make_coordinator()
-        hass.data = {DOMAIN: {"e1": coord}}
-        conn = self._call(hass, coord)
+        conn = self._call(_hass_with(coord))
         result = conn.send_result.call_args[0][1]
         sovevaer = next(r for r in result["rooms"] if r["name"] == "Soveværelse")
         assert sovevaer["dehumidifier_recommendation"] == "optional"
 
 
 class TestWsGetRoomData:
-    def _call(self, hass, coord, room_name):
+    def _call(self, hass, room_name):
         connection = MagicMock()
         msg = {"id": 1, "room_name": room_name}
-        hass.data = {DOMAIN: {"e1": coord}}
         ws_get_room_data(hass, connection, msg)
         return connection
 
     def test_returns_room_data(self):
-        hass = MagicMock()
         coord = _make_coordinator()
-        conn = self._call(hass, coord, "Stue")
+        conn = self._call(_hass_with(coord), "Stue")
         conn.send_result.assert_called_once()
         result = conn.send_result.call_args[0][1]
         assert result["name"] == "Stue"
         assert result["severity"] == 10.0
 
     def test_unknown_room_sends_error(self):
-        hass = MagicMock()
         coord = _make_coordinator()
-        conn = self._call(hass, coord, "Nonexistent")
+        conn = self._call(_hass_with(coord), "Nonexistent")
         conn.send_error.assert_called_once()
 
     def test_no_coordinator_sends_error(self):
-        hass = MagicMock()
-        hass.data = {}
         connection = MagicMock()
         msg = {"id": 1, "room_name": "Stue"}
-        ws_get_room_data(hass, connection, msg)
+        ws_get_room_data(_hass_with(None), connection, msg)
         connection.send_error.assert_called_once()
 
     def test_room_data_has_mold_risk(self):
-        hass = MagicMock()
         coord = _make_coordinator()
-        conn = self._call(hass, coord, "Stue")
+        conn = self._call(_hass_with(coord), "Stue")
         result = conn.send_result.call_args[0][1]
         assert "mold_risk" in result
         assert result["mold_risk"] == "low"
 
     def test_room_data_has_dehumidifier_recommendation(self):
-        hass = MagicMock()
         coord = _make_coordinator()
-        conn = self._call(hass, coord, "Soveværelse")
+        conn = self._call(_hass_with(coord), "Soveværelse")
         result = conn.send_result.call_args[0][1]
         assert "dehumidifier_recommendation" in result
         assert result["dehumidifier_recommendation"] == "optional"
@@ -282,11 +265,9 @@ class TestHistoricalBugFieldsAreForwarded:
         }
 
     def test_climate_data_forwards_alarm_fields(self):
-        hass = MagicMock()
         coord = _make_coordinator(rooms_data={"Bryggers": self._room_with_alarm_fields()})
-        hass.data = {DOMAIN: {"e1": coord}}
         connection = MagicMock()
-        ws_get_climate_data(hass, connection, {"id": 1})
+        ws_get_climate_data(_hass_with(coord), connection, {"id": 1})
         result = connection.send_result.call_args[0][1]
         room = next(r for r in result["rooms"] if r["name"] == "Bryggers")
         assert room["dehumidifier_mode"] == "auto"
@@ -294,11 +275,9 @@ class TestHistoricalBugFieldsAreForwarded:
         assert room["led_alarm_active"] is True
 
     def test_room_data_forwards_alarm_fields(self):
-        hass = MagicMock()
         coord = _make_coordinator(rooms_data={"Bryggers": self._room_with_alarm_fields()})
-        hass.data = {DOMAIN: {"e1": coord}}
         connection = MagicMock()
-        ws_get_room_data(hass, connection, {"id": 1, "room_name": "Bryggers"})
+        ws_get_room_data(_hass_with(coord), connection, {"id": 1, "room_name": "Bryggers"})
         result = connection.send_result.call_args[0][1]
         assert result["dehumidifier_mode"] == "auto"
         assert result["kritisk_siden"] == "2026-07-10T08:15:00+00:00"
@@ -409,10 +388,8 @@ class TestWebsocketCoversRealCoordinatorFields:
         excluded = {"mold_humidity"}
 
         coord, room_data = self._real_room_data()
-        hass = MagicMock()
-        hass.data = {DOMAIN: {"e1": coord}}
         connection = MagicMock()
-        ws_get_climate_data(hass, connection, {"id": 1})
+        ws_get_climate_data(_hass_with(coord), connection, {"id": 1})
         result = connection.send_result.call_args[0][1]
         room_out = next(r for r in result["rooms"] if r["name"] == "Stue")
 
@@ -426,10 +403,8 @@ class TestWebsocketCoversRealCoordinatorFields:
 
     def test_room_data_detail_covers_all_real_fields(self):
         coord, room_data = self._real_room_data()
-        hass = MagicMock()
-        hass.data = {DOMAIN: {"e1": coord}}
         connection = MagicMock()
-        ws_get_room_data(hass, connection, {"id": 1, "room_name": "Stue"})
+        ws_get_room_data(_hass_with(coord), connection, {"id": 1, "room_name": "Stue"})
         result = connection.send_result.call_args[0][1]
 
         for key in room_data:

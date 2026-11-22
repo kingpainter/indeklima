@@ -1,7 +1,7 @@
 """Tests for diagnostics.py."""
 from __future__ import annotations
 
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 import pytest
 
 from custom_components.indeklima.diagnostics import (
@@ -9,13 +9,12 @@ from custom_components.indeklima.diagnostics import (
     async_get_device_diagnostics,
     _get_coordinator,
 )
-from custom_components.indeklima.const import DOMAIN, __version__
+from custom_components.indeklima.const import __version__
 from .conftest import mock_hass, mock_entry, make_state, ENTRY_DATA, ENTRY_OPTIONS
 
 
 def _make_hass_with_states(state_map: dict):
     hass = MagicMock()
-    hass.data = {}
 
     def get_state(entity_id):
         val = state_map.get(entity_id)
@@ -63,7 +62,7 @@ class TestGetCoordinator:
         coord = MagicMock()
         coord.data = {}
         coord.rooms = []
-        hass.data = {DOMAIN: {"e1": coord}}
+        entry.runtime_data = coord
         result = _get_coordinator(hass, entry)
         assert result is coord
 
@@ -71,22 +70,21 @@ class TestGetCoordinator:
         hass = MagicMock()
         entry = MagicMock()
         entry.entry_id = "e1"
-        hass.data = {}
+        entry.runtime_data = None
         result = _get_coordinator(hass, entry)
         assert result is None
 
 
 class TestAsyncGetConfigEntryDiagnostics:
     @pytest.mark.asyncio
-    async def test_returns_dict_with_version(self, mock_hass, mock_entry):
+    async def test_returns_dict_with_version(self, mock_entry):
         hass = _make_hass_with_states({
             "sensor.stue_humidity": "45.0",
             "sensor.stue_temperature": "22.0",
             "sensor.stue_co2": "400.0",
             "sensor.stue_pressure": "1013.0",
         })
-        coord = _make_coordinator_with_data()
-        hass.data = {DOMAIN: {mock_entry.entry_id: coord}}
+        mock_entry.runtime_data = _make_coordinator_with_data()
 
         result = await async_get_config_entry_diagnostics(hass, mock_entry)
 
@@ -98,12 +96,11 @@ class TestAsyncGetConfigEntryDiagnostics:
         assert result["integration_version"] == __version__
 
     @pytest.mark.asyncio
-    async def test_returns_sensor_availability(self, mock_hass, mock_entry):
+    async def test_returns_sensor_availability(self, mock_entry):
         hass = _make_hass_with_states({
             "sensor.stue_humidity": "45.0",
         })
-        coord = _make_coordinator_with_data()
-        hass.data = {DOMAIN: {mock_entry.entry_id: coord}}
+        mock_entry.runtime_data = _make_coordinator_with_data()
 
         result = await async_get_config_entry_diagnostics(hass, mock_entry)
 
@@ -112,10 +109,9 @@ class TestAsyncGetConfigEntryDiagnostics:
         assert "humidity_sensors" in stue
 
     @pytest.mark.asyncio
-    async def test_unavailable_sensor_marked_false(self, mock_hass, mock_entry):
+    async def test_unavailable_sensor_marked_false(self, mock_entry):
         hass = _make_hass_with_states({})  # all sensors None/unavailable
-        coord = _make_coordinator_with_data()
-        hass.data = {DOMAIN: {mock_entry.entry_id: coord}}
+        mock_entry.runtime_data = _make_coordinator_with_data()
 
         result = await async_get_config_entry_diagnostics(hass, mock_entry)
 
@@ -124,10 +120,9 @@ class TestAsyncGetConfigEntryDiagnostics:
             assert sensor["available"] is False
 
     @pytest.mark.asyncio
-    async def test_live_data_included(self, mock_hass, mock_entry):
+    async def test_live_data_included(self, mock_entry):
         hass = _make_hass_with_states({})
-        coord = _make_coordinator_with_data()
-        hass.data = {DOMAIN: {mock_entry.entry_id: coord}}
+        mock_entry.runtime_data = _make_coordinator_with_data()
 
         result = await async_get_config_entry_diagnostics(hass, mock_entry)
 
@@ -135,9 +130,9 @@ class TestAsyncGetConfigEntryDiagnostics:
         assert result["live_data"]["severity"] == 15.0
 
     @pytest.mark.asyncio
-    async def test_no_coordinator_gives_empty_live_data(self, mock_hass, mock_entry):
+    async def test_no_coordinator_gives_empty_live_data(self, mock_entry):
         hass = _make_hass_with_states({})
-        hass.data = {}
+        mock_entry.runtime_data = None
 
         result = await async_get_config_entry_diagnostics(hass, mock_entry)
 
@@ -158,10 +153,9 @@ class TestAsyncGetDeviceDiagnostics:
         return device
 
     @pytest.mark.asyncio
-    async def test_hub_device_returns_hub_type(self, mock_hass, mock_entry):
+    async def test_hub_device_returns_hub_type(self, mock_entry):
         hass = _make_hass_with_states({})
-        coord = _make_coordinator_with_data()
-        hass.data = {DOMAIN: {mock_entry.entry_id: coord}}
+        mock_entry.runtime_data = _make_coordinator_with_data()
         device = self._make_hub_device(mock_entry.entry_id)
 
         result = await async_get_device_diagnostics(hass, mock_entry, device)
@@ -170,10 +164,9 @@ class TestAsyncGetDeviceDiagnostics:
         assert "live_data" in result
 
     @pytest.mark.asyncio
-    async def test_hub_device_includes_room_summary(self, mock_hass, mock_entry):
+    async def test_hub_device_includes_room_summary(self, mock_entry):
         hass = _make_hass_with_states({})
-        coord = _make_coordinator_with_data()
-        hass.data = {DOMAIN: {mock_entry.entry_id: coord}}
+        mock_entry.runtime_data = _make_coordinator_with_data()
         device = self._make_hub_device(mock_entry.entry_id)
 
         result = await async_get_device_diagnostics(hass, mock_entry, device)
@@ -181,10 +174,9 @@ class TestAsyncGetDeviceDiagnostics:
         assert "rooms_by_status" in result["live_data"]
 
     @pytest.mark.asyncio
-    async def test_room_device_returns_room_type(self, mock_hass, mock_entry):
+    async def test_room_device_returns_room_type(self, mock_entry):
         hass = _make_hass_with_states({})
-        coord = _make_coordinator_with_data()
-        hass.data = {DOMAIN: {mock_entry.entry_id: coord}}
+        mock_entry.runtime_data = _make_coordinator_with_data()
         device = self._make_room_device(mock_entry.entry_id, "stue")
 
         result = await async_get_device_diagnostics(hass, mock_entry, device)
@@ -193,10 +185,9 @@ class TestAsyncGetDeviceDiagnostics:
         assert result["room_name"] == "Stue"
 
     @pytest.mark.asyncio
-    async def test_unknown_room_returns_error(self, mock_hass, mock_entry):
+    async def test_unknown_room_returns_error(self, mock_entry):
         hass = _make_hass_with_states({})
-        coord = _make_coordinator_with_data()
-        hass.data = {DOMAIN: {mock_entry.entry_id: coord}}
+        mock_entry.runtime_data = _make_coordinator_with_data()
         device = self._make_room_device(mock_entry.entry_id, "nonexistent_room")
 
         result = await async_get_device_diagnostics(hass, mock_entry, device)

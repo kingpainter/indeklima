@@ -237,8 +237,9 @@ class IndeklimaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }
         )
 
-    def _get_room_schema(self, defaults: dict | None = None) -> vol.Schema:
-        """Get schema for room configuration."""
+    @staticmethod
+    def _get_room_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
+        """Get the room schema shared by the config flow and the options flow."""
         defaults = defaults or {}
         
         window_sensors_default = defaults.get(CONF_WINDOW_SENSORS, [])
@@ -624,108 +625,9 @@ class IndeklimaOptionsFlow(config_entries.OptionsFlow):
             description_placeholders={"info": "Hvis ingen vejr-entity er valgt, bruges Home Assistants standard vejrdata."},
         )
 
-    def _get_room_schema(self, defaults: dict | None = None) -> vol.Schema:
-        """Get schema for room editing."""
-        defaults = defaults or {}
-        
-        window_sensors_default = defaults.get(CONF_WINDOW_SENSORS, [])
-        if window_sensors_default and isinstance(window_sensors_default[0], dict):
-            window_sensors_default = [
-                w.get(CONF_WINDOW_ENTITY) for w in window_sensors_default if isinstance(w, dict)
-            ]
-            window_sensors_default = [w for w in window_sensors_default if w]
-        
-        schema_dict = {
-            vol.Required("name", default=defaults.get("name", "")): str,
-            vol.Optional(CONF_HUMIDITY_SENSORS, default=defaults.get(CONF_HUMIDITY_SENSORS, [])): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["sensor"], device_class="humidity", multiple=True)
-            ),
-            vol.Optional(CONF_TEMPERATURE_SENSORS, default=defaults.get(CONF_TEMPERATURE_SENSORS, [])): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["sensor"], device_class="temperature", multiple=True)
-            ),
-            vol.Optional(CONF_CO2_SENSORS, default=defaults.get(CONF_CO2_SENSORS, [])): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["sensor"], multiple=True)
-            ),
-            vol.Optional(CONF_VOC_SENSORS, default=defaults.get(CONF_VOC_SENSORS, [])): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["sensor"], multiple=True)
-            ),
-            vol.Optional(CONF_FORMALDEHYDE_SENSORS, default=defaults.get(CONF_FORMALDEHYDE_SENSORS, [])): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["sensor"], multiple=True)
-            ),
-            vol.Optional(CONF_PRESSURE_SENSORS, default=defaults.get(CONF_PRESSURE_SENSORS, [])): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["sensor"], device_class="atmospheric_pressure", multiple=True)
-            ),
-            vol.Optional(CONF_PM1_0_SENSORS, default=defaults.get(CONF_PM1_0_SENSORS, [])): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["sensor"], multiple=True)
-            ),
-            vol.Optional(CONF_PM2_5_SENSORS, default=defaults.get(CONF_PM2_5_SENSORS, [])): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["sensor"], multiple=True)
-            ),
-            vol.Optional(CONF_PM10_0_SENSORS, default=defaults.get(CONF_PM10_0_SENSORS, [])): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["sensor"], multiple=True)
-            ),
-            vol.Optional(CONF_MOLD_SENSORS, default=defaults.get(CONF_MOLD_SENSORS, [])): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["sensor"], device_class="humidity", multiple=True)
-            ),
-            vol.Optional(CONF_WINDOW_SENSORS, default=window_sensors_default): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["binary_sensor"], multiple=True)
-            ),
-        }
-        
-        # Device selectors - NO default if value doesn't exist
-        if CONF_DEHUMIDIFIER in defaults and defaults[CONF_DEHUMIDIFIER]:
-            schema_dict[vol.Optional(CONF_DEHUMIDIFIER, default=defaults[CONF_DEHUMIDIFIER])] = selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["humidifier", "switch"])
-            )
-        else:
-            schema_dict[vol.Optional(CONF_DEHUMIDIFIER)] = selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["humidifier", "switch"])
-            )
-
-        if CONF_DEHUMIDIFIER_LED in defaults and defaults[CONF_DEHUMIDIFIER_LED]:
-            schema_dict[vol.Optional(CONF_DEHUMIDIFIER_LED, default=defaults[CONF_DEHUMIDIFIER_LED])] = selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["light"])
-            )
-        else:
-            schema_dict[vol.Optional(CONF_DEHUMIDIFIER_LED)] = selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["light"])
-            )
-
-        if CONF_DEHUMIDIFIER_BUTTON in defaults and defaults[CONF_DEHUMIDIFIER_BUTTON]:
-            schema_dict[vol.Optional(CONF_DEHUMIDIFIER_BUTTON, default=defaults[CONF_DEHUMIDIFIER_BUTTON])] = selector.EntitySelector(
-                selector.EntitySelectorConfig()
-            )
-        else:
-            schema_dict[vol.Optional(CONF_DEHUMIDIFIER_BUTTON)] = selector.EntitySelector(
-                selector.EntitySelectorConfig()
-            )
-
-        schema_dict[vol.Optional(
-            CONF_DEHUMIDIFIER_ON_DURATION,
-            default=defaults.get(CONF_DEHUMIDIFIER_ON_DURATION, DEFAULT_DEHUMIDIFIER_ON_DURATION),
-        )] = vol.All(vol.Coerce(int), vol.Range(min=5, max=240))
-
-        schema_dict[vol.Optional(
-            CONF_ROOM_QUIET_HOURS_START,
-            description={"suggested_value": defaults.get(CONF_ROOM_QUIET_HOURS_START)},
-        )] = selector.NumberSelector(
-            selector.NumberSelectorConfig(min=0, max=23, step=1, mode=selector.NumberSelectorMode.BOX)
-        )
-        schema_dict[vol.Optional(
-            CONF_ROOM_QUIET_HOURS_END,
-            description={"suggested_value": defaults.get(CONF_ROOM_QUIET_HOURS_END)},
-        )] = selector.NumberSelector(
-            selector.NumberSelectorConfig(min=0, max=23, step=1, mode=selector.NumberSelectorMode.BOX)
-        )
-        
-        # Per-room LED critical-alarm severity threshold override (LED-only;
-        # does not affect the room's official status classification)
-        schema_dict[vol.Optional(
-            CONF_ROOM_LED_CRITICAL_SEVERITY,
-            description={"suggested_value": defaults.get(CONF_ROOM_LED_CRITICAL_SEVERITY)},
-        )] = vol.All(vol.Coerce(int), vol.Range(min=1, max=100))
-
-        return vol.Schema(schema_dict)
+    def _get_room_schema(self, defaults: dict[str, Any] | None = None) -> vol.Schema:
+        """Get the room schema (delegates to the config flow so both flows stay in sync)."""
+        return IndeklimaConfigFlow._get_room_schema(defaults)
 
     def _get_window_schema(self, window_entities: list[str], existing_config: dict[str, bool] | None = None) -> vol.Schema:
         """Get schema for window configuration."""

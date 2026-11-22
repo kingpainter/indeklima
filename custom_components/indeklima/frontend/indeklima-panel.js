@@ -1,3 +1,4 @@
+import { ICONS } from "/api/indeklima-icons";
 // Indeklima Panel
 // Version: 2.9.9
 // Description: Sidebar panel for the Indeklima Home Assistant integration.
@@ -129,9 +130,9 @@ class IndeklimaPanel extends HTMLElement {
   }
 
   _trendIcon(trend) {
-    if (trend === "rising")  return "\u2197";
-    if (trend === "falling") return "\u2198";
-    return "\u2192";
+    if (trend === "rising")  return ICONS.TREND_UP;
+    if (trend === "falling") return ICONS.TREND_DOWN;
+    return ICONS.TREND_FLAT;
   }
 
   _trendColor(trend) {
@@ -141,9 +142,9 @@ class IndeklimaPanel extends HTMLElement {
   }
 
   _circIcon(circ) {
-    if (circ === "good")     return "\uD83D\uDCA8";
-    if (circ === "moderate") return "\uD83C\uDF24\uFE0F";
-    return "\uD83E\uDE9F";
+    if (circ === "good")     return ICONS.WIND;
+    if (circ === "moderate") return ICONS.SUN_CLOUD;
+    return ICONS.WINDOW;
   }
 
   _circLabel(circ) {
@@ -165,9 +166,9 @@ class IndeklimaPanel extends HTMLElement {
   }
 
   _ventIcon(v) {
-    if (v === "yes")      return "\uD83D\uDCA8";
-    if (v === "optional") return "\uD83E\uDD14";
-    return "\u23F3";
+    if (v === "yes")      return ICONS.WIND;
+    if (v === "optional") return ICONS.THINK;
+    return ICONS.HOURGLASS;
   }
 
   _ventColor(v) {
@@ -191,8 +192,8 @@ class IndeklimaPanel extends HTMLElement {
   }
 
   _moldIcon(m) {
-    if (m === "critical" || m === "high" || m === "moderate") return "\uD83E\uDDA0";
-    return "\u2705";
+    if (m === "critical" || m === "high" || m === "moderate") return ICONS.MOLD;
+    return ICONS.CHECK;
   }
 
   _moldDesc(m) {
@@ -209,8 +210,8 @@ class IndeklimaPanel extends HTMLElement {
   }
 
   _dehumIcon(v) {
-    if (v === "yes")      return "\uD83D\uDCA7";
-    if (v === "optional") return "\uD83D\uDD35";
+    if (v === "yes")      return ICONS.WATER;
+    if (v === "optional") return ICONS.BLUE;
     return null;
   }
 
@@ -943,8 +944,8 @@ class IndeklimaPanel extends HTMLElement {
 
     // Udendørs vejr kompakt
     const outdoorLine = vent.outdoor_temp != null
-      ? `\uD83C\uDF21\uFE0F ${this._fmt(vent.outdoor_temp, "\u00b0C", 1)} \u00B7 \uD83D\uDCA7 ${this._fmt(vent.outdoor_humidity, "%", 0)} udenfor`
-      : vent.weather_configured ? "\u23F3 Vejrdata ikke tilg\u00e6ngeligt endnu" : null;
+      ? `${ICONS.THERMO} ${this._fmt(vent.outdoor_temp, "\u00b0C", 1)} \u00B7 ${ICONS.WATER} ${this._fmt(vent.outdoor_humidity, "%", 0)} udenfor`
+      : vent.weather_configured ? ICONS.HOURGLASS + " Vejrdata ikke tilg\u00e6ngeligt endnu" : null;
 
     return `
       <!-- Score + status i én boks -->
@@ -978,7 +979,7 @@ class IndeklimaPanel extends HTMLElement {
             <div class="ov-cell" id="ov-vent-cell" style="border-bottom-color:${vColor};cursor:pointer;">
               <div class="ov-icon">${this._ventIcon(vStatus)}</div>
               <div class="ov-val" style="color:${vColor}">${this._ventLabel(vStatus)}</div>
-              <div class="ov-lbl">Udluftning ${reasons.length > 0 ? `<span class="ov-expand-ico">${this._ventExpanded ? "\u25B2" : "\u25BC"}</span>` : ""}</div>
+              <div class="ov-lbl">Udluftning ${reasons.length > 0 ? `<span class="ov-expand-ico">${this._ventExpanded ? ICONS.TRIANGLE_UP : ICONS.TRIANGLE_DOWN}</span>` : ""}</div>
             </div>
             <div class="ov-div"></div>
             <div class="ov-cell" style="border-bottom-color:${cColor}">
@@ -988,7 +989,7 @@ class IndeklimaPanel extends HTMLElement {
             </div>
             <div class="ov-div"></div>
             <div class="ov-cell" style="border-bottom-color:${winColor}">
-              <div class="ov-icon">\uD83E\uDE9F</div>
+              <div class="ov-icon">${ICONS.WINDOW}</div>
               <div class="ov-val" style="color:${winColor}">${winCount}</div>
               <div class="ov-lbl">${winCount === 1 ? "Vindue \u00e5bent" : "Vinduer \u00e5bne"}</div>
             </div>
@@ -1003,7 +1004,7 @@ class IndeklimaPanel extends HTMLElement {
             </div>
             ${(d.open_internal_doors||[]).length > 0 ? `
             <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">
-              ${(d.open_internal_doors||[]).map(r2 => `<span class="circ-door-chip">\uD83D\uDEAA ${r2}</span>`).join("")}
+              ${(d.open_internal_doors||[]).map(r2 => `<span class="circ-door-chip">${ICONS.DOOR} ${r2}</span>`).join("")}
             </div>` : ""}
           </div>` : ""}
         </div>
@@ -1016,10 +1017,10 @@ class IndeklimaPanel extends HTMLElement {
         </div>
         <div class="section-box-body" style="padding:12px 14px;">
           <div class="quick-stats" style="margin-bottom:0;">
-            ${this._qs("\uD83C\uDF21\uFE0F", this._fmt(averages.temperature, "\u00b0C", 1), "Temp", "stable", false)}
-            ${this._qs("\uD83D\uDCA7", this._fmt(averages.humidity, "%", 0), "Fugtighed", trends.humidity, true)}
+            ${this._qs(ICONS.THERMO, this._fmt(averages.temperature, "\u00b0C", 1), "Temp", "stable", false)}
+            ${this._qs(ICONS.WATER, this._fmt(averages.humidity, "%", 0), "Fugtighed", trends.humidity, true)}
             ${this._qs("\uD83E\uDEA7", this._fmt(averages.co2, "ppm", 0), "CO\u2082", trends.co2, true)}
-            ${this._qs("\uD83E\uDDED", this._fmt(averages.pressure, "hPa", 0), "Lufttryk", "stable", false)}
+            ${this._qs(ICONS.COMPASS, this._fmt(averages.pressure, "hPa", 0), "Lufttryk", "stable", false)}
           </div>
         </div>
       </div>
@@ -1033,9 +1034,9 @@ class IndeklimaPanel extends HTMLElement {
           ${(trends.humidity === "stable" && trends.co2 === "stable" && trends.severity === "stable")
             ? `<div class="all-stable-row"><span class="all-stable-dot"></span>Alle m\u00e5linger er stabile</div>`
             : `<div class="trends-row" style="margin-bottom:0;">
-                ${this._trendCard("\uD83D\uDCA7", "Fugtighed", trends.humidity)}
+                ${this._trendCard(ICONS.WATER, "Fugtighed", trends.humidity)}
                 ${this._trendCard("\uD83E\uDEA7", "CO\u2082", trends.co2)}
-                ${this._trendCard("\uD83D\uDCCA", "Alvorlighed", trends.severity)}
+                ${this._trendCard(ICONS.CHART, "Alvorlighed", trends.severity)}
                </div>`}
         </div>
       </div>
@@ -1049,8 +1050,8 @@ class IndeklimaPanel extends HTMLElement {
         </div>
         <div class="section-box-body">
           <div class="windows-list" style="margin-bottom:0;">
-            ${(d.open_windows||[]).map(r2 => `<div class="window-chip"><span class="window-chip-icon">\uD83E\uDE9F</span>${r2}</div>`).join("")}
-            ${(d.open_internal_doors||[]).map(r2 => `<div class="window-chip" style="border-left-color:#f59e0b"><span class="window-chip-icon">\uD83D\uDEAA</span>${r2}</div>`).join("")}
+            ${(d.open_windows||[]).map(r2 => `<div class="window-chip"><span class="window-chip-icon">${ICONS.WINDOW}</span>${r2}</div>`).join("")}
+            ${(d.open_internal_doors||[]).map(r2 => `<div class="window-chip" style="border-left-color:#f59e0b"><span class="window-chip-icon">${ICONS.DOOR}</span>${r2}</div>`).join("")}
           </div>
         </div>
       </div>` : ""}
@@ -1104,7 +1105,7 @@ class IndeklimaPanel extends HTMLElement {
           style="border-left-color:${color}; background:${bg}, var(--bg2);"
           data-room="${r.name}">
           <div class="room-card-header">
-            <div class="room-name">${r.name}${r.led_alarm_active ? ` <span class="led-alarm-icon" title="LED alarm aktiv" style="color:#ef4444;">\uD83D\uDD34</span>` : ""}</div>
+            <div class="room-name">${r.name}${r.led_alarm_active ? ` <span class="led-alarm-icon" title="LED alarm aktiv" style="color:#ef4444;">${ICONS.RED}</span>` : ""}</div>
             <div style="display:flex;align-items:center;gap:6px;">
               <span style="font-size:10px;color:${color};font-family:'DM Mono',monospace;font-weight:700;">${Math.round(severityPct)}</span>
               <div class="room-status-pill" style="background:${color}22; color:${color};">
@@ -1114,8 +1115,8 @@ class IndeklimaPanel extends HTMLElement {
           </div>
 
           <div class="room-metrics">
-            ${r.temperature_sensors_count > 0 ? this._roomMetric("\uD83C\uDF21\uFE0F", this._fmt(r.temperature, "\u00b0C", 1), "Temp") : ""}
-            ${r.humidity_sensors_count > 0    ? this._roomMetric("\uD83D\uDCA7", this._fmt(r.humidity, "%", 0), "Fugt") : ""}
+            ${r.temperature_sensors_count > 0 ? this._roomMetric(ICONS.THERMO, this._fmt(r.temperature, "\u00b0C", 1), "Temp") : ""}
+            ${r.humidity_sensors_count > 0    ? this._roomMetric(ICONS.WATER, this._fmt(r.humidity, "%", 0), "Fugt") : ""}
             ${r.co2_sensors_count > 0         ? this._roomMetric("\uD83E\uDEA7", this._fmt(r.co2, "ppm", 0), "CO\u2082") : ""}
           </div>
 
@@ -1148,8 +1149,8 @@ class IndeklimaPanel extends HTMLElement {
           ${this._sparkline(r.name, "severity")}
           ${r.outdoor_windows_open > 0 || r.internal_doors_open > 0 ? `
           <div class="room-windows">
-            ${r.outdoor_windows_open > 0 ? `<span class="room-window-chip open">\uD83E\uDE9F ${r.outdoor_windows_open} vindue${r.outdoor_windows_open > 1 ? "r" : ""} \u00e5ben</span>` : ""}
-            ${r.internal_doors_open > 0 ? `<span class="room-window-chip open">\uD83D\uDEAA ${r.internal_doors_open} d\u00f8r${r.internal_doors_open > 1 ? "e" : ""} \u00e5ben</span>` : ""}
+            ${r.outdoor_windows_open > 0 ? `<span class="room-window-chip open">${ICONS.WINDOW} ${r.outdoor_windows_open} vindue${r.outdoor_windows_open > 1 ? "r" : ""} \u00e5ben</span>` : ""}
+            ${r.internal_doors_open > 0 ? `<span class="room-window-chip open">${ICONS.DOOR} ${r.internal_doors_open} d\u00f8r${r.internal_doors_open > 1 ? "e" : ""} \u00e5ben</span>` : ""}
           </div>` : ""}
         </div>`;
     }).join("");
@@ -1192,16 +1193,16 @@ class IndeklimaPanel extends HTMLElement {
       <div class="room-detail" id="room-detail">
         <div class="room-detail-header" style="border-left: 4px solid ${color};">
           <div class="room-detail-name">${r.name}</div>
-          <button class="room-detail-close" id="close-detail">\u2715</button>
+          <button class="room-detail-close" id="close-detail">${ICONS.CLOSE}</button>
         </div>
         <div class="room-detail-body">
-          ${r.led_alarm_active ? `<div class="led-alarm-banner" style="display:flex;align-items:center;gap:8px;background:#ef444422;color:#ef4444;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;margin-bottom:10px;">\uD83D\uDD34 LED alarm aktiv i dette rum</div>` : ""}
-          ${r.status === "critical" && r.kritisk_siden ? `<div class="kritisk-siden-badge" style="display:inline-block;font-size:11px;color:#ef4444;font-weight:600;margin-bottom:10px;background:#ef444414;border-radius:8px;padding:4px 10px;">\u26A0\uFE0F Kritisk siden ${this._fmtTimeSince(r.kritisk_siden)}</div>` : ""}
+          ${r.led_alarm_active ? `<div class="led-alarm-banner" style="display:flex;align-items:center;gap:8px;background:#ef444422;color:#ef4444;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;margin-bottom:10px;">${ICONS.RED} LED alarm aktiv i dette rum</div>` : ""}
+          ${r.status === "critical" && r.kritisk_siden ? `<div class="kritisk-siden-badge" style="display:inline-block;font-size:11px;color:#ef4444;font-weight:600;margin-bottom:10px;background:#ef444414;border-radius:8px;padding:4px 10px;">${ICONS.WARN} Kritisk siden ${this._fmtTimeSince(r.kritisk_siden)}</div>` : ""}
           <div class="room-detail-metrics">
-            ${r.temperature_sensors_count > 0 ? this._rdmCard("\uD83C\uDF21\uFE0F", this._fmt(r.temperature, "\u00b0C", 1), "Temperatur", r.temperature_sensors_count) : ""}
-            ${r.humidity_sensors_count > 0    ? this._rdmCard("\uD83D\uDCA7", this._fmt(r.humidity, "%", 0), "Fugtighed", r.humidity_sensors_count) : ""}
+            ${r.temperature_sensors_count > 0 ? this._rdmCard(ICONS.THERMO, this._fmt(r.temperature, "\u00b0C", 1), "Temperatur", r.temperature_sensors_count) : ""}
+            ${r.humidity_sensors_count > 0    ? this._rdmCard(ICONS.WATER, this._fmt(r.humidity, "%", 0), "Fugtighed", r.humidity_sensors_count) : ""}
             ${r.co2_sensors_count > 0         ? this._rdmCard("\uD83E\uDEA7", this._fmt(r.co2, "ppm", 0), "CO\u2082", r.co2_sensors_count) : ""}
-            ${r.pressure_sensors_count > 0    ? this._rdmCard("\uD83E\uDDED", this._fmt(r.pressure, "hPa", 0), "Lufttryk", r.pressure_sensors_count) : ""}
+            ${r.pressure_sensors_count > 0    ? this._rdmCard(ICONS.COMPASS, this._fmt(r.pressure, "hPa", 0), "Lufttryk", r.pressure_sensors_count) : ""}
           </div>
           <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sub);">
             <span>Alvorlighed:</span>
@@ -1302,13 +1303,13 @@ class IndeklimaPanel extends HTMLElement {
             <h1>Indeklima</h1>
             <div class="version">v${d?.version || "\u2014"} \u00B7 Gold Tier${this._lastLoad ? " \u00B7 " + this._lastLoad.toLocaleTimeString("da-DK",{hour:"2-digit",minute:"2-digit"}) : ""}</div>
           </div>
-          ${this._stale ? '<span style="font-size:11px;color:var(--sub);padding:6px 10px;background:var(--bg2);border-radius:8px;border:1px solid var(--div)">\uD83D\uDD04 Opdaterer\u2026</span>' : ''}
-          <button class="header-refresh" id="refresh-btn">\uD83D\uDD04 Opdater</button>
+          ${this._stale ? '<span style="font-size:11px;color:var(--sub);padding:6px 10px;background:var(--bg2);border-radius:8px;border:1px solid var(--div)">' + ICONS.REFRESH + ' Opdaterer\u2026</span>' : ''}
+          <button class="header-refresh" id="refresh-btn">${ICONS.REFRESH} Opdater</button>
         </div>
         ${d ? `<div class="tabs">
           ${[
-            { id: "overview",    label: "\uD83D\uDCCA Overblik" },
-            { id: "rooms",       label: "\uD83C\uDFE0 Rum" },
+            { id: "overview",    label: ICONS.CHART + " Overblik" },
+            { id: "rooms",       label: ICONS.HOME + " Rum" },
           ].map(t => `
             <button class="tab${this._tab === t.id ? " active" : ""}" data-tab="${t.id}">
               ${t.label}

@@ -4,6 +4,8 @@ Version: 2.9.9
 """
 from __future__ import annotations
 
+from typing import Any
+
 import logging
 
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
@@ -212,7 +214,7 @@ class IndeklimaGlobalSensor(CoordinatorEntity, SensorEntity):
         coordinator: IndeklimaDataCoordinator,
         entry: ConfigEntry,
         sensor_type: str,
-        config: dict,
+        config: dict[str, Any],
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
@@ -270,7 +272,7 @@ class IndeklimaGlobalSensor(CoordinatorEntity, SensorEntity):
         return None
     
     @property
-    def extra_state_attributes(self) -> dict:
+    def extra_state_attributes(self) -> dict[str, Any]:
         """Return additional attributes."""
         if self.coordinator.data is None:
             return {}
@@ -352,7 +354,7 @@ class IndeklimaRoomSensor(CoordinatorEntity, SensorEntity):
         return "mdi:check-circle"
     
     @property
-    def extra_state_attributes(self) -> dict:
+    def extra_state_attributes(self) -> dict[str, Any]:
         """Return room-specific attributes."""
         if self.coordinator.data is None:
             return {}
@@ -473,7 +475,7 @@ class IndeklimaRoomMetricSensor(CoordinatorEntity, SensorEntity):
             return round(value, 1)
     
     @property
-    def extra_state_attributes(self) -> dict:
+    def extra_state_attributes(self) -> dict[str, Any]:
         """Return additional attributes showing individual sensor values."""
         if self.coordinator.data is None:
             return {}

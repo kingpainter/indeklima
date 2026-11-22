@@ -1,3 +1,4 @@
+import { ICONS } from "/api/indeklima-icons";
 // Indeklima – Custom Lovelace Cards (FIXED VERSION)
 // Version: 2.9.10 (with security, performance, and accessibility fixes)
 // Cards:
@@ -15,6 +16,12 @@ const INDEKLIMA_DOMAIN = "indeklima";
 
 function esc(s) {
   return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// One cell in the Gennemsnit grid. Renders nothing when there is no value.
+function avgCell(value, icon, text, label, accent) {
+  if (value == null) return "";
+  return `<div class="avg-cell" style="border-bottom-color:${accent}"><div class="avg-ico">${icon}</div><div class="av">${text}</div><div class="al">${label}</div></div>`;
 }
 
 function fmtNum(val, unit, decimals = 0) {
@@ -44,9 +51,9 @@ function statusLabel(status) {
 }
 
 function trendIcon(trend) {
-  if (trend === "rising")  return "↗";
-  if (trend === "falling") return "↘";
-  return "→";
+  if (trend === "rising")  return ICONS.TREND_UP;
+  if (trend === "falling") return ICONS.TREND_DOWN;
+  return ICONS.TREND_FLAT;
 }
 
 function trendColor(trend) {
@@ -138,8 +145,8 @@ function dehumLabel(v) {
 }
 
 function dehumIcon(v) {
-  if (v === "yes")      return "💧";
-  if (v === "optional") return "🔵";
+  if (v === "yes")      return ICONS.WATER;
+  if (v === "optional") return ICONS.BLUE;
   return null;
 }
 
@@ -153,8 +160,8 @@ function dehumColor(v) {
 }
 
 function moldIcon(m) {
-  if (m === "critical" || m === "high" || m === "moderate") return "🦠";
-  return "✅";
+  if (m === "critical" || m === "high" || m === "moderate") return ICONS.MOLD;
+  return ICONS.CHECK;
 }
 
 function dehumModeLabel(m) {
@@ -351,7 +358,7 @@ class IndeklimaRoomCard extends HTMLElement {
             <div class="room-name">${esc(title)}</div>
             <div class="status-pill">${r ? statusLabel(status) : "..."}</div>
           </div>
-          ${r && status === "critical" && r.kritisk_siden ? `<div class="crit-since">⚠️ Kritisk siden ${fmtTimeSince(r.kritisk_siden)}</div>` : ""}
+          ${r && status === "critical" && r.kritisk_siden ? `<div class="crit-since">${ICONS.WARN} Kritisk siden ${fmtTimeSince(r.kritisk_siden)}</div>` : ""}
           ${!r ? '<div class="loading">Henter data...</div>' : `
             <div class="metrics">${metrics}</div>
             <div class="sev-row">
@@ -361,10 +368,10 @@ class IndeklimaRoomCard extends HTMLElement {
             </div>
             ${(r.outdoor_windows_open > 0 || r.internal_doors_open > 0 || r.air_circulation_bonus || r.led_alarm_active) ? `
             <div class="footer">
-              ${r.led_alarm_active ? `<span class="chip alarm">🔴 LED alarm aktiv</span>` : ""}
-              ${r.outdoor_windows_open > 0 ? `<span class="chip open">🪟 ${r.outdoor_windows_open} vindue${r.outdoor_windows_open>1?"r":""}</span>` : ""}
-              ${r.internal_doors_open  > 0 ? `<span class="chip open">🚪 ${r.internal_doors_open} dør${r.internal_doors_open>1?"e":""}</span>` : ""}
-              ${r.air_circulation_bonus    ? `<span class="chip open">💨 Bonus aktiv</span>` : ""}
+              ${r.led_alarm_active ? `<span class="chip alarm">${ICONS.RED} LED alarm aktiv</span>` : ""}
+              ${r.outdoor_windows_open > 0 ? `<span class="chip open">${ICONS.WINDOW} ${r.outdoor_windows_open} vindue${r.outdoor_windows_open>1?"r":""}</span>` : ""}
+              ${r.internal_doors_open  > 0 ? `<span class="chip open">${ICONS.DOOR} ${r.internal_doors_open} dør${r.internal_doors_open>1?"e":""}</span>` : ""}
+              ${r.air_circulation_bonus    ? `<span class="chip open">${ICONS.WIND} Bonus aktiv</span>` : ""}
             </div>` : ""}
             <div class="rc-status">
               <div class="rc-sc-cell" style="border-bottom-color:${moldColor(r.mold_risk||'low')}">
@@ -375,7 +382,7 @@ class IndeklimaRoomCard extends HTMLElement {
               ${r.has_dehumidifier ? `
               <div class="rc-sc-div"></div>
               <div class="rc-sc-cell" style="border-bottom-color:${dehumColor(r.dehumidifier_recommendation||'no')}">
-                <div class="rc-sc-ico">${dehumIcon(r.dehumidifier_recommendation||'no') || '💧'}</div>
+                <div class="rc-sc-ico">${dehumIcon(r.dehumidifier_recommendation||'no') || ICONS.WATER}</div>
                 <div class="rc-sc-val" style="color:${dehumColor(r.dehumidifier_recommendation||'no')}">${r.dehumidifier_recommendation==='yes'?'Tænd':r.dehumidifier_recommendation==='optional'?'Overvej':'OK'}</div>
                 <div class="rc-sc-lbl">Affugter${r.dehumidifier_mode && r.dehumidifier_mode !== 'off' ? ` · ${dehumModeLabel(r.dehumidifier_mode)}` : ''}</div>
               </div>` : ""}
@@ -505,7 +512,7 @@ class IndeklimaHubCard extends HTMLElement {
 
     const problemCards = problemRooms.map(makeRoomCard).join("");
     const okChips = okRooms.map(r =>
-      `<div class="ok-chip">✅ ${esc(r.name)}</div>`
+      `<div class="ok-chip">${ICONS.CHECK} ${esc(r.name)}</div>`
     ).join("");
     const okSection = okRooms.length > 0 ? `
       <div class="ok-rooms-wrap">
@@ -638,7 +645,7 @@ class IndeklimaHubCard extends HTMLElement {
                   ${statusLabel(status)}
                 </div>
                 <div class="status-title">${d.room_count} rum overv̊ges</div>
-                <div class="status-sub">🪟 ${d.open_windows_count} åbne vinduer</div>
+                <div class="status-sub">${ICONS.WINDOW} ${d.open_windows_count} åbne vinduer</div>
               </div>
             </div>
             <div class="hub-sev-wrap">
@@ -665,17 +672,17 @@ class IndeklimaHubCard extends HTMLElement {
               <div class="section-lbl">Tendenser (15 min)</div>
               <div class="trends-row">
                 <div class="trend-chip">
-                  <div class="trend-header">💧 Fugtighed</div>
+                  <div class="trend-header">${ICONS.WATER} Fugtighed</div>
                   <div class="trend-arrow" style="color:${trendColor(trends.humidity)}">${trendIcon(trends.humidity)}</div>
                   <div class="trend-label" style="color:${trendColor(trends.humidity)}">${trendLabel(trends.humidity)}</div>
                 </div>
                 <div class="trend-chip">
-                  <div class="trend-header">🌫️ CO₂</div>
+                  <div class="trend-header">${ICONS.FOG} CO₂</div>
                   <div class="trend-arrow" style="color:${trendColor(trends.co2)}">${trendIcon(trends.co2)}</div>
                   <div class="trend-label" style="color:${trendColor(trends.co2)}">${trendLabel(trends.co2)}</div>
                 </div>
                 <div class="trend-chip">
-                  <div class="trend-header">📊 Score</div>
+                  <div class="trend-header">${ICONS.CHART} Score</div>
                   <div class="trend-arrow" style="color:${trendColor(trends.severity)}">${trendIcon(trends.severity)}</div>
                   <div class="trend-label" style="color:${trendColor(trends.severity)}">${trendLabel(trends.severity)}</div>
                 </div>
@@ -691,20 +698,20 @@ class IndeklimaHubCard extends HTMLElement {
               </div>
               <div class="sc-divider"></div>
               <div class="sc-cell" style="border-bottom-color:${vColor}">
-                <div class="sc-icon">${vent.status==="yes"?"🌬️":vent.status==="optional"?"🤔":"⏰"}</div>
+                <div class="sc-icon">${vent.status==="yes"?ICONS.VENT_YES:vent.status==="optional"?ICONS.THINK:ICONS.CLOCK}</div>
                 <div class="sc-val" style="color:${vColor}">${ventLabel(vent.status)}</div>
                 <div class="sc-lbl">Udluftning</div>
               </div>
               <div class="sc-divider"></div>
               <div class="sc-cell" style="border-bottom-color:${circColor(d.air_circulation)}">
-                <div class="sc-icon">${d.air_circulation==="good"?"💨":d.air_circulation==="moderate"?"🌪️":"💨"}</div>
+                <div class="sc-icon">${d.air_circulation==="good"?ICONS.WIND:d.air_circulation==="moderate"?ICONS.TORNADO:ICONS.WIND}</div>
                 <div class="sc-val" style="color:${circColor(d.air_circulation)}">${d.air_circulation==="good"?"God":d.air_circulation==="moderate"?"Moderat":"Dårlig"}</div>
                 <div class="sc-lbl">Cirkulation</div>
               </div>
               ${rooms.some(r => r.has_dehumidifier) ? `
               <div class="sc-divider"></div>
               <div class="sc-cell" style="border-bottom-color:${dehumColor(d.dehumidifier_recommendation||'no')}">
-                <div class="sc-icon">${dehumIcon(d.dehumidifier_recommendation||'no') || '💧'}</div>
+                <div class="sc-icon">${dehumIcon(d.dehumidifier_recommendation||'no') || ICONS.WATER}</div>
                 <div class="sc-val" style="color:${dehumColor(d.dehumidifier_recommendation||'no')}">${d.dehumidifier_recommendation==='yes'?'Tænd':d.dehumidifier_recommendation==='optional'?'Overvej':'OK'}</div>
                 <div class="sc-lbl">Affugter</div>
               </div>` : ""}
@@ -814,13 +821,13 @@ class IndeklimaTabletCard extends HTMLElement {
           <div class="score-badge" style="background:${color}1a;color:${color};">
             <span class="bdot" style="background:${color}"></span>${statusLabel(status)}
           </div>
-          <div class="score-subs">${d.room_count} rum · 🪟 ${d.open_windows_count} åbne</div>
+          <div class="score-subs">${d.room_count} rum · ${ICONS.WINDOW} ${d.open_windows_count} åbne</div>
         </div>
       </div>
 
       <div class="sec-lbl mt10">Tendenser (15 min)</div>
       <div class="trends-col">
-        ${[["💧","Fugtighed",trends.humidity],["🌫️","CO₂",trends.co2],["📊","Score",trends.severity]]
+        ${[[ICONS.WATER,"Fugtighed",trends.humidity],[ICONS.FOG,"CO₂",trends.co2],[ICONS.CHART,"Score",trends.severity]]
           .map(([ico, lbl, tr]) => `
             <div class="trend-row">
               <div class="trend-row-left">
@@ -837,7 +844,7 @@ class IndeklimaTabletCard extends HTMLElement {
       <div class="divider"></div>
       <div class="sec-lbl">Vinduer / døre</div>
       ${(d?.open_windows && d.open_windows.length)
-        ? `<div class="win-list">${d.open_windows.map(w=>`<div class="win-chip">🪟 ${esc(w)}</div>`).join("")}</div>`
+        ? `<div class="win-list">${d.open_windows.map(w=>`<div class="win-chip">${ICONS.WINDOW} ${esc(w)}</div>`).join("")}</div>`
         : `<div class="no-win">Ingen åbne vinduer</div>`}
     `;
 
@@ -850,7 +857,7 @@ class IndeklimaTabletCard extends HTMLElement {
             <div class="rr-name">${esc(r.name)}</div>
             <span class="rr-pill" style="background:${rc}22;color:${rc};${r.status!=="good"?"animation:blink 2s infinite;":""}">${statusLabel(r.status)}</span>
             <span class="rr-mold" style="font-size:11px;margin-left:4px;color:${moldColor(r.mold_risk||'low')}">${moldIcon(r.mold_risk)} ${moldLabel(r.mold_risk)}</span>
-            <span style="font-size:11px;margin-left:4px;color:${airQualityColor(r.air_quality||'good')}">${r.air_quality==="good"?"🌿":r.air_quality==="moderate"?"💨":r.air_quality==="poor"?"🚫":"☠️"} ${airQualityLabel(r.air_quality||'good')}</span>
+            <span style="font-size:11px;margin-left:4px;color:${airQualityColor(r.air_quality||'good')}">${r.air_quality==="good"?ICONS.LEAF:r.air_quality==="moderate"?ICONS.WIND:r.air_quality==="poor"?ICONS.BLOCK:ICONS.SKULL} ${airQualityLabel(r.air_quality||'good')}</span>
           </div>
           <div class="rr-metrics">
             ${(r?.temperature_sensors_count ?? 0) > 0 ? `<div class="rrm"><div class="rrm-v">${fmtNum(r.temperature,"°C",1)}</div><div class="rrm-l">Temp</div></div>` : ""}
@@ -874,19 +881,21 @@ class IndeklimaTabletCard extends HTMLElement {
     const col3 = !d ? "" : `
       <div class="sec-lbl">Gennemsnit</div>
       <div class="avg-grid">
-        ${(avgs?.temperature ?? null) != null ? `<div class="avg-cell" style="border-bottom-color:${statusColor(d.status)}"><div class="avg-ico">🌡️</div><div class="av">${fmtNum(avgs.temperature,"°C",1)}</div><div class="al">Temp</div></div>` : ""}
-        ${(avgs?.humidity ?? null) != null ? `<div class="avg-cell" style="border-bottom-color:${statusColor(d.status)}"><div class="avg-ico">💧</div><div class="av">${fmtNum(avgs.humidity,"%")}</div><div class="al">Fugt</div></div>` : ""}
-        ${(avgs?.co2 ?? null) != null ? `<div class="avg-cell" style="border-bottom-color:${statusColor(d.status)}"><div class="avg-ico">🌫️</div><div class="av">${fmtNum(avgs.co2,"ppm")}</div><div class="al">CO2</div></div>` : ""}
-        ${(avgs?.pressure ?? null) != null ? `<div class="avg-cell" style="border-bottom-color:${statusColor(d.status)}"><div class="avg-ico">📊</div><div class="av">${fmtNum(avgs.pressure,"hPa")}</div><div class="al">Tryk</div></div>` : ""}
-        ${(avgs?.pm2_5 ?? null) != null ? `<div class="avg-cell" style="border-bottom-color:${statusColor(d.status)}"><div class="avg-ico">💨</div><div class="av">${fmtNum(avgs.pm2_5,"µg/m³")}</div><div class="al">PM2.5</div></div>` : ""}
-        ${(avgs?.pm10_0 ?? null) != null ? `<div class="avg-cell" style="border-bottom-color:${statusColor(d.status)}"><div class="avg-ico">🌪️</div><div class="av">${fmtNum(avgs.pm10_0,"µg/m³")}</div><div class="al">PM10</div></div>` : ""}
+        ${avgCell(avgs?.temperature, ICONS.THERMO, fmtNum(avgs.temperature,"°C",1), "Temp", statusColor(d.status))}
+        ${avgCell(avgs?.humidity, ICONS.WATER, fmtNum(avgs.humidity,"%"), "Fugt", statusColor(d.status))}
+        ${avgCell(avgs?.co2, ICONS.FOG, fmtNum(avgs.co2,"ppm"), "CO2", statusColor(d.status))}
+        ${avgCell(avgs?.pressure, ICONS.CHART, fmtNum(avgs.pressure,"hPa"), "Tryk", statusColor(d.status))}
+        ${avgCell(avgs?.pm2_5, ICONS.WIND, fmtNum(avgs.pm2_5,"µg/m³"), "PM2.5", statusColor(d.status))}
+        ${avgCell(avgs?.pm10_0, ICONS.TORNADO, fmtNum(avgs.pm10_0,"µg/m³"), "PM10", statusColor(d.status))}
+        ${avgCell(avgs?.voc, ICONS.VOC, fmtNum(avgs.voc,"mg/m³",1), "VOC", "#8b5cf6")}
+        ${avgCell(avgs?.formaldehyde, ICONS.FORMALDEHYDE, fmtNum(avgs.formaldehyde,"mg/m³",2), "Formaldehyd", "#f43f5e")}
       </div>
 
       <div class="divider"></div>
       <div class="sec-lbl">Status</div>
       <div class="stat-grid">
         <div class="stat-cell" style="border-bottom-color:${vColor}">
-          <div class="stat-ico">${vent.status==="yes"?"🌬️":vent.status==="optional"?"🤔":"⏰"}</div>
+          <div class="stat-ico">${vent.status==="yes"?ICONS.VENT_YES:vent.status==="optional"?ICONS.THINK:ICONS.CLOCK}</div>
           <div class="stat-val" style="color:${vColor}">${ventLabel(vent.status)}</div>
           <div class="stat-lbl">Udluftning</div>
         </div>
@@ -896,18 +905,18 @@ class IndeklimaTabletCard extends HTMLElement {
           <div class="stat-lbl">Skimmel</div>
         </div>
         <div class="stat-cell" style="border-bottom-color:${circColor(d.air_circulation)}">
-          <div class="stat-ico">${d.air_circulation==="good"?"💨":d.air_circulation==="moderate"?"🌪️":"💨"}</div>
+          <div class="stat-ico">${d.air_circulation==="good"?ICONS.WIND:d.air_circulation==="moderate"?ICONS.TORNADO:ICONS.WIND}</div>
           <div class="stat-val" style="color:${circColor(d.air_circulation)}">${d.air_circulation==="good"?"God":d.air_circulation==="moderate"?"Moderat":"Dårlig"}</div>
           <div class="stat-lbl">Cirkulation</div>
         </div>
         ${rooms.some(r => r.has_dehumidifier) ? `
         <div class="stat-cell" style="border-bottom-color:${dehumColor(d.dehumidifier_recommendation||'no')}">
-          <div class="stat-ico">${dehumIcon(d.dehumidifier_recommendation||'no') || '💧'}</div>
+          <div class="stat-ico">${dehumIcon(d.dehumidifier_recommendation||'no') || ICONS.WATER}</div>
           <div class="stat-val" style="color:${dehumColor(d.dehumidifier_recommendation||'no')}">${d.dehumidifier_recommendation==='yes'?'Tænd':d.dehumidifier_recommendation==='optional'?'Overvej':'OK'}</div>
           <div class="stat-lbl">Affugter</div>
         </div>` : ""}
         <div class="stat-cell" style="border-bottom-color:${airQualityColor(d.air_quality||'good')}">
-          <div class="stat-ico">${d.air_quality==="good"?"🌿":d.air_quality==="moderate"?"💨":d.air_quality==="poor"?"🚫":"☠️"}</div>
+          <div class="stat-ico">${d.air_quality==="good"?ICONS.LEAF:d.air_quality==="moderate"?ICONS.WIND:d.air_quality==="poor"?ICONS.BLOCK:ICONS.SKULL}</div>
           <div class="stat-val" style="color:${airQualityColor(d.air_quality||'good')}">${airQualityLabel(d.air_quality||'good')}</div>
           <div class="stat-lbl">Luftkvalitet</div>
         </div>
@@ -1179,13 +1188,13 @@ class IndeklimaRoomDetailCard extends HTMLElement {
 
     const metrics = r ? [
       (r?.temperature_sensors_count ?? 0) > 0
-        ? metricCell("🌡️", fmtNum(r.temperature, "°C", 1), "Temperatur", "#0ea5e9") : "",
+        ? metricCell(ICONS.THERMO, fmtNum(r.temperature, "°C", 1), "Temperatur", "#0ea5e9") : "",
       (r?.humidity_sensors_count ?? 0) > 0
-        ? metricCell("💧", fmtNum(r.humidity, "%"), "Fugtighed", color) : "",
+        ? metricCell(ICONS.WATER, fmtNum(r.humidity, "%"), "Fugtighed", color) : "",
       (r?.co2_sensors_count ?? 0) > 0
-        ? metricCell("🌫️", fmtNum(r.co2, "ppm"), "CO₂", color) : "",
+        ? metricCell(ICONS.FOG, fmtNum(r.co2, "ppm"), "CO₂", color) : "",
       (r?.pressure_sensors_count ?? 0) > 0
-        ? metricCell("🧭", fmtNum(r.pressure, "hPa"), "Lufttryk", "#8b5cf6") : "",
+        ? metricCell(ICONS.COMPASS, fmtNum(r.pressure, "hPa"), "Lufttryk", "#8b5cf6") : "",
     ].filter(Boolean).join("") : "";
 
     const sevPct = Math.min(100, sev);
@@ -1195,9 +1204,9 @@ class IndeklimaRoomDetailCard extends HTMLElement {
     const bonusActive = r?.air_circulation_bonus ?? false;
 
     const statusChips = [
-      winCount  > 0 ? `<span class="chip chip-blue">🪟 ${winCount} vindue${winCount > 1 ? "r" : ""} åbent</span>` : "",
-      doorCount > 0 ? `<span class="chip chip-blue">🚪 ${doorCount} dør${doorCount > 1 ? "e" : ""} åben</span>` : "",
-      bonusActive    ? `<span class="chip chip-green">💨 Cirkulations-bonus aktiv</span>` : "",
+      winCount  > 0 ? `<span class="chip chip-blue">${ICONS.WINDOW} ${winCount} vindue${winCount > 1 ? "r" : ""} åbent</span>` : "",
+      doorCount > 0 ? `<span class="chip chip-blue">${ICONS.DOOR} ${doorCount} dør${doorCount > 1 ? "e" : ""} åben</span>` : "",
+      bonusActive    ? `<span class="chip chip-green">${ICONS.WIND} Cirkulations-bonus aktiv</span>` : "",
       winCount === 0 && doorCount === 0
         ? `<span class="chip chip-sub">Ingen åbne vinduer eller døre</span>` : "",
     ].filter(Boolean).join("");
@@ -1350,7 +1359,7 @@ class IndeklimaRoomDetailCard extends HTMLElement {
 
           ${this._loadError && !r ? `
             <div class="load-error">
-              <div class="err-icon">⚠️</div>
+              <div class="err-icon">${ICONS.WARN}</div>
               <div class="err-title">Kunne ikke hente rum-data</div>
               <div class="err-sub">Tjek at rum-navnet matcher præcist:<br><code>${esc(this._config.room || "ukendt")}</code></div>
               <div class="err-detail">${esc(this._loadError)}</div>
@@ -1368,8 +1377,8 @@ class IndeklimaRoomDetailCard extends HTMLElement {
               </div>
             </div>
 
-            ${r.led_alarm_active ? `<div class="alarm-banner">🔴 LED alarm aktiv i dette rum</div>` : ""}
-            ${status === "critical" && r.kritisk_siden ? `<div class="crit-since-row">⚠️ Kritisk siden ${fmtTimeSince(r.kritisk_siden)}</div>` : ""}
+            ${r.led_alarm_active ? `<div class="alarm-banner">${ICONS.RED} LED alarm aktiv i dette rum</div>` : ""}
+            ${status === "critical" && r.kritisk_siden ? `<div class="crit-since-row">${ICONS.WARN} Kritisk siden ${fmtTimeSince(r.kritisk_siden)}</div>` : ""}
 
             <div class="sev-wrap">
               <div class="sev-label-row">
@@ -1390,17 +1399,17 @@ class IndeklimaRoomDetailCard extends HTMLElement {
               <div class="section-lbl">Tendenser (15 min)</div>
               <div class="trends-row">
                 <div class="trend-chip">
-                  <div class="trend-header">💧 Fugtighed</div>
+                  <div class="trend-header">${ICONS.WATER} Fugtighed</div>
                   <div class="trend-arrow" style="color:${trendColor(trends.humidity)}">${trendIcon(trends.humidity)}</div>
                   <div class="trend-label" style="color:${trendColor(trends.humidity)}">${trendLabel(trends.humidity)}</div>
                 </div>
                 <div class="trend-chip">
-                  <div class="trend-header">🌫️ CO₂</div>
+                  <div class="trend-header">${ICONS.FOG} CO₂</div>
                   <div class="trend-arrow" style="color:${trendColor(trends.co2)}">${trendIcon(trends.co2)}</div>
                   <div class="trend-label" style="color:${trendColor(trends.co2)}">${trendLabel(trends.co2)}</div>
                 </div>
                 <div class="trend-chip">
-                  <div class="trend-header">📊 Score</div>
+                  <div class="trend-header">${ICONS.CHART} Score</div>
                   <div class="trend-arrow" style="color:${trendColor(trends.severity)}">${trendIcon(trends.severity)}</div>
                   <div class="trend-label" style="color:${trendColor(trends.severity)}">${trendLabel(trends.severity)}</div>
                 </div>
@@ -1412,7 +1421,7 @@ class IndeklimaRoomDetailCard extends HTMLElement {
 
               <div class="ds-cell" style="border-left-color:${vColor}">
                 <div class="ds-header">
-                  <span class="ds-icon">${vent.status === "yes" ? "🌬️" : vent.status === "optional" ? "🤔" : "⏰"}</span>
+                  <span class="ds-icon">${vent.status === "yes" ? ICONS.VENT_YES : vent.status === "optional" ? ICONS.THINK : ICONS.CLOCK}</span>
                   <span class="ds-title" style="color:${vColor}">${ventLabel(vent.status)}</span>
                 </div>
                 <div class="ds-sub">Udluftning</div>
@@ -1432,7 +1441,7 @@ class IndeklimaRoomDetailCard extends HTMLElement {
               ${r.has_dehumidifier ? `
               <div class="ds-cell ds-full" style="border-left-color:${dehumColor(r.dehumidifier_recommendation||'no')}">
                 <div class="ds-header">
-                  <span class="ds-icon">${dehumIcon(r.dehumidifier_recommendation||'no') || '💧'}</span>
+                  <span class="ds-icon">${dehumIcon(r.dehumidifier_recommendation||'no') || ICONS.WATER}</span>
                   <span class="ds-title" style="color:${dehumColor(r.dehumidifier_recommendation||'no')}">${dehumLabel(r.dehumidifier_recommendation||'no')}</span>
                 </div>
                 <div class="ds-sub">Affugter${r.dehumidifier_mode && r.dehumidifier_mode !== 'off' ? ` · ${dehumModeLabel(r.dehumidifier_mode)}` : ''}</div>

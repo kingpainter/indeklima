@@ -11,7 +11,7 @@ for future-proofing.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.config_entries import ConfigEntry
@@ -19,6 +19,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN, __version__, normalize_room_id
+
+if TYPE_CHECKING:
+    from . import IndeklimaDataCoordinator
 
 # Fields to redact — Indeklima has no passwords/tokens, but we include
 # these keys as a precaution in case they are ever added to config.
@@ -30,9 +33,9 @@ TO_REDACT: list[str] = [
 ]
 
 
-def _get_coordinator(hass: HomeAssistant, entry: ConfigEntry):
+def _get_coordinator(hass: HomeAssistant, entry: ConfigEntry) -> IndeklimaDataCoordinator | None:
     """Return the coordinator for a config entry."""
-    return hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    return entry.runtime_data
 
 
 async def async_get_config_entry_diagnostics(
@@ -50,7 +53,7 @@ async def async_get_config_entry_diagnostics(
     coordinator = _get_coordinator(hass, entry)
 
     # Build sensor availability map — check each configured sensor entity
-    sensor_availability: dict[str, dict] = {}
+    sensor_availability: dict[str, dict[str, Any]] = {}
     rooms_config = entry.data.get("rooms", [])
     sensor_keys = [
         "humidity_sensors",

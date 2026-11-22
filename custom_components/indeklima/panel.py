@@ -24,6 +24,8 @@ _LOGGER = logging.getLogger(__name__)
 PANEL_URL         = f"/api/{DOMAIN}-panel"
 CARDS_URL         = f"/api/{DOMAIN}-cards"
 LOGO_URL          = f"/api/{DOMAIN}-logo"
+ICONS_URL         = f"/api/{DOMAIN}-icons"
+ICONS_FILENAME    = "indeklima-icons.js"
 LOGO_FILENAME     = "indeklima-logo.png"
 PANEL_ICON        = "mdi:air-filter"
 PANEL_NAME        = "indeklima-panel"
@@ -38,7 +40,7 @@ async def async_register_panel(hass: HomeAssistant) -> None:
     """Register the sidebar panel and Lovelace card resource."""
 
     # Guard against double registration within the same HA session
-    if hass.data[DOMAIN].get("_panel_registered", False):
+    if hass.data.setdefault(DOMAIN, {}).get("_panel_registered", False):
         _LOGGER.debug("Indeklima panel already registered, skipping")
         return
 
@@ -71,6 +73,13 @@ async def async_register_panel(hass: HomeAssistant) -> None:
         _LOGGER.info("Cards static path registered: %s → %s", CARDS_URL, cards_file)
     else:
         _LOGGER.warning("Cards JS file not found: %s", cards_file)
+
+    # Shared icon definitions, imported by the panel and cards as an ES module
+    icons_file = os.path.join(frontend_dir, ICONS_FILENAME)
+    if os.path.isfile(icons_file):
+        static_paths.append(StaticPathConfig(ICONS_URL, icons_file, cache_headers=False))
+    else:
+        _LOGGER.warning("Icons JS file not found: %s", icons_file)
 
     await hass.http.async_register_static_paths(static_paths)
     _LOGGER.info("Panel static path registered: %s → %s", PANEL_URL, panel_file)

@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
+from typing import Any
 
 from homeassistant.components.repairs import ConfirmRepairFlow, RepairsFlow
 from homeassistant.core import HomeAssistant
@@ -20,7 +22,7 @@ ISSUE_COORDINATOR_FAILED = "coordinator_update_failed"
 # async_create_issue / async_delete_issue moved between HA versions.
 # Try the modern location first, fall back gracefully.
 
-def _get_create_issue():
+def _get_create_issue() -> Callable[..., Any] | None:
     try:
         from homeassistant.components.repairs import async_create_issue
         return async_create_issue
@@ -33,7 +35,7 @@ def _get_create_issue():
         return None
 
 
-def _get_delete_issue():
+def _get_delete_issue() -> Callable[..., Any] | None:
     try:
         from homeassistant.components.repairs import async_delete_issue
         return async_delete_issue
@@ -46,7 +48,7 @@ def _get_delete_issue():
         return None
 
 
-def _get_issue_severity():
+def _get_issue_severity() -> type[Any] | None:
     try:
         from homeassistant.helpers.issue_registry import IssueSeverity
         return IssueSeverity

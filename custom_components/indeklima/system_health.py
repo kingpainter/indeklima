@@ -30,13 +30,14 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
     Keys are translated via strings.json "system_health" → "info" section.
     Values can be strings, numbers, or coroutines (shown as spinner in UI).
     """
-    # Find the first active coordinator
-    coordinator = None
-    entry_count = 0
-    for value in hass.data.get(DOMAIN, {}).values():
-        if hasattr(value, "data") and hasattr(value, "rooms"):
-            coordinator = value
-            entry_count += 1
+    # Loaded entries that have a coordinator; the first one is reported
+    loaded = [
+        entry
+        for entry in hass.config_entries.async_loaded_entries(DOMAIN)
+        if getattr(entry, "runtime_data", None) is not None
+    ]
+    entry_count = len(loaded)
+    coordinator = loaded[0].runtime_data if loaded else None
 
     if coordinator is None:
         return {

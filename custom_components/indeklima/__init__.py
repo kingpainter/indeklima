@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta, datetime
+from collections.abc import Callable
 from typing import Any
 
 from homeassistant.util import dt as dt_util
@@ -149,10 +150,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Modern HA pattern: use entry.runtime_data instead of hass.data
     entry.runtime_data = coordinator
 
-    # Keep hass.data for backwards compatibility with websocket/diagnostics helpers
-    hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = coordinator
-
     # Register devices
     device_registry = dr.async_get(hass)
 
@@ -208,10 +205,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if coordinator is not None:
         coordinator.async_unload_dehumidifier_listeners()
 
-    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        hass.data[DOMAIN].pop(entry.entry_id)
-
-    return unload_ok
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -273,9 +267,9 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         )
 
         # Dehumidifier control state per room: {room_name: {"mode": ..., "unsub_timer": ...}}
-        self._dehumidifier_state: dict[str, dict] = {}
-        self._pm_filter_state: dict[str, dict] = {}
-        self._button_unsubs: list = []
+        self._dehumidifier_state: dict[str, dict[str, Any]] = {}
+        self._pm_filter_state: dict[str, dict[str, Any]] = {}
+        self._button_unsubs: list[Any] = []
 
         # LED critical-alarm blink timers per room: {room_name: unsub_callable}
         self._led_blink_unsubs: dict[str, Any] = {}
@@ -299,13 +293,6 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             name=DOMAIN,
             update_interval=timedelta(seconds=SCAN_INTERVAL),
         )
-
-    def _get_season(self) -> str:
-        """Determine current season."""
-        month = dt_util.now().month
-        if 5 <= month <= 9:
-            return SEASON_SUMMER
-        return SEASON_WINTER
 
     def _get_humidity_max(self) -> float:
         """Get max humidity based on season."""
@@ -386,7 +373,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         season = self._get_season()
         return self.pm10_0_max_summer if season == "summer" else self.pm10_0_max_winter
 
-    def _calculate_air_quality(self, room_data: dict) -> str:
+    def _calculate_air_quality(self, room_data: dict[str, Any]) -> str:
         """Determine air quality status using deterministic priority (humidity-intelligence pattern).
 
         Priority order (worst wins):
@@ -422,7 +409,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         return AIR_QUALITY_GOOD
 
 
-    def _calculate_severity(self, room_data: dict) -> float:
+    def _calculate_severity(self, room_data: dict[str, Any]) -> float:
         """Calculate severity score for a room (0-100, lower is better)."""
         severity = 0.0
         humidity_max = self._get_humidity_max()
@@ -565,7 +552,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
         return weather_data
 
-    def _get_quiet_hours(self, room: dict) -> tuple[int, int]:
+    def _get_quiet_hours(self, room: dict[str, Any]) -> tuple[int, int]:
         """Get the (start, end) quiet hours for a room.
 
         Falls back to the hub-level default if the room has no override.
@@ -574,13 +561,13 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         end = room.get(CONF_ROOM_QUIET_HOURS_END, self.quiet_hours_end)
         return start, end
 
-    def _is_quiet_hours(self, room: dict) -> bool:
+    def _is_quiet_hours(self, room: dict[str, Any]) -> bool:
         """Check whether it is currently quiet hours for a room."""
         start, end = self._get_quiet_hours(room)
         hour = dt_util.now().hour
         return hour >= start or hour < end
 
-    def _calculate_dehumidifier_recommendation(self, room_data: dict, room: dict) -> str:
+    def _calculate_dehumidifier_recommendation(self, room_data: dict[str, Any], room: dict[str, Any]) -> str:
         """Calculate dehumidifier recommendation for a single room.
 
         Returns DEHUMIDIFIER_YES / NO / OPTIONAL based on:
@@ -621,7 +608,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
         return DEHUMIDIFIER_NO
 
-    def _calculate_ventilation_recommendation(self, data: dict) -> dict:
+    def _calculate_ventilation_recommendation(self, data: dict[str, Any]) -> dict[str, Any]:
         """Calculate ventilation recommendation."""
         recommendation = {
             "status": VENTILATION_NO,
@@ -886,7 +873,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
         return data
 
-    def _process_room(self, room: dict, data: dict) -> dict[str, Any]:
+    def _process_room(self, room: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         """Process a single room and return its room_data dict.
 
         Isolated so a bad sensor in one room cannot abort the full update cycle.
@@ -1038,7 +1025,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
     # ── Dehumidifier control: auto cycle, manual button, LED feedback ───────
 
-    def _maybe_auto_control_dehumidifier(self, room: dict, room_data: dict) -> None:
+    def _maybe_auto_control_dehumidifier(self, room: dict[str, Any], room_data: dict[str, Any]) -> None:
         """Automatically start the dehumidifier if recommended.
 
         Never overrides an active manual session, and never auto-starts
@@ -1082,7 +1069,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             unsub()
         self._led_blink_unsubs = {}
 
-    def _make_button_handler(self, room: dict):
+    def _make_button_handler(self, room: dict[str, Any]) -> Callable[[Event[EventStateChangedData]], None]:
         """Build a state-change callback bound to a specific room."""
 
         @ha_callback
@@ -1091,7 +1078,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
         return _handler
 
-    async def _async_handle_button_press(self, room: dict) -> None:
+    async def _async_handle_button_press(self, room: dict[str, Any]) -> None:
         """Handle a physical button press/click: toggle the dehumidifier.
 
         Any state change on the configured button entity counts as a click —
@@ -1115,7 +1102,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         else:
             await self._async_start_dehumidifier(room, DEHUM_MODE_MANUAL)
 
-    async def _async_start_dehumidifier(self, room: dict, mode: str) -> None:
+    async def _async_start_dehumidifier(self, room: dict[str, Any], mode: str) -> None:
         """Turn the dehumidifier switch on, (re)start the auto-off timer, and update the LED."""
         switch_entity = room.get(CONF_DEHUMIDIFIER)
         if not switch_entity:
@@ -1137,7 +1124,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         )
 
         @ha_callback
-        def _on_timer_finished(_now) -> None:
+        def _on_timer_finished(_now: datetime) -> None:
             self.hass.async_create_task(self._async_stop_dehumidifier(room))
 
         unsub_timer = async_call_later(
@@ -1147,7 +1134,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         self._dehumidifier_state[room_name] = {"mode": mode, "unsub_timer": unsub_timer}
         self._async_set_led(room, mode)
 
-    async def _async_stop_dehumidifier(self, room: dict) -> None:
+    async def _async_stop_dehumidifier(self, room: dict[str, Any]) -> None:
         """Turn the dehumidifier switch off, cancel any timer, and update the LED."""
         switch_entity = room.get(CONF_DEHUMIDIFIER)
         room_name = room.get("name")
@@ -1168,7 +1155,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         self._async_set_led(room, DEHUM_MODE_OFF)
 
     # ── LED colour mapping ───────────────────────────────────────────────────
-    _LED_COLORS: dict[str, dict] = {
+    _LED_COLORS: dict[str, dict[str, Any]] = {
         "blue": {"rgb_color": [0, 100, 255], "brightness_pct": 76},
         "yellow": {"rgb_color": [255, 255, 133], "brightness_pct": 76},
         "red": {"rgb_color": [255, 0, 0], "brightness_pct": 100},
@@ -1176,7 +1163,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
 
 
 
-    def _maybe_auto_control_pm_filter(self, room: dict, room_data: dict) -> None:
+    def _maybe_auto_control_pm_filter(self, room: dict[str, Any], room_data: dict[str, Any]) -> None:
         """Auto-control PM filter based on PM thresholds (deterministic priority engine).
         
         Starts filter if PM2.5 or PM10.0 exceeds current seasonal threshold.
@@ -1207,7 +1194,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             # Keep running until timer expires
             pass
 
-    async def _async_start_pm_filter(self, room: dict) -> None:
+    async def _async_start_pm_filter(self, room: dict[str, Any]) -> None:
         """Start the PM filter and schedule auto-off."""
         room_name = room.get("name")
         pm_filter_device = room.get(CONF_PM_FILTER_DEVICE)
@@ -1236,14 +1223,14 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         )
         on_duration_seconds = on_duration_minutes * 60
 
-        async def _auto_stop(_now):
+        async def _auto_stop(_now: datetime) -> None:
             await self._async_stop_pm_filter(room)
 
         unsub_timer = async_call_later(self.hass, on_duration_seconds, _auto_stop)
 
         self._pm_filter_state[room_name] = {"active": True, "unsub_timer": unsub_timer}
 
-    async def _async_stop_pm_filter(self, room: dict) -> None:
+    async def _async_stop_pm_filter(self, room: dict[str, Any]) -> None:
         """Stop the PM filter."""
         room_name = room.get("name")
         pm_filter_device = room.get(CONF_PM_FILTER_DEVICE)
@@ -1275,7 +1262,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             return "yellow"
         return "off"
 
-    def _async_set_led(self, room: dict, mode: str) -> None:
+    def _async_set_led(self, room: dict[str, Any], mode: str) -> None:
         """Update the configured LED entity to reflect manual/auto/off state.
 
         If a critical-alert blink is currently active for this room, the alarm
@@ -1299,7 +1286,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         self._async_apply_led_color(room, color)
         state_entry["led_color"] = color
 
-    def _async_apply_led_color(self, room: dict, color: str) -> None:
+    def _async_apply_led_color(self, room: dict[str, Any], color: str) -> None:
         """Issue the actual light service call for a resolved LED colour."""
         led_entity = room.get(CONF_DEHUMIDIFIER_LED)
         if not led_entity:
@@ -1318,7 +1305,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
             self.hass.services.async_call("light", "turn_on", service_data, blocking=False)
         )
 
-    def _async_start_led_alarm_blink(self, room: dict) -> None:
+    def _async_start_led_alarm_blink(self, room: dict[str, Any]) -> None:
         """Start a self-rescheduling red/off blink for a room's LED while in alarm.
 
         Uses a recursive async_call_later chain rather than a fixed-interval
@@ -1338,7 +1325,7 @@ class IndeklimaDataCoordinator(DataUpdateCoordinator):
         self._async_apply_led_color(room, "red")
 
         @ha_callback
-        def _toggle(_now) -> None:
+        def _toggle(_now: datetime) -> None:
             blink_on["value"] = not blink_on["value"]
             self._async_apply_led_color(room, "red" if blink_on["value"] else "off")
             self._led_blink_unsubs[room_name] = async_call_later(

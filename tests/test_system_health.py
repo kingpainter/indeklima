@@ -1,11 +1,11 @@
 """Tests for system_health.py."""
 from __future__ import annotations
 
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 import pytest
 
 from custom_components.indeklima.system_health import async_system_health_info
-from custom_components.indeklima.const import DOMAIN, __version__
+from custom_components.indeklima.const import __version__
 from .conftest import mock_hass, make_state, ROOM_STUE
 
 
@@ -26,19 +26,39 @@ def _make_coordinator(data=None, rooms=None, weather_entity=None, last_update_su
     return coord
 
 
+def _use_coordinator(hass, coord):
+    """Make ``hass`` report one loaded Indeklima entry carrying ``coord`` on runtime_data."""
+    entry = MagicMock()
+    entry.runtime_data = coord
+    hass.config_entries.async_loaded_entries.return_value = [entry]
+
+
+def _no_entries(hass):
+    hass.config_entries.async_loaded_entries.return_value = []
+
+
 class TestAsyncSystemHealthInfo:
     @pytest.mark.asyncio
     async def test_no_coordinator_returns_minimal(self, mock_hass):
-        mock_hass.data = {}
+        _no_entries(mock_hass)
         result = await async_system_health_info(mock_hass)
         assert result["integration_version"] == __version__
         assert result["config_entries"] == 0
         assert result["coordinator_status"] == "not_loaded"
 
     @pytest.mark.asyncio
+    async def test_entry_without_runtime_data_is_not_loaded(self, mock_hass):
+        entry = MagicMock()
+        entry.runtime_data = None
+        mock_hass.config_entries.async_loaded_entries.return_value = [entry]
+        result = await async_system_health_info(mock_hass)
+        assert result["config_entries"] == 0
+        assert result["coordinator_status"] == "not_loaded"
+
+    @pytest.mark.asyncio
     async def test_returns_version(self, mock_hass):
         coord = _make_coordinator()
-        mock_hass.data = {DOMAIN: {"e1": coord}}
+        _use_coordinator(mock_hass, coord)
         mock_hass.states.get.return_value = make_state("45.0")
         result = await async_system_health_info(mock_hass)
         assert result["integration_version"] == __version__
@@ -46,7 +66,7 @@ class TestAsyncSystemHealthInfo:
     @pytest.mark.asyncio
     async def test_coordinator_ok_status(self, mock_hass):
         coord = _make_coordinator(last_update_success=True)
-        mock_hass.data = {DOMAIN: {"e1": coord}}
+        _use_coordinator(mock_hass, coord)
         mock_hass.states.get.return_value = make_state("45.0")
         result = await async_system_health_info(mock_hass)
         assert result["coordinator_status"] == "ok"
@@ -54,7 +74,7 @@ class TestAsyncSystemHealthInfo:
     @pytest.mark.asyncio
     async def test_coordinator_failed_status(self, mock_hass):
         coord = _make_coordinator(last_update_success=False)
-        mock_hass.data = {DOMAIN: {"e1": coord}}
+        _use_coordinator(mock_hass, coord)
         mock_hass.states.get.return_value = make_state("45.0")
         result = await async_system_health_info(mock_hass)
         assert result["coordinator_status"] == "update_failed"
@@ -62,7 +82,7 @@ class TestAsyncSystemHealthInfo:
     @pytest.mark.asyncio
     async def test_counts_rooms(self, mock_hass):
         coord = _make_coordinator()
-        mock_hass.data = {DOMAIN: {"e1": coord}}
+        _use_coordinator(mock_hass, coord)
         mock_hass.states.get.return_value = make_state("45.0")
         result = await async_system_health_info(mock_hass)
         assert result["rooms_monitored"] == 1
@@ -70,7 +90,7 @@ class TestAsyncSystemHealthInfo:
     @pytest.mark.asyncio
     async def test_counts_unavailable_sensors(self, mock_hass):
         coord = _make_coordinator()
-        mock_hass.data = {DOMAIN: {"e1": coord}}
+        _use_coordinator(mock_hass, coord)
         mock_hass.states.get.return_value = None  # all unavailable
         result = await async_system_health_info(mock_hass)
         assert result["sensors_unavailable"] > 0
@@ -78,7 +98,7 @@ class TestAsyncSystemHealthInfo:
     @pytest.mark.asyncio
     async def test_weather_configured_yes(self, mock_hass):
         coord = _make_coordinator(weather_entity="weather.home")
-        mock_hass.data = {DOMAIN: {"e1": coord}}
+        _use_coordinator(mock_hass, coord)
         mock_hass.states.get.return_value = make_state("45.0")
         result = await async_system_health_info(mock_hass)
         assert result["weather_configured"] == "yes"
@@ -86,7 +106,7 @@ class TestAsyncSystemHealthInfo:
     @pytest.mark.asyncio
     async def test_weather_configured_no(self, mock_hass):
         coord = _make_coordinator(weather_entity=None)
-        mock_hass.data = {DOMAIN: {"e1": coord}}
+        _use_coordinator(mock_hass, coord)
         mock_hass.states.get.return_value = make_state("45.0")
         result = await async_system_health_info(mock_hass)
         assert result["weather_configured"] == "no"
@@ -103,7 +123,7 @@ class TestAsyncSystemHealthInfo:
                 "Køkken": {"status": "good", "severity": 5.0},
             },
         })
-        mock_hass.data = {DOMAIN: {"e1": coord}}
+        _use_coordinator(mock_hass, coord)
         mock_hass.states.get.return_value = make_state("45.0")
         result = await async_system_health_info(mock_hass)
         assert result["rooms_critical"] == 1
